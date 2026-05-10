@@ -3,8 +3,9 @@
 ## コーディングスタイル
 当プロジェクトでは、主に **Google Java Style Guide** に則って記述されるものとする。
  **AIは本文URLの内容を尊重する** こと。
-本文URL: https://google.github.io/styleguide/javaguide.html
-非公式和訳URL: https://kazurof.github.io/GoogleJavaStyle-ja/#s5-1-identifier-names
+ 
+- 本文URL: https://google.github.io/styleguide/javaguide.html
+- 非公式和訳URL: https://kazurof.github.io/GoogleJavaStyle-ja/#s5-1-identifier-names
 
 また、以下にその補足・要約を示す。
 
