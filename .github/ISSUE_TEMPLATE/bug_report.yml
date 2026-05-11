@@ -1,0 +1,67 @@
+name: バグ報告
+description: 動かない / 想定と違う挙動を報告する
+title: "[Bug] "
+labels: ["type/bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        バグ報告ありがとうございます。再現できる情報を埋めてください。
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 概要
+      description: 何が起きたか、1〜2行で。
+      placeholder: "例: AP制戦闘で速度ステが0でも行動できてしまう"
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 再現手順
+      description: できるだけ具体的に。
+      placeholder: |
+        1. ゲームを起動する
+        2. ダンジョンに入る
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する挙動
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の挙動
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 動作環境 (OS)
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Android
+        - その他
+    validations:
+      required: true
+
+  - type: input
+    id: jdk
+    attributes:
+      label: JDK バージョン
+      placeholder: "例: Oracle JDK 25.0.1"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: ログ・スタックトレース
+      render: shell

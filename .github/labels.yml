@@ -1,0 +1,21 @@
+# gh CLI で一括適用するラベル定義
+# 適用コマンド: docs/ContributingGuide.md §5 参照
+
+# ---------- type/* (Issue/PR の種別) ----------
+- name: "type/bug"
+  color: "d73a4a"
+  description: "バグ報告 / 修正"
+- name: "type/task"
+  color: "1d76db"
+  description: "タスク / 機能追加 / 雑務"
+
+# ---------- priority/* ----------
+- name: "P0"
+  color: "b60205"
+  description: "MVP必須 / 最優先"
+- name: "P1"
+  color: "d93f0b"
+  description: "MVP後すぐ着手"
+- name: "P2"
+  color: "fbca04"
+  description: "余力次第"
