@@ -3,7 +3,7 @@
 > 確定した技術スタックの一覧。ゲーム仕様や採用理由の詳細は [GAME_DESIGN.md §3](./GAME_DESIGN.md) を参照。
 
 ## 採用
-- **Java 25 LTS** (Oracle JDK 25, NFTC で無料利用可、再配布可)
+- **Java 25 LTS** (Oracle JDK 25)
 - **LibGDX** (Desktop / Android backend)
 - **Gradle** (Wrapper 同梱、`gradlew` でビルド)
 - IntelliJ IDEA Community

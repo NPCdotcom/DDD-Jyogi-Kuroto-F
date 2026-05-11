@@ -28,7 +28,7 @@ main
 - 新機能: `feat/#<issue番号>`  例: `feat/#12`
 - バグ修正: `fix/#<issue番号>`  例: `fix/#34`
 - 作業内容を Issue 化してから、その番号を使うこと
-- 命名規則違反は CI (`check-branch-name`) で検出される
+- 命名規則違反は PR レビューで指摘する（CI による自動検出は導入しない方針）
 
 ---
 
@@ -44,7 +44,6 @@ main
 
 ### マージ条件 (PR)
 
-- CI 全緑
 - 他メンバー1名以上のレビュー approve (AI レビューだけでは不可)
 - PR テンプレの動作確認チェックリストを満たす
 
@@ -96,7 +95,6 @@ gh pr create --base develop --title "feat: AP制戦闘の基盤" --body "Closes 
 - `main`
   - "Require a pull request before merging" ON
   - "Require approvals" = 1
-  - "Require status checks to pass before merging" = CI 全ジョブ
   - "Do not allow bypassing the above settings" ON
 - `develop`
   - "Restrict who can push" は OFF (チーム全員 push 可)
@@ -108,7 +106,6 @@ gh pr create --base develop --title "feat: AP制戦闘の基盤" --body "Closes 
 
 - `docs/#<issue番号>`: ドキュメントのみの変更 (任意。`feat/#N` で代用可)
 - `chore/#<issue番号>`: 設定・CI などの保守作業
-- 上記2つも CI の `check-branch-name` 正規表現に追加すること
 
 ---
 
@@ -126,5 +123,5 @@ gh pr create --base develop --title "feat: AP制戦闘の基盤" --body "Closes 
 
 ### 過去のスタイルブランチについて
 
-- 上記ブランチは CI の `check-branch-name` 検査の対象外（既に push 済みのため）
+- 既に push 済みの旧スタイルブランチは履歴として保持する
 - 今後新規に切るブランチはすべて `feat/#\d+` / `fix/#\d+` / `docs/#\d+` / `chore/#\d+` 形式に統一する
