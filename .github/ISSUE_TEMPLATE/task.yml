@@ -1,0 +1,47 @@
+name: タスク / 機能追加
+description: 機能追加・リファクタ・調査・ドキュメント更新など、起票したい作業項目
+title: "[Task] "
+labels: ["type/task"]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: タスク名
+      placeholder: "例: AP制戦闘エンジンの土台を作る"
+    validations:
+      required: true
+
+  - type: textarea
+    id: definition
+    attributes:
+      label: 作業内容
+      description: 何をするか
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 優先度
+      options:
+        - P0 (MVP必須)
+        - P1 (MVP後すぐ)
+        - P2 (余力次第)
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: 完了条件
+      placeholder: |
+        - [ ] xxx を実施
+        - [ ] yyy が確認できる
+    validations:
+      required: true
+
+  - type: input
+    id: design_link
+    attributes:
+      label: 関連する仕様書 (任意)
+      placeholder: "例: GAME_DESIGN.md §5-2 / RolesDivision.md A-1"
