@@ -10,7 +10,7 @@ DDD-Jyogi-Kuroto-F に貢献するための運用ガイド。
 
 | ツール | バージョン | 備考 |
 |---|---|---|
-| JDK | **Java 25 LTS (Oracle JDK 25)** | NFTC で無料利用可。教員資料の手順に準拠 |
+| JDK | **Java 25 LTS (Oracle JDK 25)** | — |
 | Git | 最新安定版 | — |
 | IDE | IntelliJ IDEA Community 推奨 | Eclipse / VSCode でも可 |
 | GitHub CLI (`gh`) | 任意 | ラベル一括適用などで使用 |
@@ -53,15 +53,15 @@ java --version  # 25.x.x が出ること
 
 ---
 
-## 4. CI 失敗時の見方
+## 4. CI
 
-CI は以下のジョブで構成 (詳細は `.github/workflows/ci.yml`)。
+現状 CI ジョブは配置していない（沼にハマりやすいため軽量運用）。`build.gradle` 追加時に以下を最小構成で導入予定:
 
-| ジョブ | 失敗時の対処 |
-|---|---|
-| `check-branch-name` | ブランチ名が `feat/#\d+` / `fix/#\d+` / `docs/#\d+` / `chore/#\d+` / `develop` に合致していない。リネームして再 push |
+- Gradle build
+- Spotless check (`./gradlew spotlessCheck`)
+- JUnit 5 テスト実行
 
-`build.gradle` が追加されたら Gradle build / Spotless / JUnit ジョブも有効化される（コメント済み）。
+ブランチ命名規則 (`feat/#\d+` / `fix/#\d+` / `docs/#\d+` / `chore/#\d+` / `develop`) は手動で守る方針。PR レビュー時に確認する。
 
 ---
 
