@@ -23,7 +23,7 @@ cd DDD-Jyogi-Kuroto-F
 java --version  # 25.x.x が出ること
 ```
 
-`build.gradle` は MVP 着手時に追加される。それまではドキュメントとディレクトリ構造の確認のみ。
+ビルドおよび実行手順は [README §ローカル開発](../README.md#ローカル開発) を参照。`gradlew` 経由で `./gradlew run` (Linux/Mac) / `gradlew.bat run` (Windows) で起動する。
 
 ---
 

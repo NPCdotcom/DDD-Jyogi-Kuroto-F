@@ -5,6 +5,7 @@ DDD-Jyogi-Kuroto-F のドキュメント一覧。役割と参照タイミング�
 ## 仕様の単一ソース (Single Source of Truth)
 
 - [GAME_DESIGN.md](./GAME_DESIGN.md) — **ゲーム仕様の確定書**。矛盾発生時は本文書を正とする
+- [SystemSummary.md](./SystemSummary.md) — 現状の MVP 実装俯瞰 + 拡張計画 (仕様 ↔ 実装のマッピング)
 
 ## プロジェクト管理
 
@@ -21,3 +22,4 @@ DDD-Jyogi-Kuroto-F のドキュメント一覧。役割と参照タイミング�
 - [CommonSense.md](./CommonSense.md) — コーディング規約・命名規則・単語定義
 - [BranchingStrategy.md](./BranchingStrategy.md) — Git ブランチ戦略・マージフロー・初心者チートシート
 - [ContributingGuide.md](./ContributingGuide.md) — 開発開始手順・Issue/PR/ラベル運用・LICENSE 方針
+- [AssetGuidelines.md](./AssetGuidelines.md) — 素材 (フォント・画像・音) の収集・取り込み・ライセンス管理

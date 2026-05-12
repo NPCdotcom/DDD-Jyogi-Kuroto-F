@@ -1,0 +1,125 @@
+// =============================================================================
+//  DDD-Jyogi-Kuroto-F  build.gradle
+//  仕様の単一ソース: docs/GAME_DESIGN.md
+//  - 設計原則: 副作用を application/infrastructure/presentation に閉じ込め、
+//    domain は LibGDX 非依存とする (docs/GAME_DESIGN.md §9)
+//  - Java 25 LTS + LibGDX 1.14.0 + LWJGL 3.4.1
+//  - LWJGL を 3.4.1 に強制するのは Java 25 で動かすために必須
+// =============================================================================
+
+plugins {
+    id 'java'
+    id 'application'
+    // Spotless 8.x は Gradle 8.1+ 必須、Gradle 9 / Java 25 環境で正式互換。
+    id 'com.diffplug.spotless' version '8.4.0'
+}
+
+group = 'jp.npc.dddjyogikuroto'
+version = '0.1.0-MVP'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // --- LibGDX (core + desktop backend + natives) ---
+    implementation "com.badlogicgames.gdx:gdx:${gdxVersion}"
+    implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:${gdxVersion}"
+    runtimeOnly    "com.badlogicgames.gdx:gdx-platform:${gdxVersion}:natives-desktop"
+
+    // --- FreeType 拡張 (TTF/OTF を実行時にビットマップ化、日本語フォントに必須) ---
+    implementation "com.badlogicgames.gdx:gdx-freetype:${gdxVersion}"
+    runtimeOnly    "com.badlogicgames.gdx:gdx-freetype-platform:${gdxVersion}:natives-desktop"
+
+    // --- JSON (マスタデータのロードに使用) ---
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+
+    // --- Test ---
+    testImplementation "org.junit.jupiter:junit-jupiter:${junitVersion}"
+    testRuntimeOnly   'org.junit.platform:junit-platform-launcher'
+}
+
+// LibGDX 1.14.0 同梱の LWJGL 3.3.3 を 3.4.1 に強制差し替えする
+// (Java 25 以上で動作させるための必須対応)
+configurations.all {
+    resolutionStrategy.eachDependency { details ->
+        if (details.requested.group == 'org.lwjgl') {
+            details.useVersion lwjglVersion
+            details.because 'Java 25 サポートには LWJGL 3.4.1 以上が必要'
+        }
+    }
+}
+
+sourceSets {
+    main {
+        java.srcDirs    = ['src/main/java']
+        // assets/ をクラスパスに乗せる (Gdx.files.internal("fonts/...") で読めるように)。
+        // 各素材の取得元・ライセンスは docs/AssetGuidelines.md および LICENSES/INDEX.md を参照。
+        resources.srcDirs = ['src/main/resources', 'assets']
+    }
+    test {
+        java.srcDirs    = ['src/test/java']
+        resources.srcDirs = ['src/test/resources']
+    }
+}
+
+// 複数の srcDirs (src/main/resources と assets) に同名ファイル (.gitkeep など) があると
+// Gradle 8/9 系では Copy タスクが失敗する。後勝ちで上書きしてビルドを通す。
+tasks.withType(Copy).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+application {
+    mainClass = 'core.infrastructure.desktop.DesktopLauncher'
+}
+
+// macOS では LWJGL3 を動かすメインスレッドの制約から -XstartOnFirstThread が必須。
+// Windows / Linux では無害なので run タスクに常時付与する。
+tasks.named('run', JavaExec) {
+    standardInput = System.in
+    if (System.getProperty('os.name').toLowerCase().contains('mac')) {
+        jvmArgs += ['-XstartOnFirstThread']
+    }
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        showStandardStreams = false
+    }
+}
+
+spotless {
+    java {
+        target 'src/**/*.java'
+        googleJavaFormat(googleJavaFormatVersion)
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    format 'misc', {
+        target '*.gradle', '*.md', '.gitignore'
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+// 配布用 fat JAR (デモ提示の選択肢の一つ)
+tasks.register('fatJar', Jar) {
+    group = 'distribution'
+    description = '依存をまとめたデモ配布用の単一 JAR を生成する'
+    archiveClassifier = 'all'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes 'Main-Class': application.mainClass.get()
+    }
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
