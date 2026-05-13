@@ -59,11 +59,37 @@ CIでの強制: **Spotless + google-java-format**（[GAME_DESIGN.md §3-5](./GAM
 - **競合解決**: 既に同じ単語があれば、有効範囲（パッケージ・モジュール）が重ならないことを確認。重なるなら別の単語を選ぶ
 - ゲーム用語（AP, ソウル, スキル枠 等）の上位定義は [GAME_DESIGN.md §13](./GAME_DESIGN.md) を参照
 
+## ゲーム用語
+
+> ゲーム仕様の上位定義は [GAME_DESIGN.md §13 (MVP 用語集) / §15 (MVP 後用語)](./GAME_DESIGN.md) を正とする。本表は実装で使う日本語/英語表記のすり合わせ用。
+
+| 用語 | 意味 | 実装表記候補 | 追加者 |
+|---|---|---|---|
+| AP | 行動ポイント (1 ターンに使える行動量、§15-4 の速度ステで決定) | actionPoints | — |
+| ソウル | 永続通貨 (死亡時喪失なし、§15-2) | soul | — |
+| 金貨 | ラン限定通貨 (死亡時喪失、§15-2) | gold | — |
+| カード | デッキ構築要素 (タグ × 属性、§15-3) | Card | — |
+| デッキ | 山札 (§15-3) | Deck | — |
+| 手札 | プレイヤーの引いたカード (上限 9、§15-3) | Hand | — |
+| 層 | ダンジョンの階層 (N 層 = N 部屋、§15-6) | Layer | — |
+| ノード | 層内の部屋分岐 (§15-6) | Node | — |
+| ソウルツリー | 円樹形の永続強化 UI (§15-7) | SoulTree | — |
+| ツリーノード | ソウルツリー上の 1 ノード (§15-7) | TreeNode | — |
+| 装備 | プレイヤーの装着アイテム (§15-9) | Equipment | — |
+| 図鑑 | 撃破済み敵の記録 (Bestiary、§15-5) | Bestiary | — |
+
 ## パッケージ
 
 | 用語 | 意味 | 使用箇所 | 追加者 |
 |---|---|---|---|
 | (例) core | プロジェクト全体のルートパッケージ | src/main/java/core |  |
+| card | カードシステム | src/main/java/core/domain/card | (予約 §15-3) |
+| tree | ソウルツリー | src/main/java/core/domain/tree | (予約 §15-7) |
+| equipment | 装備システム | src/main/java/core/domain/equipment | (予約 §15-9) |
+| save | セーブシステム | src/main/java/core/infrastructure/save | (予約 §15-11) |
+| window | ポップアップウィンドウ管理 | src/main/java/core/presentation/window | (予約 §15-1, §15-8) |
+
+> **予約パッケージの注意**: 上記は [GAME_DESIGN.md §9 (アーキテクチャ)](./GAME_DESIGN.md) のレイヤー分離に沿った暫定配置。**実装着手前に Architect が最終確認** (例: `tree` は永続強化なので `core/domain/meta/tree` 配下が自然な可能性、`card` / `equipment` は戦闘系として `domain/battle/` 配下の可能性、など)。
 
 ## モジュール
 
@@ -74,6 +100,16 @@ CIでの強制: **Spotless + google-java-format**（[GAME_DESIGN.md §3-5](./GAM
 
 | 用語 | 意味 | 使用箇所 | 追加者 |
 |---|---|---|---|
+| Card | カード単体 (タグ × 属性) | core.domain.card | (予約 §15-3) |
+| Deck | デッキ | core.domain.card | (予約 §15-3) |
+| Hand | 手札 | core.domain.card | (予約 §15-3) |
+| Gold | 金貨 (値オブジェクト) | core.domain.meta | (予約 §15-2) |
+| Layer | 層 | core.domain.dungeon | (予約 §15-6) |
+| Node | 層内ノード | core.domain.dungeon | (予約 §15-6) |
+| SoulTree | ソウルツリー全体 | core.domain.tree | (予約 §15-7) |
+| Equipment | 装備 | core.domain.equipment | (予約 §15-9) |
+| Bestiary | 撃破済み敵図鑑 | core.domain.meta | (予約 §15-5) |
+| SaveData | セーブデータ | core.infrastructure.save | (予約 §15-11) |
 
 ## テストクラス
 
@@ -89,6 +125,12 @@ CIでの強制: **Spotless + google-java-format**（[GAME_DESIGN.md §3-5](./GAM
 
 | 用語 | 意味 | 使用箇所 | 追加者 |
 |---|---|---|---|
+| INITIAL_LAYERS | 初期層数 (3) | core.domain.dungeon | (予約 §15-6) |
+| INITIAL_HAND_SIZE | 初手ドロー枚数 (5) | core.domain.card | (予約 §15-3) |
+| MAX_HAND_SIZE | 手札上限 (9) | core.domain.card | (予約 §15-3) |
+| MIN_CARD_COST | カード最低 AP コスト (1) | core.domain.card | (予約 §15-3) |
+| BASE_RESOLUTION_WIDTH | 基本解像度幅 (1920) | core.infrastructure.desktop | (予約 §15-1) |
+| BASE_RESOLUTION_HEIGHT | 基本解像度高さ (1080) | core.infrastructure.desktop | (予約 §15-1) |
 
 ## 不定フィールド
 
