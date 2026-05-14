@@ -23,7 +23,7 @@ cd DDD-Jyogi-Kuroto-F
 java --version  # 25.x.x が出ること
 ```
 
-ビルドおよび実行手順は [README §ローカル開発](../README.md#ローカル開発) を参照。`gradlew` 経由で `./gradlew run` (Linux/Mac) / `gradlew.bat run` (Windows) で起動する。
+ビルドおよび実行手順は [README §ローカル開発](../README.md#ローカル開発) を参照。`gradlew` 経由で `./gradlew run` (Linux/Mac) / `.\gradlew.bat run` (Windows PowerShell) / `gradlew.bat run` (Windows cmd.exe) で起動する。
 
 ---
 

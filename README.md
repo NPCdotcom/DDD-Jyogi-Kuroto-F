@@ -88,7 +88,8 @@ JDK 25 が PATH に通っていれば、次の `gradlew` 経由で必要な依�
 ```bash
 # ゲーム起動 (Desktop)
 ./gradlew run            # macOS / Linux
-gradlew.bat run          # Windows
+.\gradlew.bat run        # Windows (PowerShell — `.\` 必須)
+gradlew.bat run          # Windows (cmd.exe)
 
 # ドメイン層テスト
 ./gradlew test
