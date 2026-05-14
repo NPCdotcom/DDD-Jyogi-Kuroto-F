@@ -7,19 +7,49 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+/** ActionPoints の §15-3 使い切り型仕様 (ADR-01) と既存 spend/canSpend 意味論の検証。 */
 class ActionPointsTest {
 
+  // =========================================================
+  // refilledTo — §15-3 使い切り型ターン頭再充填
+  // =========================================================
+
   @Test
-  void regenerateCapsAtMax() {
-    ActionPoints ap = new ActionPoints(3, 5);
-    assertEquals(5, ap.regenerate(10).current());
+  void refilledToResetsCurrentToNewMax() {
+    // 残 AP 2 のところに新 max 3 を指定すると current も 3 まで「全」充填される (蓄積ではない)
+    ActionPoints ap = new ActionPoints(2, 5);
+    ActionPoints refilled = ap.refilledTo(3);
+    assertEquals(3, refilled.current());
+    assertEquals(3, refilled.max());
   }
 
   @Test
-  void regenerateAccumulatesBelowMax() {
-    ActionPoints ap = new ActionPoints(1, 5);
-    assertEquals(3, ap.regenerate(2).current());
+  void refilledToShrinksMaxWhenSpeedDecreased() {
+    // 速度ステが下がった (debuff 等) を想定: 旧 max=5、新 max=2 に縮小
+    ActionPoints full = ActionPoints.full(5);
+    ActionPoints shrunk = full.refilledTo(2);
+    assertEquals(2, shrunk.current());
+    assertEquals(2, shrunk.max());
   }
+
+  @Test
+  void refilledToWithZeroProducesEmptyMaxZero() {
+    // 速度ステ 0 を想定: max=0 / current=0、isEmpty が true
+    ActionPoints zeroSpeed = ActionPoints.full(5).refilledTo(0);
+    assertEquals(0, zeroSpeed.current());
+    assertEquals(0, zeroSpeed.max());
+    assertTrue(zeroSpeed.isEmpty());
+  }
+
+  @Test
+  void refilledToWithNegativeRejected() {
+    ActionPoints ap = ActionPoints.full(5);
+    assertThrows(IllegalArgumentException.class, () -> ap.refilledTo(-1));
+  }
+
+  // =========================================================
+  // spend / canSpend / isEmpty — 既存意味論据置の確認
+  // =========================================================
 
   @Test
   void spendDecrementsCurrent() {
@@ -48,23 +78,26 @@ class ActionPointsTest {
     assertFalse(new ActionPoints(1, 5).isEmpty());
   }
 
+  // =========================================================
+  // compact constructor 境界 (max >= 0 への緩和を含む)
+  // =========================================================
+
   @Test
-  void negativeRegenerateRejected() {
-    ActionPoints ap = ActionPoints.full(5);
-    assertThrows(IllegalArgumentException.class, () -> ap.regenerate(-1));
+  void constructorRejectsNegativeMax() {
+    assertThrows(IllegalArgumentException.class, () -> new ActionPoints(0, -1));
   }
 
   @Test
-  void regenerateAtMaxStaysAtMax() {
-    // current == max のときに更に regenerate しても max のまま (冪等)
-    ActionPoints full = new ActionPoints(5, 5);
-    assertEquals(5, full.regenerate(3).current());
-    assertEquals(5, full.regenerate(3).regenerate(3).current());
+  void constructorAllowsMaxZero() {
+    // §15-3 で速度ステ 0 のキャラを表現するため、max=0 を許容 (旧仕様の max > 0 から緩和)
+    ActionPoints zero = new ActionPoints(0, 0);
+    assertTrue(zero.isEmpty());
+    assertEquals(0, zero.max());
   }
 
   @Test
-  void regenerateZeroIsNoOp() {
-    ActionPoints ap = new ActionPoints(3, 5);
-    assertEquals(3, ap.regenerate(0).current());
+  void constructorRejectsCurrentOutOfRange() {
+    assertThrows(IllegalArgumentException.class, () -> new ActionPoints(-1, 5));
+    assertThrows(IllegalArgumentException.class, () -> new ActionPoints(6, 5));
   }
 }
