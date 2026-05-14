@@ -2,6 +2,15 @@ package core.domain.support;
 
 import core.domain.battle.ActionPoints;
 import core.domain.battle.TurnPhase;
+import core.domain.card.Card;
+import core.domain.card.CardEffect;
+import core.domain.card.CardElement;
+import core.domain.card.CardId;
+import core.domain.card.CardTag;
+import core.domain.card.DiscardPile;
+import core.domain.card.DrawPile;
+import core.domain.card.Hand;
+import core.domain.card.TrapLifetime;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
@@ -15,6 +24,7 @@ import core.domain.skill.Skill;
 import core.domain.skill.SkillEffect;
 import core.domain.skill.SkillId;
 import core.domain.skill.SkillSlot;
+import java.util.ArrayList;
 import java.util.List;
 
 /** テスト用のドメインオブジェクトファクトリ。プロダクションコードから参照してはならない。 */
@@ -74,5 +84,80 @@ public final class DomainFixtures {
   public static DungeonState newStateWith(
       DungeonMap map, Player player, List<Enemy> enemies, TurnPhase phase) {
     return new DungeonState(map, player, enemies, phase);
+  }
+
+  // =========================================================
+  // カードドメイン fixture (ADR-16, §15-3)
+  // =========================================================
+
+  /** AP コスト 1 の最小限の物理攻撃カード。 */
+  public static Card attackCard(String id) {
+    return new Card(
+        CardId.of(id),
+        "斬撃",
+        1,
+        CardTag.ATTACK,
+        CardElement.PHYSICAL,
+        new CardEffect.Damage(5));
+  }
+
+  /** AP コスト 2 の魔法攻撃カード。 */
+  public static Card magicCard(String id) {
+    return new Card(
+        CardId.of(id),
+        "魔法弾",
+        2,
+        CardTag.ATTACK,
+        CardElement.MAGICAL,
+        new CardEffect.Damage(8));
+  }
+
+  /** 移動カード (distance=2)。 */
+  public static Card moveCard(String id) {
+    return new Card(
+        CardId.of(id),
+        "ダッシュ",
+        1,
+        CardTag.MOVEMENT,
+        CardElement.PHYSICAL,
+        new CardEffect.Move(2));
+  }
+
+  /** 物理罠カード。 */
+  public static Card trapCard(String id) {
+    return new Card(
+        CardId.of(id),
+        "落とし穴",
+        1,
+        CardTag.TRAP,
+        CardElement.PHYSICAL,
+        new CardEffect.Trap(3, TrapLifetime.UntilStepped.INSTANCE));
+  }
+
+  /** n 枚の攻撃カードからなる DrawPile。各カード ID は "card-1" ～ "card-n"。 */
+  public static DrawPile drawPileOfSize(int n) {
+    List<Card> cards = new ArrayList<>();
+    for (int i = 1; i <= n; i++) {
+      cards.add(attackCard("card-" + i));
+    }
+    return new DrawPile(cards);
+  }
+
+  /** n 枚の攻撃カードからなる DiscardPile。各カード ID は "disc-1" ～ "disc-n"。 */
+  public static DiscardPile discardPileOfSize(int n) {
+    DiscardPile pile = DiscardPile.empty();
+    for (int i = 1; i <= n; i++) {
+      pile = pile.add(attackCard("disc-" + i));
+    }
+    return pile;
+  }
+
+  /** n 枚の攻撃カードからなる Hand。n <= Hand.MAX_SIZE であること。 */
+  public static Hand handOfSize(int n) {
+    Hand h = Hand.empty();
+    for (int i = 1; i <= n; i++) {
+      h = h.add(attackCard("hand-" + i));
+    }
+    return h;
   }
 }

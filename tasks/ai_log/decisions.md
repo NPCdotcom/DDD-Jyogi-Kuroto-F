@@ -196,3 +196,76 @@
   - + M1.5 のリアルなスコープ縮小、本番までに到達可能
   - − 「敵を倒すたびに図鑑記録」というメタ進行的楽しさは本番には間に合わない
 - **Reference**: [tasks/todo.md Phase 9](../todo.md), [phase_6_5_review.md](./phase_6_5_review.md) チームメイト視点レビュー
+
+## ADR-16: E-1 カードシステムのドメイン設計を確定
+
+- **Status**: **Accepted (ユーザー承認済、実装はコンテキスト圧縮後の次セッションで)**
+- **Date**: 2026-05-14
+- **Context**: M1.5 P0' の E-1 (カードシステム、§15-3) 実装にあたり、`core.domain.card/` パッケージのドメイン構造を確定する必要があった。domain-architect Agent が設計案を提案、ユーザーが承認
+- **Decision**: 以下のドメイン構造で実装する:
+
+  ```
+  core.domain.card/
+  ├── CardId.java          record(String value), of(String) ファクトリ
+  ├── CardTag.java         enum: ATTACK, MOVEMENT, BUFF, TRAP
+  ├── CardElement.java     enum: PHYSICAL, MAGICAL (ハイブリッドは YAGNI)
+  ├── Card.java            record(CardId, String displayName, int apCost,
+  │                                 CardTag, CardElement, CardEffect)
+  │                        ※ apCost >= 1 を compact constructor で強制
+  ├── CardEffect.java      sealed interface permits Damage, Move, Buff, Trap
+  │                          ├ record Damage(int baseValue)
+  │                          ├ record Move(int distance)
+  │                          ├ record Buff(BuffKind kind, int amount, int durationTurns)
+  │                          └ record Trap(int baseValue, TrapLifetime lifetime)
+  ├── TrapLifetime.java    sealed interface permits UntilStepped, Turns
+  │                          ├ record UntilStepped()   // 物理罠
+  │                          └ record Turns(int remaining)  // 魔法罠
+  ├── Deck.java            record(List<Card> cards) 静的マスター
+  ├── DrawPile.java        record(List<Card> cards), drawOne(), shuffledFrom(List, Random)
+  ├── DiscardPile.java     record(List<Card> cards), add(Card), reshuffleInto(Random)
+  ├── Hand.java            record(List<Card> cards), MAX_SIZE=9, add(Card), remove(int)
+  └── CardPileState.java   record(DrawPile, Hand, DiscardPile)
+                           initialDrawCount(int totalDeckSize) static
+                           drawN(int n, Random rng), playFromHand(int)
+  ```
+
+  **核となる設計判断**:
+  1. Card は単一 record (8 サブクラスを作らない)、多態性は CardEffect (sealed) に集約 — KISS
+  2. CardPileState で戦闘中の動的状態を局所閉包 (山札切れ → 捨て札再シャッフルもここ)
+  3. Random は引数注入、ドメイン副作用ゼロ (テスト時は決定的シードで検証)
+  4. TrapLifetime を sealed で物理/魔法の差を型表現 (boolean フラグにしない、驚き最小)
+  5. すべての List フィールドは compact constructor で `List.copyOf` (defensive copy)
+
+  **数値定数 (CardPileState 内 `static final`)**:
+  - `MAX_HAND_SIZE = 9`
+  - `INITIAL_DRAW_CAP = 3`
+  - `DRAW_CONVERGENCE_DECK_SIZE = 6`
+
+- **Consequences**:
+  - + KISS / 不変性 / 副作用分離 / sealed 網羅性 を守れる
+  - + テスト容易 (決定的シードで山札シャッフル検証可)
+  - + 既存 `SkillEffect` (sealed) と並列で共存 (統合しない、§15-3 のスキル枠 + デッキ併存を尊重)
+  - − **依存事項 A〜E** が別途必要 (本 ADR では `core.domain.card/` のみ実装):
+    - **A**: `ActionPoints` 蓄積→使い切り型書き換え (§15-3 ターン終了条件)
+    - **B**: `Stats` 6 ステ化 (物攻/魔攻/物防/魔防 追加、ダメージ計算で使う)
+    - **C**: `Direction8` 新設 (罠の周囲 8 方向用、`Direction` は 4 方向のまま残す)
+    - **D**: `BattleAction.UseCard(int handIndex, Direction)` 追加 + `TurnEngine` switch 全網羅修正
+    - **E**: `core.domain.equipment.Equipment` 新設 (装備固有カードを `List<CardId>` で持つ)
+  - − E-1 単体では「ゲーム内で動くカード」にはならない。動かすには A〜E の少なくとも一部が必要
+
+- **次セッションでの作業順** (圧縮後の Claude が読む想定):
+  1. ブランチ `feat/#12/E-1-card-skeleton` をチェックアウト
+  2. 上記 11 ファイルを `core/domain/card/` に Write (`domain-architect` Agent に再依頼してもよい)
+  3. `test-writer` Agent で `src/test/java/core/domain/card/` 配下のテスト追加 (検証ポイント 6 種):
+     - `Card.apCost = 0` で例外 / `>= 1` で成功
+     - `Hand` の 10 枚目 add で例外
+     - `CardPileState.initialDrawCount`: deck=1→1, deck=3→3, deck=5→3, deck=6→5, deck=10→5
+     - `drawN` で山札切れ時に Random で再シャッフル (固定シードで決定的検証)
+     - `CardEffect` sealed switch 網羅性
+     - `TrapLifetime.Turns(remaining=0)` で例外
+  4. `gradlew test` で既存 61 件 + 新規 ~15 件全 PASS 確認
+  5. `/architect-review` で最終レビュー (A or B 判定なら次へ)
+  6. `/japanese-pr-create draft` で Draft PR
+  7. 別 Issue を立てて依存 A〜E を順次着手
+
+- **Reference**: [Issue #12](https://github.com/NPCdotcom/DDD-Jyogi-Kuroto-F/issues/12), [docs/GAME_DESIGN.md §15-3](../../docs/GAME_DESIGN.md), [.claude/agents/domain-architect.md](../../.claude/agents/domain-architect.md), domain-architect Agent 出力 (本セッション、2026-05-14)

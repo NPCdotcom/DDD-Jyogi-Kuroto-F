@@ -94,18 +94,26 @@ MVP コア実装 + バージョン整備 + 日本語化までを 2026-05-12 に�
 
 P0' = デモ必須、P1 = タイムボックス各 1〜2 日、P2 = 余力次第。
 
-| # | 機能 | パッケージ | 優先度 | 担当目安 |
-|---|---|---|---|---|
-| **E-1** | カードシステム ([§15-3](../docs/GAME_DESIGN.md)) | `core.domain.card/` + `core.domain.meta/Gold.java` | **P0'** | domain-architect → libgdx-implementer |
-| **E-3** | 層構造 + ノード分岐 ([§15-6](../docs/GAME_DESIGN.md)) | `core.domain.layer/` | **P0'** | domain-architect |
-| **E-4** | 通貨二層 ([§15-2](../docs/GAME_DESIGN.md)) | `core.domain.meta/Gold.java` (E-1 と相乗り) | **P0'** | domain-architect |
-| **E-6** | ポップアップ UI 基盤 ([§15-1, §15-8](../docs/GAME_DESIGN.md)) | `core.presentation.window/` | **P0'** | libgdx-implementer |
-| **E-2** | ソウルツリー ([§15-7](../docs/GAME_DESIGN.md)) | `core.domain.tree/` + `core.presentation.screen/SoulTreeScreen` | **P0'** | domain-architect → libgdx-implementer |
-| E-5 | 装備システム ([§15-9](../docs/GAME_DESIGN.md)) | `core.domain.equipment/` | P1 | domain-architect |
-| E-9 | セーブ最小 ([§15-11](../docs/GAME_DESIGN.md)) | `core.infrastructure.save/` | P1 | libgdx-implementer |
-| E-8 | シームレス戦闘演出 ([§15-5](../docs/GAME_DESIGN.md)) | `core.presentation.effect/` | P1 | libgdx-implementer |
-| E-10 | チュートリアル ([§15-10](../docs/GAME_DESIGN.md)) | `core.presentation.screen/TutorialPopup` | P1 | libgdx-implementer |
-| E-7 | Bestiary ([§15-5](../docs/GAME_DESIGN.md) 連動) | `core.domain.meta/Bestiary.java` | **P2 (捨てる候補)** | — |
+| # | 機能 | パッケージ | 優先度 | Issue / PR | 担当目安 |
+|---|---|---|---|---|---|
+| **E-1** | カードシステム ([§15-3](../docs/GAME_DESIGN.md)) | `core.domain.card/` + `core.domain.meta/Gold.java` | **P0'** | **#12 / PR #13 (Draft、ドメイン層のみ)** | domain-architect → libgdx-implementer |
+| **A 依存** | ActionPoints 使い切り型 (§15-3) | `core.domain.battle/` | **P0'** | **#14 OPEN** | domain-architect |
+| **B 依存** | Stats 6 ステ化 (§15-4) | `core.domain.entity/` | **P0'** | **#15 OPEN** | domain-architect |
+| **E-3** | 層構造 + ノード分岐 ([§15-6](../docs/GAME_DESIGN.md)) | `core.domain.layer/` | **P0'** | 未起票 | domain-architect |
+| **E-4** | 通貨二層 ([§15-2](../docs/GAME_DESIGN.md)) | `core.domain.meta/Gold.java` (E-1 と相乗り) | **P0'** | 未起票 | domain-architect |
+| **E-6** | ポップアップ UI 基盤 ([§15-1, §15-8](../docs/GAME_DESIGN.md)) | `core.presentation.window/` | **P0'** | 未起票 | libgdx-implementer |
+| **E-2** | ソウルツリー ([§15-7](../docs/GAME_DESIGN.md)) | `core.domain.tree/` + `core.presentation.screen/SoulTreeScreen` | **P0'** | 未起票 | domain-architect → libgdx-implementer |
+| E-5 | 装備システム ([§15-9](../docs/GAME_DESIGN.md)) — E-1 依存 E と統合予定 | `core.domain.equipment/` | P1 | 未起票 | domain-architect |
+| E-9 | セーブ最小 ([§15-11](../docs/GAME_DESIGN.md)) | `core.infrastructure.save/` | P1 | 未起票 | libgdx-implementer |
+| E-8 | シームレス戦闘演出 ([§15-5](../docs/GAME_DESIGN.md)) | `core.presentation.effect/` | P1 | 未起票 | libgdx-implementer |
+| E-10 | チュートリアル ([§15-10](../docs/GAME_DESIGN.md)) | `core.presentation.screen/TutorialPopup` | P1 | 未起票 | libgdx-implementer |
+| E-7 | Bestiary ([§15-5](../docs/GAME_DESIGN.md) 連動) | `core.domain.meta/Bestiary.java` | **P2 (捨てる候補)** | 未起票 | — |
+
+#### E-1 依存事項 (C / D は PR #13 マージ後に段階起票、E は E-5 に統合)
+
+- **C**: `Direction8` 新設 (罠 8 方向用、`Direction` は 4 方向のまま残置) — S 工数、破壊 0 件、未起票
+- **D**: `BattleAction.UseCard` 追加 + `TurnEngine` switch 全網羅修正 — L 工数、A+B+C すべて依存、未起票
+- **E**: `core.domain.equipment.Equipment` 新設 (装備固有カードを `List<CardId>` で持つ) — S 工数、E-5 と統合起票推奨
 
 ### タイムライン
 
