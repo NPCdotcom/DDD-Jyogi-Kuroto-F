@@ -119,8 +119,8 @@ public final class HudRenderer {
               .formatted(prefix, i + 1, card.displayName(), card.apCost(), elemLabel);
       font.draw(batch, text, x, RenderLayout.HAND_Y);
 
-      // 次のカードの X 座標を文字幅分ずらす (1 文字を約 10px として概算)
-      x += text.length() * 7;
+      // 次のカードの X 座標を文字幅分ずらす (RenderLayout.HAND_CARD_GLYPH_WIDTH px/文字で概算)
+      x += text.length() * RenderLayout.HAND_CARD_GLYPH_WIDTH;
     }
 
     // カード選択中はヒントを表示

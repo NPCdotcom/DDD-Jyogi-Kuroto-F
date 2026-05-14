@@ -363,3 +363,25 @@
   - − `TurnDirector` コンストラクタ API が変わる (`new TurnDirector(context)` → `new TurnDirector(context, Random)`)、`DddGame.startNewRun` が `new Random()` を渡すため毎ラン異なるシード = 再現性は失われる (テストでは固定シード `Random(42)` を渡す)
 
 - **Reference**: §15-3 (L443-513), §15-5 (L529-569), ADR-01 (AP 使い切り型), ADR-16 (E-1 設計), ADR-17 (Damage.resolve), ADR-18 (Move/Buff/Trap は別 Issue)、3 サブエージェント並列レビュー (本セッション、2026-05-14)
+
+## ADR-20: M1.5 残仕様の一括確定 (移動 α 案 / 装備折衷 / 解像度 1920×1080 / 音タグ予約 / Android デモ動画代替)
+
+- **Status**: Accepted (3 サブエージェント並列レビュー結論 + ユーザー承認済)
+- **Date**: 2026-05-14
+- **Context**: M1.5 コア機能 (PR #21〜#23) 完成 + 毎ターンドロー実装後、リーダー (ユーザー) からチーム共有前提で 5 つの仕様確認・決定事項。3 並列レビュー (libgdx-implementer / domain-architect / general-purpose) で各論点を検証し、ユーザーが最終確定。
+- **Decision**:
+  1. **移動仕様 = 案 α** — 「移動カード 1 枚を切る → そのカードの `CardEffect.Move(distance)` の `distance` ぶん AWSD で連続移動権を得る」。`UseCard(handIndex, dir)` で「移動権取得」、その後 `PlayerInputs` の状態 (`pendingMoveCount`) を持ち、AWSD で 1 マスずつ消費。残カウント 0 で通常モード復帰。`§15-5` L534「移動カードを切らないと動けない」純粋路線を維持しつつ、方向操作の直感性を確保。案 β (WASD 自動プレイ) は「切る意識」が消えるため不採用、案 X (毎マス UseCard) は操作性最悪で不採用、案 γ (両刀共存) は §15-5 違反で不採用
+  2. **装備フォーマット = 案 B (折衷)** — `Equipment(EquipmentId id, String displayName, EquipmentSlot slot, StatsBonus statsBonus, List<CardId> grantedCards)` の 5 引数 record。`grantedCards` は **空リスト可** (ステ補正のみの装備も許容、§15-9 の「装備固有カード」と整合)。装備の個性は「ステ補正の組み合わせ」 + 「装備固有カードの有無」の 2 軸で表現。初期装備例: ぼろ靴 (速度+1, grantedCards=[移動カード ID]) / ぼろい短剣 (物攻+1, grantedCards=[斬撃カード ID]) / 革の鎧 (HP+5, grantedCards=[]) など。チームメンバー案「ステ補正のみ」は「特定装備で grantedCards=空」で表現可能
+  3. **画面解像度 = 1920×1080 (16:9) を今日中に着手** — `DesktopLauncher.setWindowedMode(1920, 1080)` + `setResizable(true)`、`FitViewport(1920, 1080)` で全 Screen を統一、`resize()` メソッドで `viewport.update(width, height, true)` 呼出。`RenderLayout` 定数を 1920×1080 基準に再計算、絶対座標箇所 (TitleScreen / GameOverScreen) を比率ベースに置換。素材作成は **1920×1080 基準** で。実装は本セッションで開始 (E-6 ポップアップ UI 基盤の前提整備)
+  4. **音タグ仕様 = M2 以降に予約** — `docs/GAME_DESIGN.md` には明文化されていないが、ユーザー提案として「主タグ (ATTACK/MOVEMENT/BUFF/TRAP) × 副タグ (PHYSICAL/MAGICAL) で SE を出し分け」を将来仕様として記録。本セッションでは実装しない。BGM / SE は本番デモまでに 2〜3 個あれば映え◯
+  5. **Android 方針 = Desktop 基本 + デモ動画代替** — §15-12 「Doko-demo (クロスプラットフォーム実演)」は本番デモの訴求軸だが、Android backend は未着手で 3〜5 日要する。**Desktop 単独で機能完成度を優先**、Android はビルドが通れば本番ライブで見せる、無理なら録画動画でクロスプラットフォーム感を補足。§15-12 のセーブ続きデモは Desktop 2 セッションで代替可能
+- **Consequences**:
+  - + 移動 α 案により §15-5 純粋路線 + 直感操作の両立、`UseCard` API 拡張不要 (`PlayerInputs` 状態追加のみ)
+  - + 装備 B 案により §15-9 仕様準拠 + チームメンバー案 (ステ補正のみ) を「grantedCards=空」で表現可能、柔軟性最大
+  - + 解像度を今日着手することで E-6 (ポップアップ UI) 着手時に解像度トラブル回避、素材作成基準も早期確定
+  - + 音タグ予約により今は他機能に集中可能
+  - + Android 方針確定でデモ準備にリソース集中、本番までに無理な実装を避けられる
+  - − 移動 α 案は `PlayerInputs` の状態管理が複雑化 (現状の 2 ステート: 通常 / カード選択中 → 3 ステート: 通常 / カード選択中 / 移動権保持中)。テスト網羅必須
+  - − 装備 5 引数 record で `Player` も `Optional<Equipment>` を持つことになり、`Player.finalStats()` で合算ロジックが必要 (E-5 実装時に対応)
+  - − 解像度変更で TitleScreen / GameOverScreen / HudRenderer の絶対座標を比率化する作業発生 (libgdx-implementer 見積 標準 2〜3h)
+- **Reference**: §15-1 (L405-419 解像度), §15-5 (L529-569 移動), §15-9 (L697-714 装備), §15-12 (L732-755 デモ), ADR-03 (ポップアップ UI), ADR-04 (1920×1080 確定), ADR-08 (装備 1 部位 / 耐久なし), ADR-18 (Move/Buff/Trap 別 Issue), ADR-19 (毎ターンドロー + 移動カード化予告), 3 サブエージェント並列レビュー (本セッション、2026-05-14)、ユーザー最終確定 (装備=B 案)
