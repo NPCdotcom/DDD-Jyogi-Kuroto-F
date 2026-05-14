@@ -10,6 +10,7 @@ import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 
 /**
  * ターン進行を取り仕切るアプリケーションサービス。
@@ -35,9 +36,11 @@ public final class TurnDirector {
   private static final int ENEMY_STEP_HARD_LIMIT = 16;
 
   private final GameContext context;
+  private final Random rng;
 
-  public TurnDirector(GameContext context) {
+  public TurnDirector(GameContext context, Random rng) {
     this.context = Objects.requireNonNull(context, "context");
+    this.rng = Objects.requireNonNull(rng, "rng");
   }
 
   public void applyPlayerAction(BattleAction action) {
@@ -71,7 +74,8 @@ public final class TurnDirector {
       }
     }
     if (context.state().phase() == TurnPhase.ENEMY_TURN) {
-      StepResult r = TurnEngine.startPlayerTurn(context.state());
+      // ADR-19: AP リフィル + 1 枚ドローを 1 呼出で実行 (Random は引数注入)
+      StepResult r = TurnEngine.startPlayerTurn(context.state(), rng);
       context.applyResult(r);
     }
   }

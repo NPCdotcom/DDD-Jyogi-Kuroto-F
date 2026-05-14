@@ -5,6 +5,7 @@ import core.application.GameContext;
 import core.application.TurnDirector;
 import core.infrastructure.bootstrap.InitialStateFactory;
 import core.presentation.render.Fonts;
+import java.util.Random;
 
 /**
  * LibGDX の {@link Game} を継承したエントリポイント。
@@ -37,7 +38,9 @@ public final class DddGame extends Game {
   /** 新しいラン (= ダンジョン挑戦) を開始する。context と director を作り直す。 */
   public void startNewRun() {
     this.context = GameContext.startNewRun(InitialStateFactory.firstFloor());
-    this.director = new TurnDirector(this.context);
+    // ADR-19: TurnDirector に Random を注入 (毎ターンドロー + 山札再シャッフル用)。
+    // ラン毎に new Random() で異なるシード = ゲームプレイは非再現的 (テストでは固定シード使用)。
+    this.director = new TurnDirector(this.context, new Random());
   }
 
   @Override
