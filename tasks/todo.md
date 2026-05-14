@@ -80,6 +80,75 @@ MVP コア実装 + バージョン整備 + 日本語化までを 2026-05-12 に�
 
 ---
 
+## Phase 9: M1.5 並列実装プラン (E-1〜E-10) — 2026-05-14 起算 約 10 日
+
+[docs/GAME_DESIGN.md §15](../docs/GAME_DESIGN.md) の MVP 後仕様を、AI 駆動 + ファイル衝突回避のパッケージ分離で並列実装する。
+
+### 着手前提
+
+- [x] MVP コードと §15 仕様 docs が develop に統合済 (commit `4a9382f`)
+- [ ] AI 駆動体制整備 (`.claude/agents/`, `.claude/skills/`, `.claude/settings.json`, ルート `CLAUDE.md`) — Issue #10 / PR 作成中
+- [ ] チームメイトへの共有メッセージ送信 (mvp ブランチ + PR #9 マージ済 + AI 体制 PR の 3 点セット)
+
+### スコープ (再ラベル: チームメイト視点レビューを反映)
+
+P0' = デモ必須、P1 = タイムボックス各 1〜2 日、P2 = 余力次第。
+
+| # | 機能 | パッケージ | 優先度 | 担当目安 |
+|---|---|---|---|---|
+| **E-1** | カードシステム ([§15-3](../docs/GAME_DESIGN.md)) | `core.domain.card/` + `core.domain.meta/Gold.java` | **P0'** | domain-architect → libgdx-implementer |
+| **E-3** | 層構造 + ノード分岐 ([§15-6](../docs/GAME_DESIGN.md)) | `core.domain.layer/` | **P0'** | domain-architect |
+| **E-4** | 通貨二層 ([§15-2](../docs/GAME_DESIGN.md)) | `core.domain.meta/Gold.java` (E-1 と相乗り) | **P0'** | domain-architect |
+| **E-6** | ポップアップ UI 基盤 ([§15-1, §15-8](../docs/GAME_DESIGN.md)) | `core.presentation.window/` | **P0'** | libgdx-implementer |
+| **E-2** | ソウルツリー ([§15-7](../docs/GAME_DESIGN.md)) | `core.domain.tree/` + `core.presentation.screen/SoulTreeScreen` | **P0'** | domain-architect → libgdx-implementer |
+| E-5 | 装備システム ([§15-9](../docs/GAME_DESIGN.md)) | `core.domain.equipment/` | P1 | domain-architect |
+| E-9 | セーブ最小 ([§15-11](../docs/GAME_DESIGN.md)) | `core.infrastructure.save/` | P1 | libgdx-implementer |
+| E-8 | シームレス戦闘演出 ([§15-5](../docs/GAME_DESIGN.md)) | `core.presentation.effect/` | P1 | libgdx-implementer |
+| E-10 | チュートリアル ([§15-10](../docs/GAME_DESIGN.md)) | `core.presentation.screen/TutorialPopup` | P1 | libgdx-implementer |
+| E-7 | Bestiary ([§15-5](../docs/GAME_DESIGN.md) 連動) | `core.domain.meta/Bestiary.java` | **P2 (捨てる候補)** | — |
+
+### タイムライン
+
+| 日付 | 着手 | 並列の組み合わせ |
+|---|---|---|
+| **5/14-15** | E-1 / E-3 / E-4 / E-6 (基盤) | パッケージが分離されているため並列着手可。AP 使い切り化 / ステ 6 種化が `core.domain.battle` と `core.domain.entity` に影響するため、まずそこを domain-architect が更新 |
+| **5/16-18** | E-2 / E-5 / E-9 (派生) | E-1 (カード) と E-2 (ソウルツリーのカード解放) が依存。E-9 は最小実装 (1 セーブスロット、層単位) |
+| **5/19-21** | E-8 / E-10 / 余力で E-7 | E-1〜E-6 の動作が見えてから演出層を作る方が手戻り少 |
+| **5/22** | 統合テスト + デモ録画 | §15-12 のデモシナリオを実機で 1 本撮る |
+| **5/23-24** | ハッカソン本番 | 提出 + ライブデモ |
+
+### 各 E-X の進め方 (`.claude/skills/m1-5-start/SKILL.md` 準拠)
+
+1. `/m1-5-start E-X 機能名` で Issue 起票 + `feat/#<N>/E-X-skeleton` ブランチ作成
+2. `domain-architect` Agent で設計レビュー → ユーザー確認
+3. 実装 (Edit/Write) → hook が自動で `spotlessApply` + `FooTest` 実行
+4. `test-writer` Agent でテスト補強
+5. (LibGDX 依存がある場合) `libgdx-implementer` Agent で `presentation/` 実装
+6. `/architect-review` Skill で `final-architect` の最終チェック
+7. `/japanese-pr-create draft` Skill で Draft PR 作成
+8. チームレビュー → マージ
+
+### MVP コードとの breaking change リスト (§15 実装で書き換え必須)
+
+- `core.domain.battle.ActionPoints`: 蓄積型 → 使い切り型 (毎ターン速度ぶん全リセット)
+- `core.domain.entity.Stats`: 3 ステ → 6 ステ (物攻/魔攻/物防/魔防 追加)
+- `core.domain.skill.SkillSlot`: スキル枠単独 → スキル枠 + カードデッキ併存
+- `core.domain.battle.TurnEngine`: 単敵想定 → 多敵 + AP 使い切り型
+- `core.presentation.render.RenderLayout`: 800×600 → 1920×1080 (座標を比率化)
+- `core.presentation.screen.*`: 画面遷移型 → ポップアップ式 UI
+
+### 提出チェックリスト (M2)
+
+- [ ] [Schedule.md M1.5 チェックリスト](../docs/Schedule.md) 全項目 ✅
+- [ ] mac/Linux でも `gradlew run` が動作
+- [ ] `fatJar` で配布 JAR 生成可
+- [ ] §15-12 のデモシナリオで 5 分プレイ実演が成立
+- [ ] スクリーンショット撮影 → README 更新
+- [ ] LICENSE ファイル決定 + 配置
+- [ ] 使用素材のクレジット (CreditsScreen or README)
+
+---
+
 ## Issue 化のタイミング
 
 - 上の Phase 6/7/8 を実際に取り掛かるときに GitHub Issue を立てる
