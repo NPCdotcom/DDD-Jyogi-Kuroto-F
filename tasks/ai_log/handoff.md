@@ -19,7 +19,15 @@
 
 ## 進行中の作業 (圧縮後はここから再開)
 
-**現在地**: E-1 (カードシステム) の domain-architect 設計案を取得済、**ユーザー承認待ち** の状態。
+**現在地**: E-1 (カードシステム) の domain-architect 設計案を取得 + **ユーザー承認済**。
+実装は次セッション (圧縮後) に着手する。設計は [decisions.md ADR-16](./decisions.md) で確定。
+
+### 圧縮後の Claude が最初にやること
+
+1. `tasks/ai_log/decisions.md` の **ADR-16** を Read (設計確定内容と次セッションでの作業順 7 ステップが書かれている)
+2. `feat/#12/E-1-card-skeleton` ブランチに `git switch` (現在のアクティブブランチ)
+3. ADR-16 の「次セッションでの作業順 1〜7」をそのまま実行 (設計は確定済なので、設計再議論は不要)
+4. 詰まったら `domain-architect` Agent に「ADR-16 の設計を Read してから core.domain.card/ を実装してください」と依頼
 
 ### 設計案サマリ (domain-architect 出力、要点)
 
