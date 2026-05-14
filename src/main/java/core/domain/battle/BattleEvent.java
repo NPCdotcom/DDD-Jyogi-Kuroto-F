@@ -19,7 +19,8 @@ public sealed interface BattleEvent
         BattleEvent.ActionRejected,
         BattleEvent.MovementGranted,
         BattleEvent.TrapPlaced,
-        BattleEvent.TrapTriggered {
+        BattleEvent.TrapTriggered,
+        BattleEvent.FloorAdvanced {
 
   record Moved(ActorId who, Position from, Position to) implements BattleEvent {
     public Moved {
@@ -124,6 +125,20 @@ public sealed interface BattleEvent
       }
       if (remainingHp < 0) {
         throw new IllegalArgumentException("remainingHp must be non-negative: " + remainingHp);
+      }
+    }
+  }
+
+  /**
+   * フロア進行通知 (§15-6 / ADR-23)。CLEARED 状態のプレイヤーが次フロアへ遷移した瞬間に発火。
+   *
+   * <p>newLayer は遷移後の層番号 (2 以上、1 → 2 が最小遷移)。HUD ログでは「2 層に到達」のように表示する。
+   */
+  record FloorAdvanced(int newLayer) implements BattleEvent {
+    public FloorAdvanced {
+      if (newLayer < 2) {
+        throw new IllegalArgumentException(
+            "newLayer must be >= 2 (advance from 1 to 2 minimum): " + newLayer);
       }
     }
   }

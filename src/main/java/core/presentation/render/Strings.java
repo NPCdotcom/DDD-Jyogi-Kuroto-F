@@ -64,6 +64,7 @@ public final class Strings {
     public static final String EV_MOVEMENT_GRANTED_FORMAT = "%s に移動権 %d 歩を付与";
     public static final String EV_TRAP_PLACED_FORMAT = "%s が (%d, %d) に罠を設置";
     public static final String EV_TRAP_TRIGGERED_FORMAT = "%s が罠を踏み %d ダメージ (残 HP %d)";
+    public static final String EV_FLOOR_ADVANCED_FORMAT = "%d 層に到達";
   }
 
   /** 英語版 (フォント未配置時の fallback)。 */
@@ -119,5 +120,6 @@ public final class Strings {
     public static final String EV_MOVEMENT_GRANTED_FORMAT = "%s gains %d move step(s)";
     public static final String EV_TRAP_PLACED_FORMAT = "%s placed a trap at (%d, %d)";
     public static final String EV_TRAP_TRIGGERED_FORMAT = "%s stepped on a trap: %d damage (HP %d left)";
+    public static final String EV_FLOOR_ADVANCED_FORMAT = "Reached floor %d";
   }
 }
