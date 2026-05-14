@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "_comment": "装備設計テンプレート。Equipment record (E-5) は未実装、ここに記載の値はチーム参照用のスキーマ案。実装は 5/16 以降を予定。",
+  "equipments": [
+    {
+      "gameplay": {
+        "id": "tattered_boots",
+        "displayName": "ぼろ靴",
+        "slot": "FEET",
+        "statsBonus": {
+          "maxHp": 0,
+          "speed": 1,
+          "physicalAttack": 0,
+          "magicalAttack": 0,
+          "physicalDefense": 0,
+          "magicalDefense": 0
+        },
+        "grantedCardIds": ["dash"]
+      },
+      "metadata": {
+        "loreText": "踵がすり切れている。それでも履かないよりはマシだ。",
+        "gameText": "速度 +1。デッキにダッシュを 1 枚追加。",
+        "iconAsset": "icons/equipment/test.png",
+        "rarity": "STARTER"
+      }
+    },
+    {
+      "gameplay": {
+        "id": "tattered_dagger",
+        "displayName": "ぼろい短剣",
+        "slot": "HAND",
+        "statsBonus": {
+          "maxHp": 0,
+          "speed": 0,
+          "physicalAttack": 1,
+          "magicalAttack": 0,
+          "physicalDefense": 0,
+          "magicalDefense": 0
+        },
+        "grantedCardIds": ["zangeki"]
+      },
+      "metadata": {
+        "loreText": "刃こぼれた鉄片。それでも切れる。",
+        "gameText": "物攻 +1。デッキに斬撃を 1 枚追加。",
+        "iconAsset": "icons/equipment/test.png",
+        "rarity": "STARTER"
+      }
+    }
+  ]
+}

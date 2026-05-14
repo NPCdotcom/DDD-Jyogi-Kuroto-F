@@ -98,6 +98,21 @@ public final class InitialStateFactory {
         new CardEffect.Damage(4));
   }
 
+  /**
+   * 火球カード (魔法 / ダメージ 3 ベース)。
+   *
+   * <p>docs/templates/cards.json のテンプレに合わせて追加。魔法弾と同性能だが別 id で扱う (将来別効果に拡張する余地)。
+   */
+  public static Card fireballCard() {
+    return new Card(
+        CardId.of("fireball"),
+        "火球",
+        2,
+        CardTag.ATTACK,
+        CardElement.MAGICAL,
+        new CardEffect.Damage(3));
+  }
+
   // ----------------------------- マップ -----------------------------
 
   /** 10x10 の固定マップ。外周は壁、内部は床。右下に階段。 */
@@ -128,8 +143,12 @@ public final class InitialStateFactory {
   }
 
   public static Player newPlayer(Position spawn) {
-    // テスト用初期デッキ (3 枚、ADR-18 通り E-5 Equipment で動的化されるまでのハードコード)
-    List<Card> deckCards = List.of(zangetuCard(), magicBoltCard(), strongStrikeCard());
+    // テスト用初期デッキ (4 枚、ADR-18 通り E-5 Equipment で動的化されるまでのハードコード)
+    // docs/templates/cards.json のテンプレに対応する Damage 系カードを揃える。
+    // Move/Buff/Trap カードは TurnEngine で reject されるため、ゲーム内で動作可能な
+    // Damage 系のみを初期デッキに含める (テンプレに記載はあるが実装は 5/15 以降)。
+    List<Card> deckCards =
+        List.of(zangetuCard(), magicBoltCard(), strongStrikeCard(), fireballCard());
     // Random を 1 個に統一 (シャッフルと初期ドローで同じシードを共有、再現性確保)
     Random rng = new Random(42);
     DrawPile drawPile = DrawPile.shuffledFrom(deckCards, rng);
