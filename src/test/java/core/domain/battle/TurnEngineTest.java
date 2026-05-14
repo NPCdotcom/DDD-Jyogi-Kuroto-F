@@ -24,6 +24,7 @@ import core.domain.entity.Stats;
 import core.domain.meta.Soul;
 import core.domain.support.DomainFixtures;
 import java.util.List;
+import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 class TurnEngineTest {
@@ -181,10 +182,52 @@ class TurnEngineTest {
     DungeonState s =
         new DungeonState(DomainFixtures.squareRoom(), p, List.of(), TurnPhase.ENEMY_TURN);
 
-    TurnEngine.StepResult result = TurnEngine.startPlayerTurn(s);
+    // ADR-19: Random 引数注入で startPlayerTurn (AP リフィル + 1 枚ドロー)
+    TurnEngine.StepResult result = TurnEngine.startPlayerTurn(s, new Random(42));
 
     assertEquals(TurnPhase.PLAYER_TURN, result.state().phase());
     assertEquals(3, result.state().player().actionPoints().current()); // speed=3 ぶん回復
+    // playerAt の CardPileState は empty なのでドロー 0 枚 (drawN は静かに停止)
+    assertEquals(0, result.state().player().cardPileState().hand().size());
+  }
+
+  @Test
+  void startPlayerTurnDrawsOneCardFromDrawPile() {
+    // ADR-19: ターン頭で 1 枚ドロー
+    Player p =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withActionPoints(new ActionPoints(0, 5))
+            .withCardPileState(
+                new CardPileState(
+                    DomainFixtures.drawPileOfSize(3), Hand.empty(), DiscardPile.empty()));
+    DungeonState s =
+        new DungeonState(DomainFixtures.squareRoom(), p, List.of(), TurnPhase.ENEMY_TURN);
+
+    TurnEngine.StepResult result = TurnEngine.startPlayerTurn(s, new Random(42));
+
+    // 山札 3 → 2、手札 0 → 1
+    assertEquals(2, result.state().player().cardPileState().drawPile().size());
+    assertEquals(1, result.state().player().cardPileState().hand().size());
+  }
+
+  @Test
+  void startPlayerTurnReshufflesDiscardWhenDrawPileEmpty() {
+    // ADR-19: 山札 0 + 捨て札 3 のとき、drawN(1) で捨て札を再シャッフル → 1 枚引く
+    Player p =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withActionPoints(new ActionPoints(0, 5))
+            .withCardPileState(
+                new CardPileState(
+                    DrawPile.empty(), Hand.empty(), DomainFixtures.discardPileOfSize(3)));
+    DungeonState s =
+        new DungeonState(DomainFixtures.squareRoom(), p, List.of(), TurnPhase.ENEMY_TURN);
+
+    TurnEngine.StepResult result = TurnEngine.startPlayerTurn(s, new Random(42));
+
+    // 捨て札 3 → 山札にシャッフル → 1 枚引く → 山札 2、捨て札 0、手札 1
+    assertEquals(2, result.state().player().cardPileState().drawPile().size());
+    assertEquals(0, result.state().player().cardPileState().discardPile().size());
+    assertEquals(1, result.state().player().cardPileState().hand().size());
   }
 
   @Test

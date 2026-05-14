@@ -331,3 +331,35 @@
   - − Move/Buff/Trap カードを本 Issue で reject するため、E-1 単体ではまだゲーム内で「攻撃カードのみ」しか使えない (Move/Buff/Trap は別 Issue で順次)
 
 - **Reference**: ADR-05 (戦闘モード境界廃止), ADR-16 (E-1 カード設計), ADR-17 (Damage.resolve 配置), [Issue #18](https://github.com/NPCdotcom/DDD-Jyogi-Kuroto-F/issues/18), 3 サブエージェント並列レビュー出力 (本セッション、2026-05-14)
+
+## ADR-19: 毎ターンドロー 1 枚を本日実装 / 移動カード化は明日以降に E-5 装備とセットで実装
+
+- **Status**: Accepted (3 サブエージェント並列レビュー結論、ユーザー承認済)
+- **Date**: 2026-05-14
+- **Context**: M1.5 コア機能 (PR #21) 完成直後、リーダーから 2 つの追加要望が来た:
+  - (1) **毎ターン (プレイヤーターン頭) ドロー** — §15-3 「ターン終了条件: AP 切れ or 手札切れ」「Slay the Spire のエナジー近似」を踏まえると StS 流の毎ターン補充ドローが暗黙仕様
+  - (2) **移動のカード化** — §15-5 「移動カードを切らないと動けない (Slay the Spire 純粋路線)」(L534) で明文化、§15-9 「ぼろ靴 (固有: 移動カード)」(L711) で初期装備設計
+
+  ADR-18 では Move/Buff/Trap カード実装を「本 PR スコープ外、別 Issue で順次」と保留中。今回の要望はこの「別 Issue」の前倒し相当。
+
+  3 並列レビュー (domain-architect / final-architect / general-purpose) の意見:
+  - **毎ターンドロー**: 全員賛成、§15-3 / StS 準拠、実装規模小 (TurnEngine + TurnDirector + DddGame で 30 行程度)
+  - **移動カード化**: 意見分岐 (X 完全廃止 / Y 共存 / 今日見送り)。final-architect は「ADR-18 と矛盾、E-5 装備 (ぼろ靴) + EnemyAi の Move 利用調査 + sealed permits 改修が連鎖し軽量修正にならない」と保留推奨
+
+- **Decision**: 以下を採用
+  1. **毎ターン 1 枚ドローを本日実装** — `TurnEngine.startPlayerTurn(DungeonState, Random)` に Random 引数を追加し、内部で `player.cardPileState().drawN(1, rng)` を呼ぶ。AP リフィル + ドローを 1 メソッドで担う
+  2. **API 破壊許容** — `startPlayerTurn(state)` → `startPlayerTurn(state, Random)` は ADR-16「Random 引数注入」と整合するため許容。caller の `TurnDirector` / `DddGame` も Random を保持・注入する
+  3. **ドロー枚数は 1 枚固定** — §15-3 仕様で「毎ターンドロー枚数」は未明文。1 枚固定が最小実装、Hand 上限 (`MAX_HAND_SIZE=9`) で自然に停止。将来「速度ステ連動」「StS 流 5 枚 (initialDrawCount 経由)」への拡張は別 Issue
+  4. **山札切れ時の挙動** — `drawN` 内で自動再シャッフル (CardPileState.drawN 既設、§15-3 通り)
+  5. **移動カード化は本日見送り、明日 5/15 以降に E-5 装備とセットで実装** — 仕様は §15-5 で明文化されているが、E-5 (ぼろ靴 = 装備固有カードで初期デッキ構成) + EnemyAi の Move 利用調査 + `BattleAction.Move` 廃止 (or プレイヤー側だけ reject) + `PlayerInputs.pollNormalMode` WASD 経路改修と連鎖。軽量修正のスコープを超えるため別 Issue 起票
+  6. **移動カード化の最終案は別 ADR で確定する** — 案 X (完全廃止) / 案 Y (WASD = 移動カード自動プレイ) / 案 Z (ショートカット) のうちどれを採るかは、E-5 装備実装時に再評価して新 ADR で記録
+
+- **Consequences**:
+  - + StS 風カードゲームのテンポが今日のうちに成立 (毎ターンで手札補充が見える)
+  - + ターン終了条件「AP 切れ or 手札切れ」の手札切れ側が現実的な閾値になる
+  - + `TurnEngine` 純関数性は保たれる (Random 引数注入で副作用分離維持、ADR-16 と整合)
+  - + 移動カード化を別 Issue にしたことで ADR-18 (Move/Buff/Trap は別 Issue) と矛盾せず、計画的に着手可能
+  - − 移動は当面 WASD/矢印で動かせる状態が続き、§15-5 「移動カードを切らないと動けない」とは仕様乖離 (明日以降に解消予定)
+  - − `TurnDirector` コンストラクタ API が変わる (`new TurnDirector(context)` → `new TurnDirector(context, Random)`)、`DddGame.startNewRun` が `new Random()` を渡すため毎ラン異なるシード = 再現性は失われる (テストでは固定シード `Random(42)` を渡す)
+
+- **Reference**: §15-3 (L443-513), §15-5 (L529-569), ADR-01 (AP 使い切り型), ADR-16 (E-1 設計), ADR-17 (Damage.resolve), ADR-18 (Move/Buff/Trap は別 Issue)、3 サブエージェント並列レビュー (本セッション、2026-05-14)

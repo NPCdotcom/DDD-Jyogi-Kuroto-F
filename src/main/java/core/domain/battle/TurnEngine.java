@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 
 /**
  * 戦闘・移動・ターン進行を司る純関数ユーティリティ。
@@ -61,11 +62,29 @@ public final class TurnEngine {
     };
   }
 
-  /** 敵ターン → プレイヤーターン遷移時に、プレイヤーの AP を回復させる。 */
-  public static StepResult startPlayerTurn(DungeonState state) {
+  /**
+   * 敵ターン → プレイヤーターン遷移時に、プレイヤーの AP リフィル + 手札補充ドロー (§15-3 / ADR-19)。
+   *
+   * <p>処理順:
+   *
+   * <ol>
+   *   <li>AP を速度ステ分まで全リセット (使い切り型、ADR-01)
+   *   <li>山札から 1 枚ドロー (手札上限 9 枚で停止、山札切れ時は捨て札を {@code rng} で再シャッフル)
+   * </ol>
+   *
+   * <p>Random は引数注入 (ドメイン副作用ゼロ、ADR-16 §4 と整合)。テスト時は固定シードで決定的に検証可能。
+   *
+   * @param state 遷移前の DungeonState (ENEMY_TURN 状態であること前提、検証は呼出側 TurnDirector に委ねる)
+   * @param rng カード再シャッフル / 将来の確率処理に使う乱数源
+   * @return AP リフィル + 1 枚ドロー済の新 DungeonState + TurnPhaseChanged イベント
+   */
+  public static StepResult startPlayerTurn(DungeonState state, Random rng) {
     Objects.requireNonNull(state, "state");
+    Objects.requireNonNull(rng, "rng");
     Player p = state.player();
-    Player refreshed = p.withActionPoints(p.actionPoints().refilledTo(p.stats().speed()));
+    Player refreshed =
+        p.withActionPoints(p.actionPoints().refilledTo(p.stats().speed()))
+            .withCardPileState(p.cardPileState().drawN(1, rng));
     DungeonState ns = state.withPlayer(refreshed).withPhase(TurnPhase.PLAYER_TURN);
     return new StepResult(ns, List.of(new BattleEvent.TurnPhaseChanged(TurnPhase.PLAYER_TURN)));
   }
