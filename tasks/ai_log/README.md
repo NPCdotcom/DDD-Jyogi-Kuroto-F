@@ -12,10 +12,18 @@
 
 ## ファイル一覧
 
-| ファイル | 内容 |
-|---|---|
-| [lessons.md](./lessons.md) | AI 運用上の学び (誤判断パターンと修正ルール) |
-| [phase_6_5_review.md](./phase_6_5_review.md) | Phase 2 / 3〜4 / 6.5 のサブエージェントレビュー詳細 |
+| ファイル | 内容 | 圧縮後の Claude が **最初に読むべきか** |
+|---|---|---|
+| **[handoff.md](./handoff.md)** | **現在の作業状態スナップショット**。ブランチ・直近の Issue/PR・次の作業・据置き判断のサマリ | ✅ **最優先** |
+| [decisions.md](./decisions.md) | ADR (Architecture Decision Record) 風の不可逆判断ログ (ADR-01〜) | ✅ 判断経緯が必要な時 |
+| [lessons.md](./lessons.md) | AI 運用上の学び (誤判断パターンと修正ルール) | △ 失敗回避ルールが必要な時 |
+| [phase_6_5_review.md](./phase_6_5_review.md) | Phase 2 / 3〜4 / 6.5 のサブエージェントレビュー詳細 | △ 過去のレビュー経緯が必要な時 |
+
+## コンテキスト圧縮後の新セッションへ
+
+1. まず [handoff.md](./handoff.md) を Read して「今ここから何をすべきか」を把握する
+2. 必要なら [decisions.md](./decisions.md) で過去の判断経緯を Read
+3. プロジェクト全体は [../../CLAUDE.md](../../CLAUDE.md) (ルート) + [../todo.md](../todo.md) Phase 9 で
 
 ## チームのタスク管理
 
