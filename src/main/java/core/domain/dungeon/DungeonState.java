@@ -5,6 +5,7 @@ import core.domain.common.Position;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
 import core.domain.entity.Player;
+import core.domain.layer.Layer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -23,7 +24,8 @@ public record DungeonState(
     Player player,
     List<Enemy> enemies,
     TurnPhase phase,
-    List<PlacedTrap> placedTraps) {
+    List<PlacedTrap> placedTraps,
+    Layer layer) {
 
   public DungeonState {
     Objects.requireNonNull(map, "map");
@@ -31,29 +33,44 @@ public record DungeonState(
     Objects.requireNonNull(enemies, "enemies");
     Objects.requireNonNull(phase, "phase");
     Objects.requireNonNull(placedTraps, "placedTraps");
+    Objects.requireNonNull(layer, "layer");
     enemies = List.copyOf(enemies);
     placedTraps = List.copyOf(placedTraps);
   }
 
-  /** 既存呼出 (4 引数) 互換のための便利コンストラクタ。placedTraps は空リストで初期化。 */
+  /** 既存呼出 (5 引数) 互換のための便利コンストラクタ。layer は 1 層目で初期化。 */
+  public DungeonState(
+      DungeonMap map,
+      Player player,
+      List<Enemy> enemies,
+      TurnPhase phase,
+      List<PlacedTrap> placedTraps) {
+    this(map, player, enemies, phase, placedTraps, Layer.first());
+  }
+
+  /** 既存呼出 (4 引数) 互換のための便利コンストラクタ。placedTraps は空、layer は 1 層目で初期化。 */
   public DungeonState(DungeonMap map, Player player, List<Enemy> enemies, TurnPhase phase) {
-    this(map, player, enemies, phase, List.of());
+    this(map, player, enemies, phase, List.of(), Layer.first());
   }
 
   public DungeonState withPlayer(Player newPlayer) {
-    return new DungeonState(map, newPlayer, enemies, phase, placedTraps);
+    return new DungeonState(map, newPlayer, enemies, phase, placedTraps, layer);
   }
 
   public DungeonState withEnemies(List<Enemy> newEnemies) {
-    return new DungeonState(map, player, newEnemies, phase, placedTraps);
+    return new DungeonState(map, player, newEnemies, phase, placedTraps, layer);
   }
 
   public DungeonState withPhase(TurnPhase newPhase) {
-    return new DungeonState(map, player, enemies, newPhase, placedTraps);
+    return new DungeonState(map, player, enemies, newPhase, placedTraps, layer);
   }
 
   public DungeonState withPlacedTraps(List<PlacedTrap> newPlacedTraps) {
-    return new DungeonState(map, player, enemies, phase, newPlacedTraps);
+    return new DungeonState(map, player, enemies, phase, newPlacedTraps, layer);
+  }
+
+  public DungeonState withLayer(Layer newLayer) {
+    return new DungeonState(map, player, enemies, phase, placedTraps, newLayer);
   }
 
   /** ID が一致する敵を 1 体置き換えた新状態を返す。一致が無いと {@link IllegalStateException}。 */

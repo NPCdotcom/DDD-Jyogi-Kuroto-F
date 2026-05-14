@@ -237,6 +237,9 @@ public final class HudRenderer {
       case BattleEvent.TrapTriggered tt ->
           (jp ? Strings.Ja.EV_TRAP_TRIGGERED_FORMAT : Strings.En.EV_TRAP_TRIGGERED_FORMAT)
               .formatted(tt.victim().value(), tt.damage(), tt.remainingHp());
+      case BattleEvent.FloorAdvanced fa ->
+          (jp ? Strings.Ja.EV_FLOOR_ADVANCED_FORMAT : Strings.En.EV_FLOOR_ADVANCED_FORMAT)
+              .formatted(fa.newLayer());
     };
   }
 }

@@ -445,3 +445,30 @@
   - − 罠ダメージ計算が「設置者ステ無視」なので、強化系装備で罠を強化する余地がない (将来必要なら PlacedTrap にスナップショット追加で拡張)
   - − テスト追加 7 件 (`TurnEngineTest` 6 件 + `TrapLifetimeTest` 1 件書換)、合計 176 件 PASS
 - **Reference**: §15-3 (L443-513), ADR-16 (E-1 設計、Turns 制約を本 ADR で緩和), ADR-18 (Move/Buff/Trap 別 Issue 予告), ADR-21 (Move 実装、本 ADR-22 は連続実装の続き), 3 並列レビュー (本セッション深夜、2026-05-14)、test-writer による Turns(0) 中間値検出
+
+## ADR-23: E-3 層構造の最小実装 (Layer record + DungeonState.layer + advanceLayer)
+
+- **Status**: Accepted (Stage 1 メタレビュー + Stage 2 異質コホート [チーム/プレイヤー/審査員] 視点の統合判断、ユーザー実装続行宣言で進行)
+- **Date**: 2026-05-14 (深夜継続)
+- **Context**: 本セッションで 18 PR (#13〜#34) を消化。メタレビューで「multifaceted ≠ 並列数」「6 ラウンド中 5 が同質コホート (技術者 3 名)」を指摘され、Stage 2 で異質 3 並列を回した:
+  - **チームメイト視点**: 「もう休んでほしい、徹夜で品質落ちると私がカバーしきれない」← ユーザー判断で除外 (実装続行宣言)
+  - **プレイヤー視点**: 「Buff 緊急 5、戦略性ゼロは致命的」「現状『もう一回』のフックなし」「移動 α 案は直感じゃない (×)」
+  - **審査員視点**: 「**E-3 層構造を後回しは敗北筋**」「現状『お!』要素はゼロ」「Doko-demo は AI 駆動訴求に差し替えるべき」「残 9 日で E-3/E-2/E-6/演出/E-5 が必須、Buff/Gold 統合/セーブ/Android は捨ててよい」
+
+  プレイヤー + 審査員両視点の最大公約数として **E-3 (層構造)** を選択。Buff は明日以降に持ち越し。
+- **Decision**: 以下を採用 (本 PR はドメイン層 + infrastructure 静的メソッドのみ、UI 連動は別 PR)
+  1. **`core.domain.layer.Layer` record 新設** — `(int number, String displayName)`、`first()` / `next()` 静的ファクトリ
+  2. **`DungeonState` 6 引数化** — `Layer layer` 追加、`withLayer`、5 引数互換コンストラクタ + 4 引数互換コンストラクタ (Layer.first() で初期化) で既存呼出を破壊しない
+  3. **`InitialStateFactory.advanceLayer(DungeonState current)` 新設** — 現在の `Layer.next()` で層番号 +1、同じマップ流用、プレイヤーは持ち越し (位置だけ (1,1) にリセット)、敵 AP = 層番号 (ADR-06 と整合)、罠は層間で持ち越さない
+  4. **`InitialStateFactory.newSlimeForLayer(String, Position, int layerNumber)` 新設** — 敵 AP を層番号に応じて強化。既存 `newSlime(String, Position)` は `newSlimeForLayer(id, spawn, 1)` を呼ぶ互換ラッパに簡略化
+  5. **`BattleEvent.FloorAdvanced(int newLayer)` 新規追加** — sealed permits 拡張、HudRenderer の switch で日英文言対応 (「N 層に到達」)
+  6. **UI 連動 (CLEARED → 次フロア入力) は別 PR** — 本 PR では `advanceLayer` を呼ぶ責務は持たない (TurnDirector or DddGame での連結は明日 E-6 ポップアップ UI と一緒に)
+- **Consequences**:
+  - + 1 部屋ローグライト → **多階層ローグライトに進化**、§15-12 デモシナリオの「層末ノード」着手の前提整備
+  - + ADR-06 「敵 AP = 層番号 N」が初めて意味を持つ (1 層 = AP 1、2 層 = AP 2、3 層 = AP 3...)
+  - + プレイヤー視点の「もう一回のフック」が出る (フロア進行 = リプレイ性)
+  - + 審査員視点で「敗北筋を回避」、`spike_trap` / `dash` 等のテンプレカードが多階層で価値発揮
+  - − UI 連動 (CLEARED 画面 → ENTER で次フロア) は別 PR 必要 (本 PR だけでは実機で層遷移できない)
+  - − `DungeonState` が 6 引数 (Player 8 引数と合わせて record 拡大進行中)、集約 record (ADR-23+1) の検討タイミング近づく
+  - − 既存 `newSlime` の AP が 3 → 1 に変わる (ADR-06 通り)、初期難度は下がる方向 (これは仕様正しい状態への是正)
+- **Reference**: §15-6 (L605-630 層構造) / §15-12 (L732-755 デモシナリオ), ADR-06 (敵 AP = 層番号、本 ADR で初めて実装に反映), ADR-22 (DungeonState 5 引数化、本 ADR で 6 引数に拡張), メタレビュー (Stage 1) + 異質 3 並列 (Stage 2 プレイヤー + 審査員、チームメイト視点はユーザー判断で除外)、ユーザー実装続行宣言 (2026-05-14 深夜)

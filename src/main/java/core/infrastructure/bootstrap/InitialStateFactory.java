@@ -19,6 +19,7 @@ import core.domain.entity.Enemy;
 import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
 import core.domain.entity.Stats;
+import core.domain.layer.Layer;
 import core.domain.meta.Soul;
 import core.domain.skill.Skill;
 import core.domain.skill.SkillEffect;
@@ -169,13 +170,66 @@ public final class InitialStateFactory {
         0);
   }
 
-  public static Enemy newSlime(String id, Position spawn) {
+  /**
+   * 指定層番号で敵 AP を強化したスライムを生成する (ADR-06 / ADR-23: 敵 AP = 層番号 N)。
+   *
+   * @param layerNumber 1 以上の階層番号。1 → AP 1、2 → AP 2、...
+   */
+  public static Enemy newSlimeForLayer(String id, Position spawn, int layerNumber) {
+    if (layerNumber < 1) {
+      throw new IllegalArgumentException("layerNumber must be >= 1: " + layerNumber);
+    }
     return new Enemy(
         ActorId.of(id),
         spawn,
         new Stats(10, 10, 2, 2, 0, 0, 0),
-        ActionPoints.full(3),
+        ActionPoints.full(layerNumber),
         new SkillSlot(List.of(slimeBite()), 4),
         EnemyKind.SLIME);
   }
+
+  /**
+   * 既存呼出互換 (1 層相当の AP = 1 のスライム)。新規コードは {@link #newSlimeForLayer} を使う。
+   *
+   * <p>※ 元 MVP では AP 3 だったが、ADR-06 で「敵 AP = 層番号」と確定したため、本ファクトリでも 1 層用は AP 1 とする。これにより firstFloor の
+   * 初期難度が下がるが、ADR-06 / §15-5 の正しい挙動。
+   */
+  public static Enemy newSlime(String id, Position spawn) {
+    return newSlimeForLayer(id, spawn, 1);
+  }
+
+  /**
+   * 現在の DungeonState から次の階層を生成する (§15-6 / ADR-23)。
+   *
+   * <p>処理:
+   *
+   * <ol>
+   *   <li>{@link Layer#next()} で層番号 +1
+   *   <li>同じマップを流用 (将来 FLOOR_02 等を別途定義する余地)
+   *   <li>Player は持ち越し (HP/AP/手札/装備/ソウル/pendingMoveCount すべて)、ただし位置を初期スポーン (1, 1) にリセット
+   *   <li>敵を新規生成 (AP = 次層番号、ADR-06)
+   *   <li>罠は層間で持ち越さない (placedTraps = 空)
+   *   <li>TurnPhase = PLAYER_TURN
+   * </ol>
+   *
+   * @param current 現在の状態 (CLEARED 直前 / 直後を想定)
+   * @return 次層の DungeonState
+   */
+  public static DungeonState advanceLayer(DungeonState current) {
+    Layer nextLayer = current.layer().next();
+    int apForLayer = nextLayer.number();
+    Enemy slimeNearStairs =
+        newSlimeForLayer("slime_L" + nextLayer.number() + "_a", new Position(6, 1), apForLayer);
+    Enemy slimeMidRoom =
+        newSlimeForLayer("slime_L" + nextLayer.number() + "_b", new Position(4, 4), apForLayer);
+    Player carriedPlayer = current.player().withPosition(new Position(1, 1));
+    return new DungeonState(
+        current.map(),
+        carriedPlayer,
+        List.of(slimeNearStairs, slimeMidRoom),
+        TurnPhase.PLAYER_TURN,
+        List.of(),
+        nextLayer);
+  }
+
 }
