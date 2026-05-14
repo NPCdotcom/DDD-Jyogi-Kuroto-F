@@ -61,7 +61,8 @@ public final class DungeonScreen extends ScreenAdapter {
     TurnDirector director = game.director();
     TurnPhase phase = game.context().state().phase();
     if (phase == TurnPhase.PLAYER_TURN) {
-      Optional<BattleAction> action = playerInputs.poll();
+      // poll(state) に移行: 状態2 (移動権保持中) の判定にドメインの pendingMoveCount を使う (ADR-21)
+      Optional<BattleAction> action = playerInputs.poll(game.context().state());
       action.ifPresent(director::applyPlayerAction);
     } else if (phase == TurnPhase.ENEMY_TURN) {
       director.runEnemyTurn();

@@ -68,7 +68,10 @@ public final class HudRenderer {
         RenderLayout.HUD_X,
         RenderLayout.HUD_Y_PHASE);
 
-    drawControlsHint(batch, font, jp, pendingCardIndex);
+    // 移動権保持中のみ CYAN で「移動権 残 N 歩」を表示 (ADR-21 §15-5)
+    drawMoveToken(batch, font, jp, p.pendingMoveCount());
+
+    drawControlsHint(batch, font, jp, pendingCardIndex, p.pendingMoveCount() > 0);
     drawLog(batch, font, jp, context.latestEvents(RenderLayout.LOG_LINES_VISIBLE));
     drawHand(batch, font, jp, p, pendingCardIndex);
   }
@@ -147,12 +150,35 @@ public final class HudRenderer {
     };
   }
 
+  /**
+   * 移動権残量表示。pendingMoveCount > 0 のときのみ CYAN で描画する (ADR-21 §15-5)。
+   *
+   * <p>HUD 右側の HUD_Y_PHASE より 1 行下に配置し、移動モード中であることをプレイヤーに通知する。
+   */
+  private static void drawMoveToken(
+      SpriteBatch batch, BitmapFont font, boolean jp, int pendingMoveCount) {
+    if (pendingMoveCount <= 0) {
+      return;
+    }
+    font.setColor(Color.CYAN);
+    String text =
+        (jp ? Strings.Ja.MOVE_TOKEN_REMAINING_FORMAT : Strings.En.MOVE_TOKEN_REMAINING_FORMAT)
+            .formatted(pendingMoveCount);
+    font.draw(batch, text, RenderLayout.HUD_X, RenderLayout.HUD_Y_MOVE_TOKEN);
+  }
+
   private static void drawControlsHint(
-      SpriteBatch batch, BitmapFont font, boolean jp, int pendingCardIndex) {
+      SpriteBatch batch,
+      BitmapFont font,
+      boolean jp,
+      int pendingCardIndex,
+      boolean inMovementTokenMode) {
     font.setColor(0.7f, 0.7f, 0.7f, 1f);
-    // カード選択中は専用ヒントを表示
+    // 優先度: 移動権保持中 > カード選択中 > 通常
     String hint;
-    if (pendingCardIndex >= 0) {
+    if (inMovementTokenMode) {
+      hint = jp ? Strings.Ja.MOVE_TOKEN_HINT : Strings.En.MOVE_TOKEN_HINT;
+    } else if (pendingCardIndex >= 0) {
       hint = jp ? Strings.Ja.HAND_HINT : Strings.En.HAND_HINT;
     } else {
       hint = jp ? Strings.Ja.HUD_HINT : Strings.En.HUD_HINT;
@@ -202,6 +228,9 @@ public final class HudRenderer {
       case BattleEvent.ActionRejected ar ->
           (jp ? Strings.Ja.EV_REJECTED_FORMAT : Strings.En.EV_REJECTED_FORMAT)
               .formatted(ar.who().value(), ar.reason());
+      case BattleEvent.MovementGranted mg ->
+          (jp ? Strings.Ja.EV_MOVEMENT_GRANTED_FORMAT : Strings.En.EV_MOVEMENT_GRANTED_FORMAT)
+              .formatted(mg.who().value(), mg.remainingSteps());
     };
   }
 }

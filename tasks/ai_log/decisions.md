@@ -385,3 +385,34 @@
   - − 装備 5 引数 record で `Player` も `Optional<Equipment>` を持つことになり、`Player.finalStats()` で合算ロジックが必要 (E-5 実装時に対応)
   - − 解像度変更で TitleScreen / GameOverScreen / HudRenderer の絶対座標を比率化する作業発生 (libgdx-implementer 見積 標準 2〜3h)
 - **Reference**: §15-1 (L405-419 解像度), §15-5 (L529-569 移動), §15-9 (L697-714 装備), §15-12 (L732-755 デモ), ADR-03 (ポップアップ UI), ADR-04 (1920×1080 確定), ADR-08 (装備 1 部位 / 耐久なし), ADR-18 (Move/Buff/Trap 別 Issue), ADR-19 (毎ターンドロー + 移動カード化予告), 3 サブエージェント並列レビュー (本セッション、2026-05-14)、ユーザー最終確定 (装備=B 案)
+
+## ADR-21: Move カード実装 + 移動 α 案 PlayerInputs ステート (Player.pendingMoveCount 保持)
+
+- **Status**: Accepted (3 サブエージェント並列レビュー結論、ユーザー承認済)
+- **Date**: 2026-05-14 (深夜継続セッション)
+- **Context**: ADR-20 で「移動 α 案: カード切る → distance ぶん AWSD で連続移動」を確定済だが、状態管理の置き場 (PlayerInputs 側 / Player record 側 / 両側) は未確定。3 並列レビューで:
+  - domain-architect: PlayerInputs 側 (ドメイン非侵食、案 ii)
+  - libgdx-implementer: 両側 (Player.pendingMoveCount をドメインで持つ、案 Z)
+  - final-architect: スコープを Move のみに絞れ、Buff/Trap は明日
+
+  libgdx-implementer の指摘「セーブ整合 + AP 切れ自動ターン終了との競合回避」が決定的。`TurnDirector.autoEndPlayerTurnIfApDepleted()` が AP 0 で発火し pendingMoveCount を宙ぶらりんにする競合状態を避けるため、ドメイン側 (Player) に状態を持つ判断。
+- **Decision**: 以下を採用
+  1. **`Player` record 8 引数化** — `int pendingMoveCount` を追加、`withPendingMoveCount(int)` 提供。compact constructor で 0 以上検証
+  2. **`TurnEngine.applyPlayerUseCard` の `CardEffect.Move` case 実装** — reject 解除、`pendingMoveCount = distance` を Player に設定 + AP cost ぶん消費 + Hand→Discard 移動 (UseCard の標準処理)。**カード使用時点では移動しない** (移動は次の AWSD 入力で発生、距離 1 のカードでも UseCard 直後に AWSD が必要)
+  3. **`TurnEngine.applyPlayerMove` の AP スキップ分岐** — `pendingMoveCount > 0` なら AP 消費せず 1 マス移動 + pendingMoveCount-- に。0 なら従来通り AP 1 消費の通常移動
+  4. **途中ブロックは reject 統一** — distance 2 で 2 マス目に壁 / 敵がある場合、移動キー押下を reject (AP 消費なし、pendingMoveCount も減らない)。final-architect「驚き最小」推奨
+  5. **`BattleEvent.MovementGranted(ActorId, int remainingSteps)` 新規追加** — UseCard(Move) で発火、HudRenderer が拾って「移動権 残 N 歩」表示
+  6. **`PlayerInputs` 3 ステート拡張** — 状態 2 = `state.player().pendingMoveCount() > 0` で WASD = `BattleAction.Move(direction)` (TurnEngine 側で AP 0 処理)。ESC でドメインに「pendingMoveCount リセット」アクションを送る (AP は戻さない、移動権破棄は YAGNI で AP 戻し回避)
+  7. **HudRenderer.drawHand** — `pendingMoveCount > 0` のとき画面に「移動権 残 N 歩」を CYAN で追加表示
+  8. **スコープは Move のみ** — Buff (`Player.activeBuffs`) と Trap (`DungeonState.placedTraps`) は明日 5/15 以降の別 PR、本 PR では引き続き reject 維持
+- **Consequences**:
+  - + §15-5 「移動カードを切らないと動けない」純粋路線を達成
+  - + dash カードがゲーム内で動作 (Damage 系のみだった現状から拡張)
+  - + セーブ時に pendingMoveCount が自然に永続化される (層単位セーブ、§15-11 と整合)
+  - + AP 切れと移動権の競合を完全に解消
+  - + ADR-20 の移動 α 案を実装完了
+  - − `Player` record が 8 引数化、record 引数 9 超え見直しタイミングと隣り合わせ (装備 E-5 追加で 9 引数 = 見直しライン)
+  - − Buff/Trap は引き続き reject、テンプレ提示の iron_skin / spike_trap は死札のまま (明日解決)
+  - − `BattleAction.Move(direction)` 自体は変更なし (AP 消費判定は TurnEngine 側に集約) で互換性維持、ただし TurnEngine の applyPlayerMove ロジックは pendingMoveCount 分岐で複雑化
+  - − DomainFixtures / InitialStateFactory の `new Player(...)` 呼出 2 箇所を 8 引数版に更新が必要 (デフォルト pendingMoveCount=0)
+- **Reference**: §15-5 (L529-569), ADR-18 (CardPileState を Player に内蔵), ADR-19 (毎ターンドロー + 移動カード化予告), ADR-20 (移動 α 案 / 装備 B 案 / 解像度確定), 3 サブエージェント並列レビュー (本セッション深夜、2026-05-14)、libgdx-implementer 指摘 (セーブ整合と AP 切れ競合回避)

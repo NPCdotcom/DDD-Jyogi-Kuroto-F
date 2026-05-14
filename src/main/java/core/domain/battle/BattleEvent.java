@@ -16,7 +16,8 @@ public sealed interface BattleEvent
         BattleEvent.ActorDied,
         BattleEvent.SoulGained,
         BattleEvent.TurnPhaseChanged,
-        BattleEvent.ActionRejected {
+        BattleEvent.ActionRejected,
+        BattleEvent.MovementGranted {
 
   record Moved(ActorId who, Position from, Position to) implements BattleEvent {
     public Moved {
@@ -71,6 +72,22 @@ public sealed interface BattleEvent
     public ActionRejected {
       Objects.requireNonNull(who, "who");
       Objects.requireNonNull(reason, "reason");
+    }
+  }
+
+  /**
+   * 移動権付与 (§15-5 / ADR-21)。移動カードを切ったときに発火し、distance 分の連続移動権を付与する。プレゼン層はこれを拾って HUD に「移動権 残 N 歩」を表示する。
+   *
+   * <p>残りステップ数 (remainingSteps) は付与直後の値、つまりカード使用時点では distance と同じ。AWSD で 1 マス移動するごとに Player.pendingMoveCount
+   * がデクリメントされる (本イベントは再発火しない、状態は Player record 側から読む)。
+   */
+  record MovementGranted(ActorId who, int remainingSteps) implements BattleEvent {
+    public MovementGranted {
+      Objects.requireNonNull(who, "who");
+      if (remainingSteps <= 0) {
+        throw new IllegalArgumentException(
+            "remainingSteps must be positive: " + remainingSteps);
+      }
     }
   }
 }

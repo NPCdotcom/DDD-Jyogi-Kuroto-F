@@ -381,4 +381,126 @@ class TurnEngineTest {
 
     assertTrue(result.wasRejected());
   }
+
+  // =========================================================
+  // §15-5 / ADR-21: Move カード解決テスト
+  // =========================================================
+
+  @Test
+  void useMoveCardGrantsPendingMoveCountAndConsumesApWithoutMoving() {
+    // §15-5 / ADR-21 「移動カード使用 → pendingMoveCount=distance 設定 + AP 消費 + Hand→Discard、移動しない」
+    Card dash = DomainFixtures.moveCard("dash"); // distance=2, apCost=1
+    CardPileState piles =
+        new CardPileState(DrawPile.empty(), Hand.empty().add(dash), DiscardPile.empty());
+    Player p =
+        DomainFixtures.playerAt(new Position(2, 2))
+            .withCardPileState(piles); // AP=5 (full)
+    DungeonState s = newState(p, List.of());
+
+    // Move カードは direction 不要だが UseCard 型は direction 必須 → RIGHT を渡す
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.UseCard(0, Direction.RIGHT));
+
+    assertFalse(result.wasRejected());
+    Player after = result.state().player();
+    // 移動権 distance=2 が付与されていること
+    assertEquals(2, after.pendingMoveCount());
+    // AP 1 消費 (5 → 4)
+    assertEquals(4, after.actionPoints().current());
+    // Hand 1 → 0、Discard 0 → 1
+    assertEquals(0, after.cardPileState().hand().size());
+    assertEquals(1, after.cardPileState().discardPile().size());
+    // 位置は変化しない
+    assertEquals(new Position(2, 2), after.position());
+    // SkillUsed + MovementGranted(remainingSteps=2) が発火
+    assertTrue(result.events().get(0) instanceof BattleEvent.SkillUsed);
+    BattleEvent.MovementGranted granted = (BattleEvent.MovementGranted) result.events().get(1);
+    assertEquals(2, granted.remainingSteps());
+  }
+
+  @Test
+  void movingWhilePendingCountPositiveConsumesNoApAndDecrementsCount() {
+    // §15-5 / ADR-21 「pendingMoveCount > 0 のとき AWSD 移動は AP 0 消費、pendingMoveCount--」
+    Player p =
+        DomainFixtures.playerAt(new Position(2, 2))
+            .withPendingMoveCount(2); // 移動権 2 残
+    int apBefore = p.actionPoints().current();
+    DungeonState s = newState(p, List.of());
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.Move(Direction.RIGHT));
+
+    assertFalse(result.wasRejected());
+    Player after = result.state().player();
+    // 1 マス移動
+    assertEquals(new Position(3, 2), after.position());
+    // pendingMoveCount 2 → 1
+    assertEquals(1, after.pendingMoveCount());
+    // AP 消費なし
+    assertEquals(apBefore, after.actionPoints().current());
+    // Moved イベント発火
+    assertTrue(result.events().get(0) instanceof BattleEvent.Moved);
+  }
+
+  @Test
+  void useMoveCardWithZeroApIsRejected() {
+    // §15-5 / ADR-21 「AP 0 で Move カード使用 → reject、状態変化なし」
+    Card dash = DomainFixtures.moveCard("dash");
+    CardPileState piles =
+        new CardPileState(DrawPile.empty(), Hand.empty().add(dash), DiscardPile.empty());
+    Player p =
+        DomainFixtures.playerAt(new Position(2, 2))
+            .withCardPileState(piles)
+            .withActionPoints(ActionPoints.empty(5)); // AP=0
+    DungeonState s = newState(p, List.of());
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.UseCard(0, Direction.RIGHT));
+
+    assertTrue(result.wasRejected());
+    // 手札は不変
+    assertEquals(1, result.state().player().cardPileState().hand().size());
+    // pendingMoveCount は変化しない
+    assertEquals(0, result.state().player().pendingMoveCount());
+  }
+
+  @Test
+  void movingIntoWallWhilePendingCountPositiveIsRejectedWithoutDecrementingCount() {
+    // §15-5 / ADR-21 「移動権中の壁ブロックは reject、pendingMoveCount は減らない」
+    // (2,2) から DOWN は (2,1)=床、UP は (2,3)=床、LEFT は (1,2)=床、DOWN は (2,1)
+    // 外壁に接する (1,1) から DOWN → (1,0) は壁
+    Player p =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withPendingMoveCount(2);
+    DungeonState s = newState(p, List.of());
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.Move(Direction.DOWN));
+
+    assertTrue(result.wasRejected());
+    // pendingMoveCount は減少しない
+    assertEquals(2, result.state().player().pendingMoveCount());
+    // 位置も変化しない
+    assertEquals(new Position(1, 1), result.state().player().position());
+  }
+
+  @Test
+  void startPlayerTurnResetsPendingMoveCountToZero() {
+    // §15-5 / ADR-21 「ターン頭で pendingMoveCount をリセット (移動権はターンをまたがない)」
+    Player p =
+        DomainFixtures.playerAt(new Position(2, 2))
+            .withActionPoints(new ActionPoints(0, 5))
+            .withPendingMoveCount(3); // 前ターン残りの移動権
+    DungeonState s =
+        new DungeonState(DomainFixtures.squareRoom(), p, List.of(), TurnPhase.ENEMY_TURN);
+
+    TurnEngine.StepResult result = TurnEngine.startPlayerTurn(s, new Random(0));
+
+    // pendingMoveCount が 0 にリセットされる
+    assertEquals(0, result.state().player().pendingMoveCount());
+    // フェーズは PLAYER_TURN、AP はリフィル済
+    assertEquals(TurnPhase.PLAYER_TURN, result.state().phase());
+    assertEquals(
+        p.stats().speed(), result.state().player().actionPoints().current(), "AP は速度分まで回復");
+  }
 }

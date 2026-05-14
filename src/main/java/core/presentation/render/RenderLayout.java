@@ -51,6 +51,13 @@ public final class RenderLayout {
   public static final int HUD_Y_PHASE = 950;
 
   /**
+   * 移動権残量表示の Y 座標 (ADR-21 §15-5)。
+   *
+   * <p>HUD_Y_PHASE=950 の 1 行下 (950 - 30 = 920) に配置する。pendingMoveCount > 0 のときのみ描画される。
+   */
+  public static final int HUD_Y_MOVE_TOKEN = 920;
+
+  /**
    * メッセージログ表示開始位置 (下方向に展開)。
    *
    * <p>画面下部に配置。LOG_TOP_Y=230 から下に向かって各行を展開。

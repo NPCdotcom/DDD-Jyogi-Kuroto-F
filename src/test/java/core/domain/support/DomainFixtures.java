@@ -67,7 +67,9 @@ public final class DomainFixtures {
         new SkillSlot(List.of(lightAttack(), heavyAttack()), 4),
         Soul.zero(),
         // ADR-18: 空 CardPileState で初期化 (Deck 接続は別 Issue)。
-        CardPileState.empty());
+        CardPileState.empty(),
+        // ADR-21: pendingMoveCount=0 (テスト用、必要なら withPendingMoveCount で上書き)。
+        0);
   }
 
   /**

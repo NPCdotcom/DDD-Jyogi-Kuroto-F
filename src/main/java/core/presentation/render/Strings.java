@@ -31,6 +31,9 @@ public final class Strings {
     public static final String HUD_SPEED = "速度";
     public static final String HUD_HINT = "WASD/矢印: 移動   1〜9: カード   SPACE: 待機   ENTER: ターン終了";
 
+    // 移動権保持中の操作ヒント (ADR-21 §15-5)
+    public static final String MOVE_TOKEN_HINT = "移動権保持中: WASD/矢印で移動";
+
     public static final String PHASE_PLAYER = "あなたのターン";
     public static final String PHASE_ENEMY = "敵のターン";
     public static final String PHASE_GAMEOVER = "ゲームオーバー";
@@ -47,6 +50,9 @@ public final class Strings {
     public static final String CARD_ELEMENT_PHYSICAL = "物";
     public static final String CARD_ELEMENT_MAGICAL = "魔";
 
+    // 移動権ラベル (ADR-21 §15-5: 移動カードで付与された無料移動権の残量表示)
+    public static final String MOVE_TOKEN_REMAINING_FORMAT = "移動権 残 %d 歩";
+
     // BattleEvent の説明文 (HUD ログ用)
     public static final String EV_MOVED_FORMAT = "%s が (%d, %d) へ移動";
     public static final String EV_SKILL_USED_FORMAT = "%s が「%s」を発動";
@@ -55,6 +61,7 @@ public final class Strings {
     public static final String EV_SOUL_GAINED_FORMAT = "%s は %d ソウルを獲得";
     public static final String EV_PHASE_FORMAT = "フェーズ移行 → %s";
     public static final String EV_REJECTED_FORMAT = "%s: 拒否 (%s)";
+    public static final String EV_MOVEMENT_GRANTED_FORMAT = "%s に移動権 %d 歩を付与";
   }
 
   /** 英語版 (フォント未配置時の fallback)。 */
@@ -78,6 +85,9 @@ public final class Strings {
     public static final String HUD_HINT =
         "WASD/Arrows: Move   1-9: Card   SPACE: Wait   ENTER: End turn";
 
+    // Move token hint during movement mode (ADR-21 §15-5)
+    public static final String MOVE_TOKEN_HINT = "Move tokens: use WASD/Arrows to move";
+
     public static final String PHASE_PLAYER = "YOUR TURN";
     public static final String PHASE_ENEMY = "ENEMY TURN";
     public static final String PHASE_GAMEOVER = "GAME OVER";
@@ -94,6 +104,9 @@ public final class Strings {
     public static final String CARD_ELEMENT_PHYSICAL = "Physical";
     public static final String CARD_ELEMENT_MAGICAL = "Magical";
 
+    // 移動権ラベル (ADR-21 §15-5: remaining free-move steps granted by a Move card)
+    public static final String MOVE_TOKEN_REMAINING_FORMAT = "Move tokens: %d";
+
     public static final String EV_MOVED_FORMAT = "%s moved to (%d, %d)";
     public static final String EV_SKILL_USED_FORMAT = "%s used %s";
     public static final String EV_DAMAGE_FORMAT = "%s -> %s : %d damage (HP %d left)";
@@ -101,5 +114,6 @@ public final class Strings {
     public static final String EV_SOUL_GAINED_FORMAT = "%s gained %d soul";
     public static final String EV_PHASE_FORMAT = "Phase -> %s";
     public static final String EV_REJECTED_FORMAT = "%s: rejected (%s)";
+    public static final String EV_MOVEMENT_GRANTED_FORMAT = "%s gains %d move step(s)";
   }
 }
