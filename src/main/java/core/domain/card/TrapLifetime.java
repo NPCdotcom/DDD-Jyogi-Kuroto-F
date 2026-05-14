@@ -23,12 +23,15 @@ public sealed interface TrapLifetime permits TrapLifetime.UntilStepped, TrapLife
   /**
    * 魔法罠の残存ルール: 残り {@code remaining} ターンで消滅。
    *
-   * <p>remaining は 1 以上を強制 (0 ターン残りの罠は「設置直後に消える」状態となり意味を成さないため、 設置時に 0 を受け取らない設計)。
+   * <p>remaining は 0 以上を許容する (0 は「期限切れ直前」の中間値として {@link
+   * core.domain.dungeon.PlacedTrap#decrementedLifetime()} が生成する。その後 {@link
+   * core.domain.dungeon.PlacedTrap#isAlive()} が 0 を除去する)。設置時 ({@code CardEffect.Trap}) に 0 以下を
+   * 渡すのは別クラス側で防ぐ。
    */
   record Turns(int remaining) implements TrapLifetime {
     public Turns {
-      if (remaining < 1) {
-        throw new IllegalArgumentException("remaining must be >= 1 (got " + remaining + ")");
+      if (remaining < 0) {
+        throw new IllegalArgumentException("remaining must be >= 0 (got " + remaining + ")");
       }
     }
   }
