@@ -183,7 +183,8 @@ class TurnEngineTest {
     // (GAME_DESIGN §5-3 「死亡時にソウルは保持」)
     Player weakPlayer =
         DomainFixtures.playerAt(new Position(1, 1))
-            .withStats(new core.domain.entity.Stats(5, 30, 3))
+            // ADR-17: 物攻/魔攻/物防/魔防 は暫定 0 埋め (DomainFixtures 既定値と同じ)
+            .withStats(new core.domain.entity.Stats(5, 30, 3, 0, 0, 0, 0))
             .addSoul(new Soul(7));
     Enemy slime = DomainFixtures.slimeAt(new Position(2, 1));
     DungeonState s =

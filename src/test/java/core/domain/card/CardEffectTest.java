@@ -3,6 +3,7 @@ package core.domain.card;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import core.domain.entity.Stats;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -151,5 +152,81 @@ class CardEffectTest {
   @Test
   void trapNullLifetimeThrowsNullPointerException() {
     assertThrows(NullPointerException.class, () -> new CardEffect.Trap(1, null));
+  }
+
+  // =========================================================
+  // Damage.resolve (ADR-17、§15-4 ダメージ計算)
+  // =========================================================
+
+  /** 攻防 0 のとき baseValue がそのまま返る (既存 TurnEngineTest と等価)。 */
+  @Test
+  void damageResolveWithZeroStatsReturnsBaseValue() {
+    CardEffect.Damage d = new CardEffect.Damage(5);
+    Stats zero = new Stats(10, 10, 1, 0, 0, 0, 0);
+    assertEquals(5, d.resolve(zero, zero, CardElement.PHYSICAL));
+    assertEquals(5, d.resolve(zero, zero, CardElement.MAGICAL));
+  }
+
+  /** PHYSICAL: max(1, baseValue + 物攻 - 物防)。物攻が高ければ増、物防が高ければ減。 */
+  @Test
+  void damageResolvePhysicalAddsPhysicalAttackAndSubtractsPhysicalDefense() {
+    CardEffect.Damage d = new CardEffect.Damage(5);
+    Stats attacker = new Stats(10, 10, 1, 3, 0, 0, 0);
+    Stats defender = new Stats(10, 10, 1, 0, 0, 2, 0);
+    // 5 + 3 - 2 = 6
+    assertEquals(6, d.resolve(attacker, defender, CardElement.PHYSICAL));
+  }
+
+  /** MAGICAL: max(1, baseValue + 魔攻 - 魔防)。物攻/物防は影響しない。 */
+  @Test
+  void damageResolveMagicalAddsMagicalAttackAndSubtractsMagicalDefense() {
+    CardEffect.Damage d = new CardEffect.Damage(5);
+    Stats attacker = new Stats(10, 10, 1, 99, 4, 0, 0);
+    Stats defender = new Stats(10, 10, 1, 0, 0, 99, 1);
+    // 物理側 99 は無視、5 + 4 - 1 = 8
+    assertEquals(8, d.resolve(attacker, defender, CardElement.MAGICAL));
+  }
+
+  /** 防御 > 攻撃でも最低 1 ダメージ保証。 */
+  @Test
+  void damageResolveGuaranteesMinimumOneEvenWhenDefenseExceedsAttack() {
+    CardEffect.Damage d = new CardEffect.Damage(3);
+    Stats attacker = new Stats(10, 10, 1, 1, 1, 0, 0);
+    Stats defender = new Stats(10, 10, 1, 0, 0, 100, 100);
+    // 3 + 1 - 100 = -96 → max(1, -96) = 1
+    assertEquals(1, d.resolve(attacker, defender, CardElement.PHYSICAL));
+    assertEquals(1, d.resolve(attacker, defender, CardElement.MAGICAL));
+  }
+
+  /** PHYSICAL と MAGICAL は互いに影響しない (混線防止)。 */
+  @Test
+  void damageResolvePhysicalIgnoresMagicalStats() {
+    CardEffect.Damage d = new CardEffect.Damage(5);
+    // 攻撃側に魔攻 99 を持たせても、PHYSICAL 計算には影響しない
+    Stats attacker = new Stats(10, 10, 1, 2, 99, 0, 0);
+    Stats defender = new Stats(10, 10, 1, 0, 0, 1, 99);
+    // 5 + 2 - 1 = 6 (魔攻/魔防は無視)
+    assertEquals(6, d.resolve(attacker, defender, CardElement.PHYSICAL));
+  }
+
+  @Test
+  void damageResolveNullAttackerThrowsNullPointerException() {
+    CardEffect.Damage d = new CardEffect.Damage(5);
+    Stats s = new Stats(10, 10, 1, 0, 0, 0, 0);
+    assertThrows(NullPointerException.class, () -> d.resolve(null, s, CardElement.PHYSICAL));
+  }
+
+  @Test
+  void damageResolveNullDefenderThrowsNullPointerException() {
+    CardEffect.Damage d = new CardEffect.Damage(5);
+    Stats s = new Stats(10, 10, 1, 0, 0, 0, 0);
+    assertThrows(NullPointerException.class, () -> d.resolve(s, null, CardElement.PHYSICAL));
+  }
+
+  @Test
+  void damageResolveNullElementThrowsNullPointerException() {
+    CardEffect.Damage d = new CardEffect.Damage(5);
+    Stats s = new Stats(10, 10, 1, 0, 0, 0, 0);
+    assertThrows(NullPointerException.class, () -> d.resolve(s, s, null));
   }
 }
