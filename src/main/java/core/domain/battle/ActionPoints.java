@@ -3,19 +3,21 @@ package core.domain.battle;
 /**
  * 行動ポイント (AP)。current は常に [0, max] の範囲に保たれる。
  *
- * <p>GAME_DESIGN §5-2 の AP 回復方式 (案 A-2) を表現する:
+ * <p>§15-3 / ADR-01 の使い切り型 AP モデル:
  *
  * <ul>
- *   <li>max は固定
- *   <li>{@link #regenerate(int)} で速度ステ分の AP を加算（上限 max）
- *   <li>蓄積可能 (current < max のときに溜まる)
+ *   <li>毎ターン頭で {@link #refilledTo(int)} を呼ぶことで速度ステ分まで全リセット (前ターンの残 AP は蓄積しない)
+ *   <li>AP 切れ ({@link #isEmpty()}) で相手ターンへ自動遷移する (判定は TurnDirector / TurnEngine 側)
+ *   <li>{@code max == 0} は速度ステ 0 のキャラ (現状想定なし、{@link #empty(int)} で表現可)
  * </ul>
+ *
+ * <p>ターン継続/終了の「AP 切れ or 手札切れ」OR 判定のうち、手札切れは本 record の責務ではない (依存事項 D で Hand 連動する想定)。
  */
 public record ActionPoints(int current, int max) {
 
   public ActionPoints {
-    if (max <= 0) {
-      throw new IllegalArgumentException("max must be positive: " + max);
+    if (max < 0) {
+      throw new IllegalArgumentException("max must be non-negative: " + max);
     }
     if (current < 0 || current > max) {
       throw new IllegalArgumentException("current must be in [0, %d]: %d".formatted(max, current));
@@ -30,11 +32,21 @@ public record ActionPoints(int current, int max) {
     return new ActionPoints(0, max);
   }
 
-  public ActionPoints regenerate(int amount) {
-    if (amount < 0) {
-      throw new IllegalArgumentException("regenerate amount must be non-negative: " + amount);
+  /**
+   * 新しい max を指定し、current も新 max まで全充填する (§15-3 使い切り型のターン頭再充填)。
+   *
+   * <p>使い切り型では「前ターンの残 AP を蓄積しない」「max が変化したら即追従する」必要があり、本メソッドが両方を 1 呼び出しで扱う。通常は
+   * {@code Stats#speed()} を引数に渡す。
+   *
+   * @param newMax 新しい max ({@code >= 0})、通常はターン頭の速度ステ値
+   * @return current = newMax, max = newMax の新 ActionPoints
+   * @throws IllegalArgumentException {@code newMax < 0} のとき
+   */
+  public ActionPoints refilledTo(int newMax) {
+    if (newMax < 0) {
+      throw new IllegalArgumentException("newMax must be non-negative: " + newMax);
     }
-    return new ActionPoints(Math.min(max, current + amount), max);
+    return new ActionPoints(newMax, newMax);
   }
 
   public boolean canSpend(int cost) {

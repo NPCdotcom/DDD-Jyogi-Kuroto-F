@@ -57,7 +57,7 @@ public final class TurnEngine {
   public static StepResult startPlayerTurn(DungeonState state) {
     Objects.requireNonNull(state, "state");
     Player p = state.player();
-    Player refreshed = p.withActionPoints(p.actionPoints().regenerate(p.stats().speed()));
+    Player refreshed = p.withActionPoints(p.actionPoints().refilledTo(p.stats().speed()));
     DungeonState ns = state.withPlayer(refreshed).withPhase(TurnPhase.PLAYER_TURN);
     return new StepResult(ns, List.of(new BattleEvent.TurnPhaseChanged(TurnPhase.PLAYER_TURN)));
   }
@@ -92,7 +92,7 @@ public final class TurnEngine {
   private static StepResult endPlayerTurn(DungeonState state) {
     List<Enemy> regenerated = new ArrayList<>(state.enemies().size());
     for (Enemy e : state.enemies()) {
-      regenerated.add(e.withActionPoints(e.actionPoints().regenerate(e.stats().speed())));
+      regenerated.add(e.withActionPoints(e.actionPoints().refilledTo(e.stats().speed())));
     }
     DungeonState ns = state.withEnemies(regenerated).withPhase(TurnPhase.ENEMY_TURN);
     return new StepResult(ns, List.of(new BattleEvent.TurnPhaseChanged(TurnPhase.ENEMY_TURN)));
