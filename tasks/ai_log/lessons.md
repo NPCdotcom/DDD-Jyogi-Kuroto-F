@@ -87,3 +87,10 @@
 - **判断**: サブエージェントで「直前会話を一切知らない新セッションの Claude」を想定して判定 → B 評価 (技術的には可能だが、直近意思決定 4 点が分散していて把握しづらい)
 - **学び**: 長セッションで意思決定が積み重なるプロジェクトでは、**圧縮前に「handoff.md (スナップショット) + decisions.md (ADR 風)」を整備する**。圧縮後の新セッションが 2 ファイル読めば「今ここから何をすべきか」が即座に分かる構造を作る
 - **適用範囲**: 1 セッションで複数の不可逆判断を行うプロジェクト全般 (ハッカソン / 中規模リファクタリング / OSS メジャーバージョンアップ等)
+
+### 2026-05-14: Skill の `context: fork` で worktree が残留し cwd 汚染が連鎖する
+
+- **状況**: `architect-review` Skill (`context: fork`) を起動後、後続の `japanese-pr-create` Skill (fork 指定なし) でも `claude/loving-proskuriakova-5c4dd1` worktree が cwd になり、`git diff origin/develop --stat` が「100 ファイル変更、6299 deletions」の偽差分を表示した
+- **指摘 / 失敗**: Skill 内の `!`git status`/`git diff`` 出力をそのまま信頼して PR 作成していたら、develop の最新コードをほぼ全部消す災害的 PR になっていた。`context: fork` 指定が無い Skill でも、過去の fork で生成された worktree が残っていると cwd 汚染が後続 Skill にも連鎖する。さらに `git worktree remove --force` を試みても **Claude Code セッション中はファイルロックで Permission denied** になり、セッション終了まで残留する
+- **学び**: (1) Skill 内の git 出力は信用せず、必ず main session 側で `git -C <main-repo-path> ...` の明示パスで再確認する。(2) `context: fork` 付き Skill 実行後は `git worktree list` で残留確認 → 不要なら `git worktree remove --force <path>` で削除する (セッション中に失敗したらセッション終了後に手動削除)。これは Claude Code 既知バグ ([GitHub Issue #40968](https://github.com/anthropics/claude-code/issues/40968))。(3) `gh pr create` / `git commit` 等の **不可逆操作を含む Bash 実行は必ず `-C <main-repo-path>` 付き** で行う
+- **適用範囲**: `context: fork` を持つすべての Skill (現状 `~/.claude/skills/architect-review/` のみ)、および git 情報を出力する全 Skill (`japanese-pr-create` を含む)
