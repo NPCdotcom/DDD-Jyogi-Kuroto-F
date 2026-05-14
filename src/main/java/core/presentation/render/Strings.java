@@ -20,7 +20,7 @@ public final class Strings {
     public static final String START_HINT = "ENTER で出発する";
     public static final String CONTROLS_HEADER = "操作";
     public static final String CONTROLS_MOVE = "WASD / 矢印キー   1 マス移動 (AP 1)";
-    public static final String CONTROLS_SKILL = "1 〜 4         スキル発動 (隣接した敵)";
+    public static final String CONTROLS_SKILL = "1 〜 9         カード選択 → 方向キーで使用";
     public static final String CONTROLS_WAIT = "SPACE          待機 (AP 1)";
     public static final String CONTROLS_END = "ENTER          ターン終了";
 
@@ -29,7 +29,7 @@ public final class Strings {
     public static final String HUD_SOUL = "ソウル";
     public static final String HUD_PHASE = "フェーズ";
     public static final String HUD_SPEED = "速度";
-    public static final String HUD_HINT = "WASD/矢印: 移動   1〜4: スキル   SPACE: 待機   ENTER: ターン終了";
+    public static final String HUD_HINT = "WASD/矢印: 移動   1〜9: カード   SPACE: 待機   ENTER: ターン終了";
 
     public static final String PHASE_PLAYER = "あなたのターン";
     public static final String PHASE_ENEMY = "敵のターン";
@@ -40,6 +40,12 @@ public final class Strings {
     public static final String CLEARED_HEADER = "フロア踏破";
     public static final String SOULS_KEPT = "持ち帰ったソウル: ";
     public static final String NEW_RUN_HINT = "ENTER で新たな挑戦を始める";
+
+    // 手札表示ラベル
+    public static final String HAND_LABEL = "手札:";
+    public static final String HAND_HINT = "数字キー: カード選択  方向キー: 使用方向  ESC: キャンセル";
+    public static final String CARD_ELEMENT_PHYSICAL = "物";
+    public static final String CARD_ELEMENT_MAGICAL = "魔";
 
     // BattleEvent の説明文 (HUD ログ用)
     public static final String EV_MOVED_FORMAT = "%s が (%d, %d) へ移動";
@@ -60,7 +66,7 @@ public final class Strings {
     public static final String START_HINT = "Press ENTER to descend";
     public static final String CONTROLS_HEADER = "Controls";
     public static final String CONTROLS_MOVE = "WASD / Arrows   Move (1 AP)";
-    public static final String CONTROLS_SKILL = "1 - 4           Use skill (adjacent enemy)";
+    public static final String CONTROLS_SKILL = "1 - 9           Select card -> Arrow for direction";
     public static final String CONTROLS_WAIT = "SPACE           Wait (1 AP)";
     public static final String CONTROLS_END = "ENTER           End your turn";
 
@@ -70,7 +76,7 @@ public final class Strings {
     public static final String HUD_PHASE = "Phase";
     public static final String HUD_SPEED = "Speed";
     public static final String HUD_HINT =
-        "WASD/Arrows: Move   1-4: Skill   SPACE: Wait   ENTER: End turn";
+        "WASD/Arrows: Move   1-9: Card   SPACE: Wait   ENTER: End turn";
 
     public static final String PHASE_PLAYER = "YOUR TURN";
     public static final String PHASE_ENEMY = "ENEMY TURN";
@@ -81,6 +87,12 @@ public final class Strings {
     public static final String CLEARED_HEADER = "FLOOR CLEARED";
     public static final String SOULS_KEPT = "Souls carried out: ";
     public static final String NEW_RUN_HINT = "Press ENTER to start a new run";
+
+    // 手札表示ラベル
+    public static final String HAND_LABEL = "Hand:";
+    public static final String HAND_HINT = "Number: select card  Arrow: direction  ESC: cancel";
+    public static final String CARD_ELEMENT_PHYSICAL = "Physical";
+    public static final String CARD_ELEMENT_MAGICAL = "Magical";
 
     public static final String EV_MOVED_FORMAT = "%s moved to (%d, %d)";
     public static final String EV_SKILL_USED_FORMAT = "%s used %s";

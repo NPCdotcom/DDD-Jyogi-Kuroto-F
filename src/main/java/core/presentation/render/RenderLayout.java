@@ -32,4 +32,12 @@ public final class RenderLayout {
   public static final int LOG_TOP_Y = 120;
   public static final int LOG_LINE_HEIGHT = 18;
   public static final int LOG_LINES_VISIBLE = 5;
+
+  /**
+   * 手札表示の Y 座標。ログ領域より下、画面最下部付近に配置する。
+   *
+   * <p>LOG_TOP_Y=120、LOG_LINE_HEIGHT=18、LOG_LINES_VISIBLE=5 で最低 Y 座標は 120-(5-1)*18=48 程度。
+   * HAND_Y=30 なら 1 行分の余白を確保でき、手札行と重ならない。
+   */
+  public static final int HAND_Y = 30;
 }
