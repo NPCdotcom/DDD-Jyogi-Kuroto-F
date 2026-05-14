@@ -126,14 +126,15 @@ JAVA_HOME: `C:\Program Files\Java\jdk-25.0.3`
 
 ### 通常の機能実装 (E-X / 依存事項 着手時)
 
-1. `/m1-5-start E-X 機能名` Skill (Issue 起票 + ブランチ作成)
-2. `domain-architect` Agent で設計レビュー → ユーザー確認
-3. 実装 (Edit/Write) → hook で `spotlessApply` + 関連テスト
-4. `test-writer` Agent でテスト補強
-5. (LibGDX 依存時) `libgdx-implementer` Agent
-6. `final-architect` Agent で最終レビュー (※ `/architect-review` Skill は worktree 問題あり、直接 Agent 推奨。lessons.md 参照)
-7. `gh pr create` で日本語 Draft PR (※ `/japanese-pr-create` Skill も worktree 問題あり、テンプレ参照のみ、実行は main session)
-8. self-merge or チームレビュー → マージ
+1. `/m1-5-start E-X 機能名` Skill で Issue 起票 + ブランチ作成 (実行結果は `git status` / `gh issue view` で main session でも検証)
+2. **`domain-architect` Agent で設計レビュー → ユーザー確認**。大きな設計判断は **3 並列レビュー** (domain-architect 自己再評価 / general-purpose docs 横断 / final-architect 8 原則) を推奨 — 本セッションで ADR-17 を救済した運用パターン
+3. ADR 記録 (`decisions.md` 追記) — 不可逆判断は実装前に記録
+4. 実装 (Edit/Write) → hook で `spotlessApply` + 関連テスト自動実行
+5. `test-writer` Agent でテスト補強 (境界値 + 例外パス + ハッピーパス)
+6. (LibGDX 依存時のみ) `libgdx-implementer` Agent でプレゼン層
+7. **`final-architect` Agent を Agent ツールから直接呼ぶ** — `/architect-review` Skill は使わない (worktree 問題で実行ブランチが汚染される、lessons.md 参照)
+8. **`gh pr create` を main session から実行** — `/japanese-pr-create` Skill はテンプレ参照のみ、実行は必ず `-C C:/.program/DDD-Jyogi-Kuroto-F` 付き Bash で
+9. self-merge (ADR-14、リーダー権限) または チームレビュー → マージ
 
 ### Skill 利用時の注意 (lessons.md エントリ参照)
 
