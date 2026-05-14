@@ -5,6 +5,8 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.utils.viewport.FitViewport;
+import com.badlogic.gdx.utils.viewport.Viewport;
 import core.application.TurnDirector;
 import core.domain.battle.BattleAction;
 import core.domain.battle.TurnPhase;
@@ -30,6 +32,7 @@ public final class DungeonScreen extends ScreenAdapter {
   private final DddGame game;
 
   private OrthographicCamera camera;
+  private Viewport viewport;
   private SpriteBatch batch;
   private ShapeRenderer shapes;
   private PlayerInputs playerInputs;
@@ -41,7 +44,7 @@ public final class DungeonScreen extends ScreenAdapter {
   @Override
   public void show() {
     camera = new OrthographicCamera();
-    camera.setToOrtho(false, RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT);
+    viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
     batch = new SpriteBatch();
     shapes = new ShapeRenderer();
     playerInputs = new PlayerInputs();
@@ -67,7 +70,7 @@ public final class DungeonScreen extends ScreenAdapter {
 
   private void drawFrame() {
     ScreenUtils.clear(0.08f, 0.08f, 0.1f, 1f);
-    camera.update();
+    viewport.apply();
     shapes.setProjectionMatrix(camera.combined);
     batch.setProjectionMatrix(camera.combined);
 
@@ -85,6 +88,12 @@ public final class DungeonScreen extends ScreenAdapter {
     } else if (phase == TurnPhase.CLEARED) {
       game.setScreen(new GameOverScreen(game, true));
     }
+  }
+
+  @Override
+  public void resize(int width, int height) {
+    // true でカメラ位置をリセット (FitViewport の黒帯を正しく配置)
+    viewport.update(width, height, true);
   }
 
   @Override
