@@ -6,6 +6,7 @@ import core.domain.card.Card;
 import core.domain.card.CardEffect;
 import core.domain.card.CardElement;
 import core.domain.card.CardId;
+import core.domain.card.CardPileState;
 import core.domain.card.CardTag;
 import core.domain.card.DiscardPile;
 import core.domain.card.DrawPile;
@@ -60,11 +61,27 @@ public final class DomainFixtures {
     return new Player(
         ActorId.of("p1"),
         position,
-        // ADR-17: 物攻/魔攻/物防/魔防 は暫定 0 埋め。キャラビルド数値は別 Issue で再設計予定。
+        // ADR-17: 物攻/魔攻/物防/魔防 は暫定 0 埋め。
         new Stats(30, 30, 3, 0, 0, 0, 0),
         ActionPoints.full(5),
         new SkillSlot(List.of(lightAttack(), heavyAttack()), 4),
-        Soul.zero());
+        Soul.zero(),
+        // ADR-18: 空 CardPileState で初期化 (Deck 接続は別 Issue)。
+        CardPileState.empty());
+  }
+
+  /**
+   * 既存 {@link #playerAt(Position)} に手札 N 枚をセットしたバリアント (ADR-18 / Issue #18 UseCard テスト用)。
+   *
+   * <p>手札に詰めるのは {@link #attackCard} 系の物理攻撃カード ({@code "hand-1"} 〜 {@code "hand-N"})。
+   */
+  public static Player playerAtWithHand(Position position, int handSize) {
+    Player base = playerAt(position);
+    return base.withCardPileState(
+        new core.domain.card.CardPileState(
+            core.domain.card.DrawPile.empty(),
+            handOfSize(handSize),
+            core.domain.card.DiscardPile.empty()));
   }
 
   public static Enemy slimeAt(Position position) {

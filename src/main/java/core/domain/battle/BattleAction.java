@@ -9,7 +9,11 @@ import java.util.Objects;
  * <p>sealed にしているのは TurnEngine の switch 網羅性確保のため。
  */
 public sealed interface BattleAction
-    permits BattleAction.Move, BattleAction.UseSkill, BattleAction.Wait, BattleAction.EndTurn {
+    permits BattleAction.Move,
+        BattleAction.UseSkill,
+        BattleAction.UseCard,
+        BattleAction.Wait,
+        BattleAction.EndTurn {
 
   /** 指定方向に 1 マス移動する (AP コスト 1)。 */
   record Move(Direction direction) implements BattleAction {
@@ -24,6 +28,21 @@ public sealed interface BattleAction
       if (slotIndex < 0) {
         throw new IllegalArgumentException("slotIndex must be non-negative: " + slotIndex);
       }
+    }
+  }
+
+  /**
+   * 手札の {@code handIndex} 番目のカードを {@code direction} 方向に使用する (§15-3、ADR-18)。
+   *
+   * <p>本 PR では Damage カードのみ実装、Move / Buff / Trap は TurnEngine で reject される。{@code direction}
+   * は隣接攻撃の対象指定で必須 (将来 Move カード等で別用途に転用)。
+   */
+  record UseCard(int handIndex, Direction direction) implements BattleAction {
+    public UseCard {
+      if (handIndex < 0) {
+        throw new IllegalArgumentException("handIndex must be non-negative: " + handIndex);
+      }
+      Objects.requireNonNull(direction, "direction");
     }
   }
 

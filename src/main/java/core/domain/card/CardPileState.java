@@ -28,6 +28,15 @@ public record CardPileState(DrawPile drawPile, Hand hand, DiscardPile discardPil
   }
 
   /**
+   * 空の状態 (山札 / 手札 / 捨て札すべて空) を返す。
+   *
+   * <p>Player record 初期化時のプレースホルダや、テスト fixture で使う (ADR-18)。 戦闘開始時に Deck からシャッフルして山札を構築する手前の状態。
+   */
+  public static CardPileState empty() {
+    return new CardPileState(DrawPile.empty(), Hand.empty(), DiscardPile.empty());
+  }
+
+  /**
    * デッキサイズに応じた戦闘開始時の初期ドロー枚数を決定する。
    *
    * <p>仕様 (§15-3): deck=1→1, deck=2→2, deck=3→3, deck=4→3, deck=5→3, deck=6→5, deck>=10→5。
