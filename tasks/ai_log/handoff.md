@@ -8,41 +8,58 @@
 
 ## 最終更新
 
-- **日時**: 2026-05-14 (火)
-- **更新者**: Claude (本セッション、コンテキスト圧縮対策として作成)
+- **日時**: 2026-05-14 (火) (E-1 設計案取得後)
+- **更新者**: Claude (本セッション)
 
 ## アクティブブランチ
 
-`chore/#10/claude-setup` (本 PR #11 のブランチ)
+`feat/#12/E-1-card-skeleton` (Issue #12 E-1 カードシステムの実装ブランチ)
 
 ローカルメインリポジトリ: `C:\.program\DDD-Jyogi-Kuroto-F`
 
 ## 進行中の作業 (圧縮後はここから再開)
 
-1. **PR #11 を Ready 化 → self-merge** で `develop` に取り込む
-2. その後、`/m1-5-start E-1 カードシステム` で M1.5 の E-1 (カード) 着手
+**現在地**: E-1 (カードシステム) の domain-architect 設計案を取得済、**ユーザー承認待ち** の状態。
 
-### 具体的なコマンド (圧縮後の Claude が叩く想定)
+### 設計案サマリ (domain-architect 出力、要点)
 
-```bash
-# 1. PR #11 を Ready 化
-gh pr ready 11 -R NPCdotcom/DDD-Jyogi-Kuroto-F
+#### `core.domain.card/` 新規パッケージ
+- `CardId` (record + `of`)
+- `CardTag` enum: ATTACK / MOVEMENT / BUFF / TRAP
+- `CardElement` enum: PHYSICAL / MAGICAL (ハイブリッドは YAGNI)
+- `Card` (record): id + 表示名 + apCost + tag + element + effect
+- `CardEffect` sealed interface: Damage / Move / Buff / Trap
+- `TrapLifetime` sealed: UntilStepped (物理) / Turns(int) (魔法)
+- `Deck` (record, 静的マスター)
+- `DrawPile` / `DiscardPile` / `Hand` (record, 戦闘中状態)
+- `CardPileState` (record, 山札+手札+捨て札の束ねと純関数操作)
 
-# 2. self-merge
-gh pr merge 11 -R NPCdotcom/DDD-Jyogi-Kuroto-F --merge --delete-branch
+#### 設計判断のポイント
+- Card は単一 record、多態性は CardEffect (sealed) に集約 — 8 サブカテゴリのクラスを作らない (KISS)
+- 戦闘状態は CardPileState で局所閉包 (山札切れ→捨て札再シャッフルもここ)
+- Random を引数注入、ドメイン副作用ゼロ
+- TrapLifetime sealed で物理/魔法の差を型表現 (boolean フラグにしない)
 
-# 3. develop 最新化
-cd /c/.program/DDD-Jyogi-Kuroto-F
-git fetch origin develop
-git switch develop
-git pull origin develop
+#### 依存している未実装事項 (別 Issue 化提案、優先順)
+- **A**: `ActionPoints` を §15-3 「使い切り型」に書き換え (現 蓄積型)
+- **B**: `Stats` を 6 ステに拡張
+- **C**: `Direction8` 新設 (罠の周囲 8 方向用、`Direction` は移動カード用に残す)
+- **D**: `BattleAction.UseCard(int handIndex, Direction dir)` 追加 + TurnEngine 修正
+- **E**: `core.domain.equipment.Equipment` 新設 (装備固有カードを `List<CardId>` で持たせる)
 
-# 4. E-1 着手 (.claude/skills/m1-5-start/SKILL.md の手順を実行)
-#    - gh issue create で Issue 起票 (P0', カードシステム)
-#    - feat/#<N>/E-1-card-skeleton ブランチを develop から派生
-#    - domain-architect Agent で設計レビュー
-#    - ユーザー確認 → 実装着手
-```
+### 次のアクション (圧縮後の Claude も実行可能)
+
+1. **ユーザー承認を取る**: 「設計案で進めて良いか」「依存 Issue A〜E をどう処理するか (同時並行 / 順次 / 統合)」
+2. 承認後、ブランチ `feat/#12/E-1-card-skeleton` で実装着手
+   - `core.domain.card/` の record / sealed を順次 Write
+   - test-writer Agent でテスト書く
+   - `/architect-review` で最終レビュー
+   - `/japanese-pr-create draft` で PR
+3. 依存 A〜E は本 Issue とは別 PR にする (本 PR は `card/` パッケージのみ)
+
+### 起票済みの並行 Issue
+
+- なし。E-3 (層) / E-4 (通貨) / E-6 (UI 基盤) はまだ起票していない (E-1 完了後 or 並行で起票)
 
 ## 直近のマージ済成果
 
@@ -54,6 +71,9 @@ git pull origin develop
 | `c2fc491` | §15 バランス調整 + UX 改善 (#8) | 2026-05-13 |
 | `4c97f0c` | **PR #9 merged**: §15 ブラッシュアップ → develop | 2026-05-14 |
 | `4a9382f` | **mvp → develop マージ** (`-X ours` で衝突は develop 優先) | 2026-05-14 |
+| `c5ea86d` | AI 駆動開発体制を整備 (#10) | 2026-05-14 |
+| `5052dda` | コンテキスト圧縮対策の引継ぎ文書 | 2026-05-14 |
+| `f62b482` | **PR #11 merged**: AI 体制整備 → develop | 2026-05-14 |
 
 ## Open Issues / PRs
 
@@ -62,10 +82,9 @@ git pull origin develop
 | #1 | Issue | OPEN | リポジトリの土台整備 (古い、Close 候補) |
 | #4 | Issue | OPEN | CI 軽量化とドキュメント微調整 (古い、Close 候補) |
 | #8 | Issue | OPEN | §15 バランス調整 (PR #9 マージで実質完了、Close 推奨) |
-| #10 | Issue | OPEN | **AI 駆動開発体制の整備** ← PR #11 で Close 予定 |
-| #11 | PR | **Draft** | **AI 体制整備、本 PR**。Ready 化 → self-merge する |
+| #12 | Issue | **OPEN** | **E-1 カードシステム実装 (§15-3)** ← 現在ここ、設計案取得済 |
 
-Closed: #2, #3, #5, #6, #7 (MVP, 2026-05-14 close)
+Closed: #2, #3, #5, #6, #7 (MVP), #10 (PR #11 でクローズ済), #11 (merged)
 
 ## 据置き判断 (議論済、再議論不要)
 
