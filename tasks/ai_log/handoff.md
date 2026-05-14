@@ -8,7 +8,7 @@
 
 ## 最終更新
 
-- **日時**: 2026-05-14 (火) 深夜 (**Move + Gold + Trap** まで完了。dash / spike_trap がゲーム内で実動作、テンプレ 4 種中 3 種実装 (残: Buff のみ))
+- **日時**: 2026-05-14 (火) 深夜 (**E-3 層構造の最小実装まで完了**。Stage 1 メタレビュー + Stage 2 異質 3 並列で「審査員視点最優先」と確定して着手、ローグライト名乗れる状態に進化)
 - **更新者**: Claude (本セッション)
 
 ## アクティブブランチ
@@ -41,6 +41,8 @@
 | 16 | **#31** | handoff Move カード反映 | `17e2304` |
 | 17 | **#32** | **E-4 ラン内通貨 Gold record 新設 (§15-2)** | `dcb03ec` |
 | 18 | **#33** | **Trap カード実装 + PlacedTrap + 踏み判定 + ライフタイム管理 (ADR-22)** | `e386f93` |
+| 19 | **#34** | handoff Gold + Trap 反映 | `4882ad8` |
+| 20 | **#35** | **E-3 層構造の最小実装 (Layer + advanceLayer、ADR-23、195 件 PASS)** | `d9d4e06` |
 
 `gradlew test` 全 **157 件 PASS** (+2 for 毎ターンドロー検証)、final-architect レビュー全 PR で **A 判定** (#21 は B → 修正 2 件で A 相当)。
 
@@ -164,7 +166,18 @@
 31. **Buff/Trap カードは引き続き reject 維持**: ADR-21 で Move のみ実装と確定、Buff (`activeBuffs`)・Trap (`placedTraps`) は明日 5/15 別 PR で実装予定 → **Trap は本セッションで PR #33 (ADR-22) で実装完了、Buff のみ明日に持ち越し**
 32. **Gold record 新設**: §15-2 ラン内通貨 (`core.domain.meta.Gold`)、Soul と同型で値オブジェクト単独実装、Player/GameContext 統合は ADR-22 (PlayerStatuses 集約案) と一緒に明日 — PR #32
 33. **Trap カード = 設置者ステ依存なし + 同座標上書き + UntilStepped 踏み除去 / Turns 時間消滅**: TurnEngine.checkAndTriggerTrap で player/enemy 両経路共通、`Turns(0)` 中間値許容で `decrementedLifetime()` を単純化 — **ADR-22**、PR #33
-34. **明日 5/15 の作業順**: Discord 共有 (3 投稿) → Buff カード実装 (Player.activeBuffs + ActiveBuff record + Player.effectiveStats 合算、ADR-23 で PlayerStatuses 集約案決定) → E-5 装備 (Equipment B 案、ADR-23 で Player 引数増加問題と一緒に解決) → 並列で E-3 / E-6
+34. **明日 5/15 の作業順** (Stage 2 異質 3 並列の審査員視点で確定):
+    1. Discord 共有 (3 投稿、本日準備済)
+    2. **E-3 UI 連動** (CLEARED → ENTER で `InitialStateFactory.advanceLayer` 呼出、`BattleAction.AdvanceFloor` or 既存 EndTurn 流用、E-6 ポップアップと一緒)
+    3. **E-6 ポップアップ UI 基盤** (Scene2D Window、層末 4 種ノード提示)
+    4. **シームレス戦闘演出** (SE + シェイク + ダメージポップ、審査員視点で 30 秒試遊の決定打)
+    5. **E-2 ソウルツリー画面** (簡素でも円樹形 UI、PoE 訴求の絵)
+    6. **E-5 装備 (Equipment B 案)** (Player 9 引数化問題は ADR-24 で PlayerStatuses 集約案を確定してから)
+    7. **Buff カード実装** (上の ADR-24 と一緒、プレイヤー視点で緊急 5 だが審査員視点で印象薄)
+    8. **(訴求軸変更検討)**: 「Doko-demo」→ 「AI 駆動開発の実演」 (.claude/agents/ + ADR-23 までの蓄積を見せる)、Android backend は完成確率 10% 未満で動画代替も審査員に通用しない
+35. **E-3 層構造**: `Layer record (number, displayName)`、DungeonState 6 引数化 + 互換 5/4 引数、`InitialStateFactory.advanceLayer` + `newSlimeForLayer`、敵 AP = 層番号 (ADR-06 が初実装)、UI 連動は別 PR — **ADR-23**、PR #35
+36. **メタレビュー教訓 (本セッション)**: 「multifaceted ≠ 並列数」「同質コホート (技術者 3 名) は擬似的多角性」「真の多角性 = 観点の独立性 + ステークホルダー網羅 + 時間軸 + リスクカテゴリ」。次回以降 Agent 構成を異質化必須 (teammate-pov / playtester-pov / judge-pov を含める)
+37. **本日の機会費用**: Trap (PR #33) は審査員視点で「30 秒試遊に刺さらない」と判定済、もっと先に E-3 をやるべきだった (deck 構築は OK だが進行感ゼロは敗北筋)。本日 5 PR (#22/#24/#27/#29/#31/#34) は handoff 更新のみで PR 数を盛った状態、明日以降は 1 機能 = 1 PR を徹底
 
 ## 採用済ツール / バージョン
 
@@ -221,7 +234,7 @@ JAVA_HOME: `C:\Program Files\Java\jdk-25.0.3`
 
 - **2026-05-12**: MVP 完成
 - **2026-05-13**: §15 仕様策定 + バランス調整
-- **2026-05-14 (今日)** ✅: **M1.5 コア + 毎ターンドロー + 解像度 1920×1080 + テンプレ配布準備 + Move + Gold + Trap** (PR #13〜#33、ADR-22 まで蓄積、176 件全 PASS)
+- **2026-05-14 (今日)** ✅: **M1.5 コア + 毎ターンドロー + 解像度 + テンプレ配布準備 + Move + Gold + Trap + E-3 層構造** (PR #13〜#35、ADR-23 まで蓄積、**195 件全 PASS**)
 - **2026-05-15 (金)** **朝**: Discord にカード設計テンプレ共有 (3 投稿構成) + Google Drive / Sheets URL 共有
 - **2026-05-15 (金)** 日中:
   - **ADR-23 起票**: Player 引数増加問題の解決 (PlayerStatuses 集約 record 案 vs 8 引数維持)。Buff + 装備の同時実装に必要
