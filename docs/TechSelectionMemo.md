@@ -35,9 +35,9 @@
 - **iOS**: JVM 動作要件外
 
 ## ディレクトリ構成について
-- 現状の `src/main/java/core/...` は [GAME_DESIGN.md §9](./GAME_DESIGN.md) のレイヤー分離構成を `.gitkeep` で先行配置した暫定状態
-- LibGDX gdx-liftoff の出力で再編する想定（MVP スキャフォルド着手時に実施）
-- Android backend を有効化したら `.gitignore` の LibGDX 固有節も解放する
+- `src/main/java/core/{domain,application,infrastructure,presentation}/...` のレイヤー分離は [GAME_DESIGN.md §9](./GAME_DESIGN.md) の方針で確定。実装の対応関係は [SystemSummary.md §3](./SystemSummary.md) を参照
+- gdx-liftoff の出力ではなく、シングルモジュールで手書きの `build.gradle` を採用（KISS）。LibGDX を後から差し替えやすいよう、ドメイン層は LibGDX 非依存に保つ
+- Android backend を有効化する段階で `.gitignore` の LibGDX 固有節を解放し、ルート `build.gradle` を multi-project に拡張する想定
 
 ## CI で強制する項目
 - Markdown lint（docs と README）

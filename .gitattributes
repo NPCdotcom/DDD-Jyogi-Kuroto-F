@@ -1,0 +1,19 @@
+# 改行コードを LF に固定（CRLF 混入の事故を防ぐ）
+* text=auto eol=lf
+
+# Windows 専用バッチファイルのみ CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# バイナリ（diff を出さない）
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ogg binary
+*.mp3 binary
+*.wav binary
+*.zip binary
+gradle/wrapper/gradle-wrapper.jar binary

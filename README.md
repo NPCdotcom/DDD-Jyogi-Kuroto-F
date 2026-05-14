@@ -61,6 +61,61 @@ LibGDX を採用し、Windows / macOS / Linux / Android で「どこでも動く
 部内ハッカソン作品。**今週金曜 MVP** → **来週土日に本番** 提出予定。
 **§15「MVP 後の機能仕様」** を本番提出までに段階実装する方針。
 
+MVP コア実装 (1 階層 / AP 制戦闘 / 死亡時ソウル保持 / 階段踏破でクリア) は完成済み。詳細な進行は [tasks/todo.md](tasks/todo.md) を参照。
+
+## ローカル開発
+
+### 1. 前提
+
+| 必須 | 内容 | 取得 |
+|---|---|---|
+| JDK | **Oracle JDK 25 LTS** | <https://www.oracle.com/java/technologies/downloads/> |
+
+Gradle 9.5.0 の wrapper (`gradlew` / `gradlew.bat` / `gradle/wrapper/`) はリポジトリに同梱済み。`gradle` コマンドを別途インストールする必要は無い。
+
+### 2. 初回セットアップ
+
+```bash
+git clone https://github.com/NPCdotcom/DDD-Jyogi-Kuroto-F.git
+cd DDD-Jyogi-Kuroto-F
+java --version  # => 25.x.x が表示されることを確認
+```
+
+JDK 25 が PATH に通っていれば、次の `gradlew` 経由で必要な依存をすべて自動取得する。
+
+### 3. 実行
+
+```bash
+# ゲーム起動 (Desktop)
+./gradlew run            # macOS / Linux
+gradlew.bat run          # Windows
+
+# ドメイン層テスト
+./gradlew test
+
+# フォーマット適用 (Spotless + google-java-format)
+./gradlew spotlessApply
+
+# 配布用 JAR
+./gradlew fatJar         # build/libs/*-all.jar
+```
+
+### 4. 日本語フォント (任意)
+
+HUD・タイトルを日本語表示にしたい場合は [DotGothic16](https://fonts.google.com/specimen/DotGothic16) を `assets/fonts/DotGothic16-Regular.ttf` に配置する (約 2 MB)。未配置でも英語 UI で起動する。
+詳細は [assets/fonts/README.md](assets/fonts/README.md) と [docs/AssetGuidelines.md](docs/AssetGuidelines.md) を参照。
+
+### 5. 操作キー
+
+| キー | 操作 |
+|---|---|
+| `W` / `A` / `S` / `D`, 矢印キー | 1 マス移動 (AP 1 消費) |
+| `1` / `2` / `3` / `4` | スキル枠の発動 (隣接した敵に対し) |
+| `SPACE` | 待機 (AP 1 消費) |
+| `ENTER` | ターン終了 (AP を持ち越して敵ターンへ) |
+
+AP を使い切ると自動でターン終了。階段 `>` に到達すると CLEARED。HP 0 で GAME OVER。
+
 ## 詳細ドキュメント
 
 - **ゲーム仕様の確定書（Single Source of Truth）**: [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md)
@@ -69,6 +124,7 @@ LibGDX を採用し、Windows / macOS / Linux / Android で「どこでも動く
 - ドキュメント一覧: [docs/INDEX.md](docs/INDEX.md)
 - 開発者ガイド: [docs/ContributingGuide.md](docs/ContributingGuide.md)
 - ブランチ戦略: [docs/BranchingStrategy.md](docs/BranchingStrategy.md)
+- 実装タスクと設計原則: [tasks/todo.md](tasks/todo.md)
 
 ---
 

@@ -23,3 +23,4 @@ DDD-Jyogi-Kuroto-F のドキュメント一覧。役割と参照タイミング�
 - [CommonSense.md](./CommonSense.md) — コーディング規約・命名規則・単語定義
 - [BranchingStrategy.md](./BranchingStrategy.md) — Git ブランチ戦略・マージフロー・初心者チートシート
 - [ContributingGuide.md](./ContributingGuide.md) — 開発開始手順・Issue/PR/ラベル運用・LICENSE 方針
+- [AssetGuidelines.md](./AssetGuidelines.md) — 素材 (フォント・画像・音) の収集・取り込み・ライセンス管理

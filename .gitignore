@@ -123,7 +123,21 @@ secrets.properties
 # android/local.properties
 # android/assets/
 
+# ---------- アセット (バイナリ) ----------
+# フォントは OFL/CC0 で再配布可能だが、リポジトリ膨張防止と「各環境で最新を取る」原則で除外。
+# 取得手順は assets/fonts/README.md を参照。
+assets/fonts/*.otf
+assets/fonts/*.ttf
+# 画像・音は素材によって判断する。サイズ的に小さい (< 100KB) ピクセル素材は追跡してよい。
+# 必要に応じて以下のルールを有効化:
+# assets/sprites/*.png
+# assets/audio/bgm/*.ogg
+
 # ---------- ツール出力 ----------
 *.iml
 .fleet/
 .zed/
+
+# ---------- Claude Code ----------
+# worktree 機能で作られる一時作業ディレクトリ (リポジトリにコミットしない)
+.claude/worktrees/

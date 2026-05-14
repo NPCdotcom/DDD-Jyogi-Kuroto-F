@@ -1,0 +1,93 @@
+package core.presentation.render;
+
+/**
+ * 画面テキストの文言定数。日本語と英語の 2 セットを持つ。
+ *
+ * <p>{@link Fonts#isJapaneseAvailable()} の真偽でどちらのセットを使うかを呼び出し側が判断する。 国際化ライブラリ (gdx-i18n /
+ * .properties) は MVP では過剰なので、定数クラスで足りる範囲にする (YAGNI)。文言が増えてきたら {@link
+ * com.badlogic.gdx.utils.I18NBundle} に切り替える。
+ */
+public final class Strings {
+
+  private Strings() {}
+
+  /** 日本語版。Noto Sans JP が assets/fonts に置かれているときに使う。 */
+  public static final class Ja {
+    private Ja() {}
+
+    public static final String TITLE = "DDD-Jyogi-Kuroto-F";
+    public static final String SUBTITLE = "- どこでも動くローグ -";
+    public static final String START_HINT = "ENTER で出発する";
+    public static final String CONTROLS_HEADER = "操作";
+    public static final String CONTROLS_MOVE = "WASD / 矢印キー   1 マス移動 (AP 1)";
+    public static final String CONTROLS_SKILL = "1 〜 4         スキル発動 (隣接した敵)";
+    public static final String CONTROLS_WAIT = "SPACE          待機 (AP 1)";
+    public static final String CONTROLS_END = "ENTER          ターン終了";
+
+    public static final String HUD_HP = "HP";
+    public static final String HUD_AP = "AP";
+    public static final String HUD_SOUL = "ソウル";
+    public static final String HUD_PHASE = "フェーズ";
+    public static final String HUD_SPEED = "速度";
+    public static final String HUD_HINT = "WASD/矢印: 移動   1〜4: スキル   SPACE: 待機   ENTER: ターン終了";
+
+    public static final String PHASE_PLAYER = "あなたのターン";
+    public static final String PHASE_ENEMY = "敵のターン";
+    public static final String PHASE_GAMEOVER = "ゲームオーバー";
+    public static final String PHASE_CLEARED = "踏破成功";
+
+    public static final String GAME_OVER_HEADER = "敗 北";
+    public static final String CLEARED_HEADER = "フロア踏破";
+    public static final String SOULS_KEPT = "持ち帰ったソウル: ";
+    public static final String NEW_RUN_HINT = "ENTER で新たな挑戦を始める";
+
+    // BattleEvent の説明文 (HUD ログ用)
+    public static final String EV_MOVED_FORMAT = "%s が (%d, %d) へ移動";
+    public static final String EV_SKILL_USED_FORMAT = "%s が「%s」を発動";
+    public static final String EV_DAMAGE_FORMAT = "%s → %s に %d ダメージ (残 HP %d)";
+    public static final String EV_DIED_FORMAT = "%s 撃破";
+    public static final String EV_SOUL_GAINED_FORMAT = "%s は %d ソウルを獲得";
+    public static final String EV_PHASE_FORMAT = "フェーズ移行 → %s";
+    public static final String EV_REJECTED_FORMAT = "%s: 拒否 (%s)";
+  }
+
+  /** 英語版 (フォント未配置時の fallback)。 */
+  public static final class En {
+    private En() {}
+
+    public static final String TITLE = "DDD-Jyogi-Kuroto-F";
+    public static final String SUBTITLE = "- Doko-demo Rogue (MVP) -";
+    public static final String START_HINT = "Press ENTER to descend";
+    public static final String CONTROLS_HEADER = "Controls";
+    public static final String CONTROLS_MOVE = "WASD / Arrows   Move (1 AP)";
+    public static final String CONTROLS_SKILL = "1 - 4           Use skill (adjacent enemy)";
+    public static final String CONTROLS_WAIT = "SPACE           Wait (1 AP)";
+    public static final String CONTROLS_END = "ENTER           End your turn";
+
+    public static final String HUD_HP = "HP";
+    public static final String HUD_AP = "AP";
+    public static final String HUD_SOUL = "Soul";
+    public static final String HUD_PHASE = "Phase";
+    public static final String HUD_SPEED = "Speed";
+    public static final String HUD_HINT =
+        "WASD/Arrows: Move   1-4: Skill   SPACE: Wait   ENTER: End turn";
+
+    public static final String PHASE_PLAYER = "YOUR TURN";
+    public static final String PHASE_ENEMY = "ENEMY TURN";
+    public static final String PHASE_GAMEOVER = "GAME OVER";
+    public static final String PHASE_CLEARED = "CLEARED";
+
+    public static final String GAME_OVER_HEADER = "YOU DIED";
+    public static final String CLEARED_HEADER = "FLOOR CLEARED";
+    public static final String SOULS_KEPT = "Souls carried out: ";
+    public static final String NEW_RUN_HINT = "Press ENTER to start a new run";
+
+    public static final String EV_MOVED_FORMAT = "%s moved to (%d, %d)";
+    public static final String EV_SKILL_USED_FORMAT = "%s used %s";
+    public static final String EV_DAMAGE_FORMAT = "%s -> %s : %d damage (HP %d left)";
+    public static final String EV_DIED_FORMAT = "%s died";
+    public static final String EV_SOUL_GAINED_FORMAT = "%s gained %d soul";
+    public static final String EV_PHASE_FORMAT = "Phase -> %s";
+    public static final String EV_REJECTED_FORMAT = "%s: rejected (%s)";
+  }
+}
