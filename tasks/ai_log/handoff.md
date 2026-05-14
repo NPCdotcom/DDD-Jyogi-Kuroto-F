@@ -8,7 +8,7 @@
 
 ## 最終更新
 
-- **日時**: 2026-05-14 (火) 深夜 (**Move カード実装 + 移動 α 案 PlayerInputs 3 ステート** まで完了。dash カードがゲーム内で実動作、§15-5 純粋路線達成)
+- **日時**: 2026-05-14 (火) 深夜 (**Move + Gold + Trap** まで完了。dash / spike_trap がゲーム内で実動作、テンプレ 4 種中 3 種実装 (残: Buff のみ))
 - **更新者**: Claude (本セッション)
 
 ## アクティブブランチ
@@ -38,6 +38,9 @@
 | 13 | **#28** | **カード設計テンプレ (docs/templates/) + 仮アイコン + fireball 追加** | `7ebc2fe` |
 | 14 | **#29** | handoff カードテンプレ反映 | `b01b56d` |
 | 15 | **#30** | **Move カード実装 + 移動 α 案 PlayerInputs 3 ステート (ADR-21)** | `dc35e2e` |
+| 16 | **#31** | handoff Move カード反映 | `17e2304` |
+| 17 | **#32** | **E-4 ラン内通貨 Gold record 新設 (§15-2)** | `dcb03ec` |
+| 18 | **#33** | **Trap カード実装 + PlacedTrap + 踏み判定 + ライフタイム管理 (ADR-22)** | `e386f93` |
 
 `gradlew test` 全 **157 件 PASS** (+2 for 毎ターンドロー検証)、final-architect レビュー全 PR で **A 判定** (#21 は B → 修正 2 件で A 相当)。
 
@@ -158,7 +161,10 @@
 28. **Android 方針 = Desktop 基本 + デモ動画代替**: §15-12 クロスプラットフォーム実演は録画動画で補足、本気でビルド通す優先度は低い — ADR-20
 29. **Move カード = 案 Z 実装 (Player.pendingMoveCount)**: ドメイン側に状態を持ちセーブ整合 + AP 切れ自動ターン終了との競合を回避。`startPlayerTurn` で 0 リセット (ターン跨ぎ持越なし)。途中ブロックは reject 統一 (pendingMoveCount 据置) — **ADR-21**、PR #30
 30. **PlayerInputs 3 ステート (通常/カード選択中/移動権保持中)**: `poll(DungeonState)` でドメインから `pendingMoveCount` を毎フレーム読取。状態 2 は数字キー無視、ESC 破棄は YAGNI で見送り — ADR-21
-31. **Buff/Trap カードは引き続き reject 維持**: ADR-21 で Move のみ実装と確定、Buff (`activeBuffs`)・Trap (`placedTraps`) は明日 5/15 別 PR で実装予定
+31. **Buff/Trap カードは引き続き reject 維持**: ADR-21 で Move のみ実装と確定、Buff (`activeBuffs`)・Trap (`placedTraps`) は明日 5/15 別 PR で実装予定 → **Trap は本セッションで PR #33 (ADR-22) で実装完了、Buff のみ明日に持ち越し**
+32. **Gold record 新設**: §15-2 ラン内通貨 (`core.domain.meta.Gold`)、Soul と同型で値オブジェクト単独実装、Player/GameContext 統合は ADR-22 (PlayerStatuses 集約案) と一緒に明日 — PR #32
+33. **Trap カード = 設置者ステ依存なし + 同座標上書き + UntilStepped 踏み除去 / Turns 時間消滅**: TurnEngine.checkAndTriggerTrap で player/enemy 両経路共通、`Turns(0)` 中間値許容で `decrementedLifetime()` を単純化 — **ADR-22**、PR #33
+34. **明日 5/15 の作業順**: Discord 共有 (3 投稿) → Buff カード実装 (Player.activeBuffs + ActiveBuff record + Player.effectiveStats 合算、ADR-23 で PlayerStatuses 集約案決定) → E-5 装備 (Equipment B 案、ADR-23 で Player 引数増加問題と一緒に解決) → 並列で E-3 / E-6
 
 ## 採用済ツール / バージョン
 
@@ -215,13 +221,14 @@ JAVA_HOME: `C:\Program Files\Java\jdk-25.0.3`
 
 - **2026-05-12**: MVP 完成
 - **2026-05-13**: §15 仕様策定 + バランス調整
-- **2026-05-14 (今日)** ✅: **M1.5 コア + 毎ターンドロー + 解像度 1920×1080 + カード設計テンプレ配布準備 + Move カード実装 + 移動 α 案** (PR #13〜#30、ADR-21 まで蓄積)
-- **2026-05-15 (金)** **朝**: Discord にカード設計テンプレ共有 (3 投稿構成、リーダー判断で投稿) + Google Drive / Sheets URL 共有
+- **2026-05-14 (今日)** ✅: **M1.5 コア + 毎ターンドロー + 解像度 1920×1080 + テンプレ配布準備 + Move + Gold + Trap** (PR #13〜#33、ADR-22 まで蓄積、176 件全 PASS)
+- **2026-05-15 (金)** **朝**: Discord にカード設計テンプレ共有 (3 投稿構成) + Google Drive / Sheets URL 共有
 - **2026-05-15 (金)** 日中:
-  - **Buff カード TurnEngine 実装** (`Player.activeBuffs` フィールド追加、`ActiveBuff(BuffKind, amount, remainingTurns)` record 新設、`Player.effectiveStats()` で合算、`startPlayerTurn` で durationTurns--)
-  - **Trap カード TurnEngine 実装** (`DungeonState.placedTraps` フィールド追加、`PlacedTrap(Position, baseValue, lifetime, element)` record 新設、`applyPlayerMove` / `applyEnemyMove` で踏み判定、`UntilStepped` / `Turns` のライフタイム管理)
-  - **E-5 装備 (Equipment B 案)** (`Equipment(EquipmentId, displayName, slot, StatsBonus, List<CardId>)`、ぼろ靴・ぼろい短剣を初期装備、Player.finalStats() で素ステ + statsBonus 合算)
-- **2026-05-16〜18**: 並列で E-3 (層構造) / E-4 (通貨 Gold) / E-2 (ソウルツリー) / E-6 (Scene2D Window 化 + HudRenderer 画像連携)
+  - **ADR-23 起票**: Player 引数増加問題の解決 (PlayerStatuses 集約 record 案 vs 8 引数維持)。Buff + 装備の同時実装に必要
+  - **Buff カード TurnEngine 実装** (Player.activeBuffs フィールド or PlayerStatuses 集約、`ActiveBuff(BuffKind, amount, remainingTurns)` record、`Player.effectiveStats()` で合算、`startPlayerTurn` で durationTurns--) — テンプレ最後の 1 種 iron_skin が動く
+  - **E-5 装備 (Equipment B 案)** (`Equipment(EquipmentId, displayName, slot, StatsBonus, List<CardId> grantedCardIds)`、ぼろ靴・ぼろい短剣を初期装備、Player.finalStats() で素ステ + statsBonus 合算)
+  - **Gold の Player/GameContext 統合** (PR #32 で record だけ作った、雑魚 5 / 強化 15 / ボス 50 のレート実装 + Player.gold or GameContext.gold)
+- **2026-05-16〜18**: 並列で E-3 (層構造) / E-2 (ソウルツリー) / E-6 (Scene2D Window 化 + HudRenderer 画像連携)
 - **2026-05-16〜18**: E-2 ソウルツリー、E-5 装備 + 依存 E、E-6 完成
 - **2026-05-19〜21**: E-8 演出、E-9 セーブ、E-10 チュートリアル、依存 C
 - **2026-05-22**: 統合テスト + デモ録画
