@@ -13,10 +13,12 @@ import core.domain.card.CardTag;
 import core.domain.card.DiscardPile;
 import core.domain.card.DrawPile;
 import core.domain.card.Hand;
+import core.domain.card.TrapLifetime;
 import core.domain.common.Direction;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
+import core.domain.dungeon.PlacedTrap;
 import core.domain.entity.Enemy;
 import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
@@ -502,5 +504,235 @@ class TurnEngineTest {
     assertEquals(TurnPhase.PLAYER_TURN, result.state().phase());
     assertEquals(
         p.stats().speed(), result.state().player().actionPoints().current(), "AP は速度分まで回復");
+  }
+
+  // =========================================================
+  // §15-3 / ADR-22: Trap カード解決テスト
+  // =========================================================
+
+  @Test
+  void trapCardUsePlacesTrapAtAdjacentTileAndConsumesApAndHand() {
+    // §15-3 / ADR-22 「Trap カード使用 → 隣接マスに PlacedTrap 追加、AP 消費、Hand→Discard、SkillUsed + TrapPlaced 発火」
+    Card spikeTrap =
+        new Card(
+            CardId.of("spike_trap"),
+            "スパイクトラップ",
+            2,
+            CardTag.TRAP,
+            CardElement.PHYSICAL,
+            new CardEffect.Trap(4, TrapLifetime.UntilStepped.INSTANCE));
+    CardPileState piles =
+        new CardPileState(DrawPile.empty(), Hand.empty().add(spikeTrap), DiscardPile.empty());
+    Player p =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withCardPileState(piles); // AP=5 (full)
+    DungeonState s = newState(p, List.of());
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.UseCard(0, Direction.RIGHT));
+
+    assertFalse(result.wasRejected());
+    // 設置先は (player.x+1, player.y) = (2,1)
+    Position expected = new Position(2, 1);
+    assertEquals(1, result.state().placedTraps().size(), "罠が 1 件設置されること");
+    PlacedTrap placed = result.state().placedTraps().get(0);
+    assertEquals(expected, placed.position(), "設置先座標");
+    assertEquals(4, placed.baseValue(), "baseValue=4 で設置");
+    // AP 2 消費 (5 → 3)
+    assertEquals(3, result.state().player().actionPoints().current());
+    // Hand 1 → 0、Discard 0 → 1
+    assertEquals(0, result.state().player().cardPileState().hand().size());
+    assertEquals(1, result.state().player().cardPileState().discardPile().size());
+    // SkillUsed が index=0、TrapPlaced が index=1
+    assertTrue(result.events().get(0) instanceof BattleEvent.SkillUsed);
+    BattleEvent.TrapPlaced trapPlaced = (BattleEvent.TrapPlaced) result.events().get(1);
+    assertEquals(expected, trapPlaced.position());
+    assertEquals(4, trapPlaced.baseValue());
+  }
+
+  @Test
+  void trapCardPlacedOnWallDirectionIsRejected() {
+    // §15-3 / ADR-22 「壁タイル方向への罠設置は reject、placedTraps 据置」
+    Card trapCard = DomainFixtures.trapCard("pit");
+    CardPileState piles =
+        new CardPileState(DrawPile.empty(), Hand.empty().add(trapCard), DiscardPile.empty());
+    // (1,1) から DOWN → (1,0) は壁
+    Player p =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withCardPileState(piles);
+    DungeonState s = newState(p, List.of());
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.UseCard(0, Direction.DOWN));
+
+    assertTrue(result.wasRejected());
+    assertEquals(0, result.state().placedTraps().size(), "壁方向への設置で placedTraps が変化しない");
+    // AP・手札も不変
+    assertEquals(5, result.state().player().actionPoints().current());
+    assertEquals(1, result.state().player().cardPileState().hand().size());
+  }
+
+  @Test
+  void trapCardOverwritesExistingTrapAtSamePosition() {
+    // §15-3 / ADR-22 「同座標既存罠は上書き (新規優先)、size は維持」
+    // 先に (2,1) に古い罠 (baseValue=1) を配置しておく
+    PlacedTrap existingTrap =
+        new PlacedTrap(
+            new Position(2, 1), 1, TrapLifetime.UntilStepped.INSTANCE, CardElement.PHYSICAL);
+    Card newTrap = DomainFixtures.trapCard("pit2"); // baseValue=3
+    CardPileState piles =
+        new CardPileState(DrawPile.empty(), Hand.empty().add(newTrap), DiscardPile.empty());
+    Player p =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withCardPileState(piles);
+    DungeonState s =
+        new DungeonState(
+            DomainFixtures.squareRoom(),
+            p,
+            List.of(),
+            TurnPhase.PLAYER_TURN,
+            List.of(existingTrap));
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.UseCard(0, Direction.RIGHT));
+
+    assertFalse(result.wasRejected());
+    // size は 1 を維持 (上書きなので増えない)
+    assertEquals(1, result.state().placedTraps().size(), "上書き後も size=1");
+    // 新しい罠の baseValue=3 が残っていること (古い 1 が消えていること)
+    PlacedTrap overwritten = result.state().placedTraps().get(0);
+    assertEquals(3, overwritten.baseValue(), "新罠の baseValue=3 に上書き");
+    assertEquals(new Position(2, 1), overwritten.position());
+  }
+
+  @Test
+  void playerMovingOntoUntilSteppedTrapTakesDamageAndTrapIsRemoved() {
+    // §15-3 / ADR-22 「移動で UntilStepped 罠踏み → ダメージ + 罠除去、Moved + TrapTriggered 発火」
+    // Player Stats=(30,30,3,0,0,0,0)、物防=0。罠 baseValue=3 → ダメージ=max(1,3-0)=3
+    PlacedTrap trap =
+        new PlacedTrap(
+            new Position(3, 1), 3, TrapLifetime.UntilStepped.INSTANCE, CardElement.PHYSICAL);
+    Player p = DomainFixtures.playerAt(new Position(2, 1));
+    DungeonState s =
+        new DungeonState(
+            DomainFixtures.squareRoom(),
+            p,
+            List.of(),
+            TurnPhase.PLAYER_TURN,
+            List.of(trap));
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.Move(Direction.RIGHT));
+
+    assertFalse(result.wasRejected());
+    // HP 30 - 3 = 27
+    assertEquals(27, result.state().player().stats().currentHp());
+    // UntilStepped なので罠除去
+    assertEquals(0, result.state().placedTraps().size(), "踏んだら UntilStepped 罠は除去");
+    // Moved が最初、TrapTriggered がその後
+    assertTrue(result.events().get(0) instanceof BattleEvent.Moved);
+    boolean hasTrapTriggered =
+        result.events().stream().anyMatch(ev -> ev instanceof BattleEvent.TrapTriggered);
+    assertTrue(hasTrapTriggered, "TrapTriggered イベント発火");
+    BattleEvent.TrapTriggered triggered =
+        (BattleEvent.TrapTriggered)
+            result.events().stream()
+                .filter(ev -> ev instanceof BattleEvent.TrapTriggered)
+                .findFirst()
+                .orElseThrow();
+    assertEquals(3, triggered.damage());
+    assertEquals(27, triggered.remainingHp());
+  }
+
+  @Test
+  void playerMovingOntoTurnsTrapTakesDamageButTrapRemains() {
+    // §15-3 / ADR-22 「移動で Turns 罠踏み → ダメージは入るが罠は残る、TrapTriggered 発火」
+    // Turns(3): 残 3 ターン。踏まれても除去されない。
+    PlacedTrap turnsTrap =
+        new PlacedTrap(
+            new Position(3, 1), 3, new TrapLifetime.Turns(3), CardElement.PHYSICAL);
+    Player p = DomainFixtures.playerAt(new Position(2, 1));
+    DungeonState s =
+        new DungeonState(
+            DomainFixtures.squareRoom(),
+            p,
+            List.of(),
+            TurnPhase.PLAYER_TURN,
+            List.of(turnsTrap));
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.Move(Direction.RIGHT));
+
+    assertFalse(result.wasRejected());
+    // ダメージ: max(1, 3-0)=3 → HP 30-3=27
+    assertEquals(27, result.state().player().stats().currentHp());
+    // Turns 罠は踏まれても残る
+    assertEquals(1, result.state().placedTraps().size(), "Turns 罠は踏まれても除去されない");
+    assertTrue(
+        result.events().stream().anyMatch(ev -> ev instanceof BattleEvent.TrapTriggered),
+        "TrapTriggered イベント発火");
+  }
+
+  @Test
+  void startPlayerTurnDecrementsOneTurnsTrapAndRemovesExpiredTrap() {
+    // §15-3 / ADR-22 「startPlayerTurn で Turns(1) 罠 → remaining-- → 0 で除去、Turns(2) は Turns(1) に減って残る」
+    PlacedTrap expiringTrap =
+        new PlacedTrap(
+            new Position(3, 1), 3, new TrapLifetime.Turns(1), CardElement.PHYSICAL);
+    PlacedTrap survivingTrap =
+        new PlacedTrap(
+            new Position(3, 3), 3, new TrapLifetime.Turns(2), CardElement.PHYSICAL);
+    Player p =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withActionPoints(new ActionPoints(0, 5));
+    DungeonState s =
+        new DungeonState(
+            DomainFixtures.squareRoom(),
+            p,
+            List.of(),
+            TurnPhase.ENEMY_TURN,
+            List.of(expiringTrap, survivingTrap));
+
+    TurnEngine.StepResult result = TurnEngine.startPlayerTurn(s, new Random(0));
+
+    // Turns(1) の罠は remaining 0 → 除去
+    // Turns(2) の罠は remaining 1 → 残存
+    assertEquals(1, result.state().placedTraps().size(), "Turns(1) は除去、Turns(2) は残存");
+    PlacedTrap remaining = result.state().placedTraps().get(0);
+    assertEquals(new Position(3, 3), remaining.position(), "残存罠は (3,3) の罠");
+    // 残存罠の remaining が 2→1 にデクリメントされていること
+    TrapLifetime.Turns decremented = (TrapLifetime.Turns) remaining.lifetime();
+    assertEquals(1, decremented.remaining(), "Turns(2) が Turns(1) にデクリメント");
+  }
+
+  @Test
+  void enemyMovingOntoUntilSteppedTrapTakesDamageAndTrapIsRemoved() {
+    // §15-3 / ADR-22 「敵が UntilStepped 罠を踏む → ダメージ + 罠除去、TrapTriggered 発火」
+    // 敵 Stats=(10,10,2,0,0,0,0)、物防=0。罠 baseValue=3 → ダメージ=max(1,3-0)=3
+    // マップ有効床: x=1〜3, y=1〜3。(3,1) に罠、(2,1) から RIGHT に進む
+    PlacedTrap trap =
+        new PlacedTrap(
+            new Position(3, 1), 3, TrapLifetime.UntilStepped.INSTANCE, CardElement.PHYSICAL);
+    Player p = DomainFixtures.playerAt(new Position(1, 1));
+    Enemy slime = DomainFixtures.slimeAt("slime1", new Position(2, 1), ActionPoints.full(3));
+    DungeonState s =
+        new DungeonState(
+            DomainFixtures.squareRoom(),
+            p,
+            List.of(slime),
+            TurnPhase.ENEMY_TURN,
+            List.of(trap));
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolveEnemyAction(s, slime.id(), new BattleAction.Move(Direction.RIGHT));
+
+    assertFalse(result.wasRejected());
+    // 敵 HP 10 - 3 = 7
+    assertEquals(7, result.state().enemies().get(0).stats().currentHp());
+    // UntilStepped 罠は踏まれたら除去
+    assertEquals(0, result.state().placedTraps().size(), "敵が踏んだら UntilStepped 罠は除去");
+    assertTrue(
+        result.events().stream().anyMatch(ev -> ev instanceof BattleEvent.TrapTriggered),
+        "TrapTriggered イベント発火");
   }
 }

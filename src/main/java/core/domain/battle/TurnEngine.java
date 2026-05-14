@@ -3,9 +3,11 @@ package core.domain.battle;
 import core.domain.card.Card;
 import core.domain.card.CardEffect;
 import core.domain.card.CardPileState;
+import core.domain.card.TrapLifetime;
 import core.domain.common.Direction;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonState;
+import core.domain.dungeon.PlacedTrap;
 import core.domain.dungeon.Tile;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
@@ -87,7 +89,16 @@ public final class TurnEngine {
         p.withActionPoints(p.actionPoints().refilledTo(p.stats().speed()))
             .withCardPileState(p.cardPileState().drawN(1, rng))
             .withPendingMoveCount(0);
-    DungeonState ns = state.withPlayer(refreshed).withPhase(TurnPhase.PLAYER_TURN);
+    // ADR-22: Turns 罠の remaining-- + expired (=0) を除去。UntilStepped 罠は据置。
+    List<PlacedTrap> aliveTraps = new ArrayList<>(state.placedTraps().size());
+    for (PlacedTrap t : state.placedTraps()) {
+      PlacedTrap decremented = t.decrementedLifetime();
+      if (decremented.isAlive()) {
+        aliveTraps.add(decremented);
+      }
+    }
+    DungeonState ns =
+        state.withPlayer(refreshed).withPlacedTraps(aliveTraps).withPhase(TurnPhase.PLAYER_TURN);
     return new StepResult(ns, List.of(new BattleEvent.TurnPhaseChanged(TurnPhase.PLAYER_TURN)));
   }
 
@@ -164,6 +175,8 @@ public final class TurnEngine {
       afterMove = afterMove.withPhase(TurnPhase.CLEARED);
       events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.CLEARED));
     }
+    // ADR-22: 罠踏み判定 (Player が罠タイルに進入したか)。CLEARED 時もダメージは入る (踏破直前の罠で死亡もあり得る)。
+    afterMove = checkAndTriggerTrap(afterMove, moved.id(), next, true, events);
     return new StepResult(afterMove, events);
   }
 
@@ -207,8 +220,49 @@ public final class TurnEngine {
           resolveCardDamage(state, card, dmg, action.direction(), handIndex);
       case CardEffect.Move move -> resolveCardMove(state, card, move, handIndex);
       case CardEffect.Buff ignored -> reject(state, player.id(), "未実装のカード効果 (Buff)");
-      case CardEffect.Trap ignored -> reject(state, player.id(), "未実装のカード効果 (Trap)");
+      case CardEffect.Trap trap ->
+          resolveCardTrap(state, card, trap, action.direction(), handIndex);
     };
+  }
+
+  /**
+   * Trap カード解決 (§15-3 / ADR-22)。指定方向の隣接マスに罠を設置 (壁不可、同座標既存罠は上書き)。
+   *
+   * <p>処理:
+   *
+   * <ol>
+   *   <li>設置先タイル walkable チェック (壁不可)
+   *   <li>同座標既存罠を除去 (上書き、3 並列レビュー結論「驚き最小 = 最新が優先」)
+   *   <li>新 PlacedTrap を placedTraps に追加
+   *   <li>AP 消費 + Hand→Discard
+   *   <li>SkillUsed + TrapPlaced イベント発火
+   * </ol>
+   */
+  private static StepResult resolveCardTrap(
+      DungeonState state, Card card, CardEffect.Trap trap, Direction direction, int handIndex) {
+    Player player = state.player();
+    Position trapPos = player.position().move(direction);
+    if (!state.map().isWalkable(trapPos)) {
+      return reject(state, player.id(), "そこには罠を設置できない");
+    }
+    // 同座標重複は上書き (新規優先)
+    List<PlacedTrap> newTraps = new ArrayList<>(state.placedTraps().size() + 1);
+    for (PlacedTrap t : state.placedTraps()) {
+      if (!t.position().equals(trapPos)) {
+        newTraps.add(t);
+      }
+    }
+    newTraps.add(new PlacedTrap(trapPos, trap.baseValue(), trap.lifetime(), card.element()));
+
+    Player afterUse =
+        player
+            .withActionPoints(player.actionPoints().spend(card.apCost()))
+            .withCardPileState(player.cardPileState().playFromHand(handIndex));
+    DungeonState ns = state.withPlayer(afterUse).withPlacedTraps(newTraps);
+    List<BattleEvent> events = new ArrayList<>();
+    events.add(new BattleEvent.SkillUsed(player.id(), card.displayName()));
+    events.add(new BattleEvent.TrapPlaced(player.id(), trapPos, trap.baseValue()));
+    return new StepResult(ns, events);
   }
 
   /**
@@ -285,9 +339,12 @@ public final class TurnEngine {
       return reject(state, enemy.id(), "そこへは移動できない");
     }
     Enemy moved = enemy.withPosition(next).withActionPoints(enemy.actionPoints().spend(1));
-    return new StepResult(
-        state.withEnemyReplaced(moved),
-        List.of(new BattleEvent.Moved(enemy.id(), enemy.position(), next)));
+    DungeonState afterMove = state.withEnemyReplaced(moved);
+    List<BattleEvent> events = new ArrayList<>();
+    events.add(new BattleEvent.Moved(enemy.id(), enemy.position(), next));
+    // ADR-22: 罠踏み判定 (Enemy が罠タイルに進入したか)。
+    afterMove = checkAndTriggerTrap(afterMove, moved.id(), next, false, events);
+    return new StepResult(afterMove, events);
   }
 
   private static StepResult applyEnemySkill(DungeonState state, Enemy enemy, int slotIndex) {
@@ -387,6 +444,71 @@ public final class TurnEngine {
 
   private static StepResult reject(DungeonState state, ActorId who, String reason) {
     return new StepResult(state, List.of(new BattleEvent.ActionRejected(who, reason)));
+  }
+
+  /**
+   * 罠踏み判定 + ダメージ適用の共通ヘルパ (§15-3 / ADR-22)。プレイヤー / 敵どちらの移動でも呼ばれる。
+   *
+   * <ol>
+   *   <li>{@code at} に罠があるか {@link DungeonState#findTrapAt} で確認、無ければ state をそのまま返す
+   *   <li>{@link PlacedTrap#resolveDamage(Stats)} で最終ダメージを確定 (element に応じた物防/魔防参照)
+   *   <li>victim の Stats を damaged で減算、{@link BattleEvent.TrapTriggered} 発火
+   *   <li>{@link TrapLifetime.UntilStepped} なら罠を除去、{@link TrapLifetime.Turns} なら維持
+   *   <li>victim 死亡時は ActorDied + プレイヤーなら GAME_OVER、敵なら撃破報酬 + 除去
+   * </ol>
+   */
+  private static DungeonState checkAndTriggerTrap(
+      DungeonState state,
+      ActorId victimId,
+      Position at,
+      boolean isPlayer,
+      List<BattleEvent> events) {
+    Optional<PlacedTrap> trapOpt = state.findTrapAt(at);
+    if (trapOpt.isEmpty()) {
+      return state;
+    }
+    PlacedTrap trap = trapOpt.get();
+    Stats victimStats =
+        isPlayer ? state.player().stats() : state.findEnemy(victimId).orElseThrow().stats();
+    int damage = trap.resolveDamage(victimStats);
+    Stats damagedStats = victimStats.damaged(damage);
+    events.add(new BattleEvent.TrapTriggered(victimId, at, damage, damagedStats.currentHp()));
+
+    // UntilStepped なら除去、Turns なら維持 (3 並列レビュー結論、物理/魔法の対比)。
+    List<PlacedTrap> updatedTraps = new ArrayList<>(state.placedTraps().size());
+    for (PlacedTrap t : state.placedTraps()) {
+      if (t.position().equals(at)) {
+        if (t.lifetime() instanceof TrapLifetime.Turns) {
+          updatedTraps.add(t);
+        }
+        // UntilStepped は除去 (updatedTraps に追加しない)
+      } else {
+        updatedTraps.add(t);
+      }
+    }
+    DungeonState ns = state.withPlacedTraps(updatedTraps);
+
+    if (isPlayer) {
+      Player victimPlayer = state.player().withStats(damagedStats);
+      ns = ns.withPlayer(victimPlayer);
+      if (!damagedStats.isAlive()) {
+        events.add(new BattleEvent.ActorDied(victimPlayer.id()));
+        ns = ns.withPhase(TurnPhase.GAME_OVER);
+        events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.GAME_OVER));
+      }
+    } else {
+      Enemy victimEnemy = state.findEnemy(victimId).orElseThrow().withStats(damagedStats);
+      if (!damagedStats.isAlive()) {
+        events.add(new BattleEvent.ActorDied(victimId));
+        int reward = victimEnemy.kind().soulReward();
+        Player rewardedPlayer = ns.player().addSoul(new Soul(reward));
+        events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), reward));
+        ns = ns.withEnemyRemoved(victimId).withPlayer(rewardedPlayer);
+      } else {
+        ns = ns.withEnemyReplaced(victimEnemy);
+      }
+    }
+    return ns;
   }
 
   private static Optional<Enemy> findAdjacentEnemy(DungeonState state, Position from) {

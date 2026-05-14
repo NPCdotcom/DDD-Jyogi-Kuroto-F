@@ -17,7 +17,9 @@ public sealed interface BattleEvent
         BattleEvent.SoulGained,
         BattleEvent.TurnPhaseChanged,
         BattleEvent.ActionRejected,
-        BattleEvent.MovementGranted {
+        BattleEvent.MovementGranted,
+        BattleEvent.TrapPlaced,
+        BattleEvent.TrapTriggered {
 
   record Moved(ActorId who, Position from, Position to) implements BattleEvent {
     public Moved {
@@ -87,6 +89,41 @@ public sealed interface BattleEvent
       if (remainingSteps <= 0) {
         throw new IllegalArgumentException(
             "remainingSteps must be positive: " + remainingSteps);
+      }
+    }
+  }
+
+  /**
+   * 罠設置通知 (§15-3 / ADR-22)。プレイヤーが Trap カードを使った瞬間に発火、HUD で「{プレイヤー} が ({x},{y}) に罠を設置」を表示する。
+   *
+   * <p>position は設置先タイル、baseValue は最終ダメ計算の基礎値。element 情報は PlacedTrap (DungeonState.placedTraps) で保持しており、
+   * 本イベントには含めない (HUD ログでは設置を通知するだけで、属性はマップ上の罠アイコンや描画で表現する想定)。
+   */
+  record TrapPlaced(ActorId placer, Position position, int baseValue) implements BattleEvent {
+    public TrapPlaced {
+      Objects.requireNonNull(placer, "placer");
+      Objects.requireNonNull(position, "position");
+      if (baseValue < 1) {
+        throw new IllegalArgumentException("baseValue must be >= 1: " + baseValue);
+      }
+    }
+  }
+
+  /**
+   * 罠発動通知 (§15-3 / ADR-22)。敵 or プレイヤーが罠タイルに進入した瞬間に発火、ダメージ後の HP も含めて HUD に通知する。
+   *
+   * <p>victim = 踏んだエンティティ、damage = 最終ダメージ、remainingHp = 適用後 HP。
+   */
+  record TrapTriggered(ActorId victim, Position position, int damage, int remainingHp)
+      implements BattleEvent {
+    public TrapTriggered {
+      Objects.requireNonNull(victim, "victim");
+      Objects.requireNonNull(position, "position");
+      if (damage < 1) {
+        throw new IllegalArgumentException("damage must be >= 1: " + damage);
+      }
+      if (remainingHp < 0) {
+        throw new IllegalArgumentException("remainingHp must be non-negative: " + remainingHp);
       }
     }
   }

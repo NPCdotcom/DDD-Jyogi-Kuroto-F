@@ -231,6 +231,12 @@ public final class HudRenderer {
       case BattleEvent.MovementGranted mg ->
           (jp ? Strings.Ja.EV_MOVEMENT_GRANTED_FORMAT : Strings.En.EV_MOVEMENT_GRANTED_FORMAT)
               .formatted(mg.who().value(), mg.remainingSteps());
+      case BattleEvent.TrapPlaced tp ->
+          (jp ? Strings.Ja.EV_TRAP_PLACED_FORMAT : Strings.En.EV_TRAP_PLACED_FORMAT)
+              .formatted(tp.placer().value(), tp.position().x(), tp.position().y());
+      case BattleEvent.TrapTriggered tt ->
+          (jp ? Strings.Ja.EV_TRAP_TRIGGERED_FORMAT : Strings.En.EV_TRAP_TRIGGERED_FORMAT)
+              .formatted(tt.victim().value(), tt.damage(), tt.remainingHp());
     };
   }
 }

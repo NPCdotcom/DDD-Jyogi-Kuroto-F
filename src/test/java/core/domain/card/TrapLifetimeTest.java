@@ -53,10 +53,12 @@ class TrapLifetimeTest {
   }
 
   @Test
-  void turnsRemainingZeroThrowsIllegalArgumentException() {
-    // 検証ポイント 6: remaining=0 で例外
-    // 設置直後に消える罠は意味を成さないため禁止
-    assertThrows(IllegalArgumentException.class, () -> new TrapLifetime.Turns(0));
+  void turnsRemainingZeroIsAcceptedAsExpiredIntermediateValue() {
+    // ADR-22 設計: Turns(0) は PlacedTrap.decrementedLifetime() が Turns(1) をデクリメントした際に
+    // 生成する「期限切れ中間値」として許容する。TurnEngine.startPlayerTurn が isAlive()=false で除去する。
+    // 設置時に remaining=0 を直接渡すべきでない点は CardEffect.Trap 側のバリデーションで担保する。
+    TrapLifetime.Turns expired = new TrapLifetime.Turns(0);
+    assertEquals(0, expired.remaining());
   }
 
   @Test

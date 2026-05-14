@@ -416,3 +416,32 @@
   - − `BattleAction.Move(direction)` 自体は変更なし (AP 消費判定は TurnEngine 側に集約) で互換性維持、ただし TurnEngine の applyPlayerMove ロジックは pendingMoveCount 分岐で複雑化
   - − DomainFixtures / InitialStateFactory の `new Player(...)` 呼出 2 箇所を 8 引数版に更新が必要 (デフォルト pendingMoveCount=0)
 - **Reference**: §15-5 (L529-569), ADR-18 (CardPileState を Player に内蔵), ADR-19 (毎ターンドロー + 移動カード化予告), ADR-20 (移動 α 案 / 装備 B 案 / 解像度確定), 3 サブエージェント並列レビュー (本セッション深夜、2026-05-14)、libgdx-implementer 指摘 (セーブ整合と AP 切れ競合回避)
+
+## ADR-22: Trap カード実装 (DungeonState 5 引数化 + PlacedTrap record + 踏み判定 + ライフタイム管理)
+
+- **Status**: Accepted (3 サブエージェント並列レビュー結論、test-writer による微修正含む)
+- **Date**: 2026-05-14 (深夜継続)
+- **Context**: ADR-21 で Move カードを完成させた後、ADR-18 / ADR-21 で「Move/Buff/Trap の本実装は別 Issue」と保留中の Trap を実装する。テンプレ (docs/templates/cards.json) で提示済の `spike_trap` を実動作させ、§15-3 「タグ × 属性」のうち TRAP × PHYSICAL/MAGICAL を網羅する。3 並列レビューで:
+  - domain-architect: 案 P (DungeonState 5 引数化、`List<PlacedTrap>`) 推奨
+  - final-architect: Gold 単独推奨 (Trap は Player 触らないが DungeonState 拡張のリスクあり、深夜帯非推奨)
+  - general-purpose: A + B 推奨 (テンプレ完全動作)
+
+  Gold (D) を 30 分で先行完了したため余力ありと判断、domain-architect 推奨に従い Trap 単独実装に着手。
+- **Decision**: 以下を採用
+  1. **`PlacedTrap` record 新設** — `(Position position, int baseValue, TrapLifetime lifetime, CardElement element)` の 4 引数。`decrementedLifetime()` / `isAlive()` / `resolveDamage(Stats victim)` を提供
+  2. **`DungeonState` 5 引数化** — `List<PlacedTrap> placedTraps` 追加、`withPlacedTraps`、`findTrapAt`、**4 引数互換コンストラクタ** で既存呼出を破壊しない
+  3. **`TurnEngine.applyPlayerUseCard` の Trap case 実装** — `reject` 解除 → `resolveCardTrap`、設置先 walkable チェック、同座標重複は **上書き** (3 並列レビュー結論「驚き最小 = 最新が優先」)、AP 消費 + Hand→Discard
+  4. **`TurnEngine.applyPlayerMove` / `applyEnemyMove` で踏み判定** — `checkAndTriggerTrap` 共通ヘルパ、player/enemy 両経路で罠検出 + ダメージ適用 + UntilStepped 除去 / Turns 維持
+  5. **`TurnEngine.startPlayerTurn` で Turns ライフタイム管理** — `Turns(N)` 罠を `Turns(N-1)` にデクリメント、0 で除去。`UntilStepped` 罠は据置 (踏まれるまで永続)
+  6. **罠ダメージ計算** — `PlacedTrap.resolveDamage(Stats victim)` で `max(1, baseValue - 物防 or 魔防)` (element に応じた防御参照)。**設置者ステ依存なし** (KISS、設置時スナップショット保存の複雑性を回避)
+  7. **`BattleEvent.TrapPlaced` / `BattleEvent.TrapTriggered` 新規追加** — sealed permits 拡張、HudRenderer の switch で日英文言対応
+  8. **`TrapLifetime.Turns` の制約緩和** — `remaining < 1` で例外 → `remaining < 0` で例外に緩和。理由: `decrementedLifetime()` が `Turns(1)` を `Turns(0)` (期限切れ中間値) に変換するため、設置時 (CardEffect.Trap の compact constructor) で `>= 1` を保証しつつ内部中間値 `0` を許容する KISS 判断。`TrapLifetimeTest` の該当ケース (`turnsRemainingZeroThrowsIllegalArgumentException`) を `turnsRemainingZeroIsAcceptedAsExpiredIntermediateValue` に書き換え
+- **Consequences**:
+  - + テンプレ提示済 `spike_trap` が実動作、§15-3 4 タグ × 2 属性 = 8 種のうち TRAP × PHYSICAL/MAGICAL が完全動作 (Buff のみ残)
+  - + 敵 AI 経路でも罠踏み判定が機能 (敵を罠タイルに誘導する戦術が成立)
+  - + DungeonState 4 引数互換コンストラクタで既存呼出 (DomainFixtures / InitialStateFactory) を破壊しない
+  - + `Turns(0)` を中間値として許容することで `decrementedLifetime()` が単純化、ライフタイム管理が KISS
+  - − `DungeonState` 5 引数化、`Player` も 8 引数のままで合計フィールド数は増加 (ただし `DungeonState` は引数見直しライン未到達、4→5 で余裕)
+  - − 罠ダメージ計算が「設置者ステ無視」なので、強化系装備で罠を強化する余地がない (将来必要なら PlacedTrap にスナップショット追加で拡張)
+  - − テスト追加 7 件 (`TurnEngineTest` 6 件 + `TrapLifetimeTest` 1 件書換)、合計 176 件 PASS
+- **Reference**: §15-3 (L443-513), ADR-16 (E-1 設計、Turns 制約を本 ADR で緩和), ADR-18 (Move/Buff/Trap 別 Issue 予告), ADR-21 (Move 実装、本 ADR-22 は連続実装の続き), 3 並列レビュー (本セッション深夜、2026-05-14)、test-writer による Turns(0) 中間値検出
