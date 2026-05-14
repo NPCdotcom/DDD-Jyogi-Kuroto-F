@@ -4,6 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import core.domain.card.Card;
+import core.domain.card.CardEffect;
+import core.domain.card.CardElement;
+import core.domain.card.CardId;
+import core.domain.card.CardPileState;
+import core.domain.card.CardTag;
+import core.domain.card.DiscardPile;
+import core.domain.card.DrawPile;
+import core.domain.card.Hand;
 import core.domain.common.Direction;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonMap;
@@ -11,6 +20,7 @@ import core.domain.dungeon.DungeonState;
 import core.domain.entity.Enemy;
 import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
+import core.domain.entity.Stats;
 import core.domain.meta.Soul;
 import core.domain.support.DomainFixtures;
 import java.util.List;
@@ -209,6 +219,122 @@ class TurnEngineTest {
 
     TurnEngine.StepResult result =
         TurnEngine.resolvePlayerAction(s, new BattleAction.Move(Direction.RIGHT));
+
+    assertTrue(result.wasRejected());
+  }
+
+  // =========================================================
+  // §15-3 / ADR-18: BattleAction.UseCard 系
+  // =========================================================
+
+  @Test
+  void useCardDealsDamageToAdjacentEnemy() {
+    // 手札 1 枚 (attackCard: PHYSICAL Damage=5, AP コスト=1) のプレイヤー
+    Player p = DomainFixtures.playerAtWithHand(new Position(1, 1), 1);
+    Enemy slime = DomainFixtures.slimeAt(new Position(2, 1)); // 右隣 1 マス
+    DungeonState s = newState(p, List.of(slime));
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.UseCard(0, Direction.RIGHT));
+
+    assertFalse(result.wasRejected());
+    // ダメージ: max(1, 5 + 0 - 0) = 5、スライム HP 10 → 5
+    assertEquals(5, result.state().enemies().get(0).stats().currentHp());
+    // AP 消費 1 (5 → 4)
+    assertEquals(4, result.state().player().actionPoints().current());
+    // Hand 1 → 0、Discard 0 → 1
+    assertEquals(0, result.state().player().cardPileState().hand().size());
+    assertEquals(1, result.state().player().cardPileState().discardPile().size());
+  }
+
+  @Test
+  void useCardWithInsufficientApIsRejected() {
+    Player p =
+        DomainFixtures.playerAtWithHand(new Position(1, 1), 1)
+            .withActionPoints(new ActionPoints(0, 5));
+    Enemy slime = DomainFixtures.slimeAt(new Position(2, 1));
+    DungeonState s = newState(p, List.of(slime));
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.UseCard(0, Direction.RIGHT));
+
+    assertTrue(result.wasRejected());
+    // 状態は不変
+    assertEquals(1, result.state().player().cardPileState().hand().size());
+    assertEquals(10, result.state().enemies().get(0).stats().currentHp());
+  }
+
+  @Test
+  void useCardWithoutTargetInDirectionIsRejected() {
+    // 上方向に敵いない、右隣にスライム
+    Player p = DomainFixtures.playerAtWithHand(new Position(2, 2), 1);
+    Enemy slime = DomainFixtures.slimeAt(new Position(3, 2));
+    DungeonState s = newState(p, List.of(slime));
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.UseCard(0, Direction.UP));
+
+    assertTrue(result.wasRejected());
+    // AP 消費なし、Hand 不変
+    assertEquals(5, result.state().player().actionPoints().current());
+    assertEquals(1, result.state().player().cardPileState().hand().size());
+  }
+
+  @Test
+  void useCardWithInvalidHandIndexIsRejected() {
+    Player p = DomainFixtures.playerAtWithHand(new Position(1, 1), 1);
+    Enemy slime = DomainFixtures.slimeAt(new Position(2, 1));
+    DungeonState s = newState(p, List.of(slime));
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.UseCard(99, Direction.RIGHT));
+
+    assertTrue(result.wasRejected());
+    // AP 消費なし、Hand 不変
+    assertEquals(5, result.state().player().actionPoints().current());
+    assertEquals(1, result.state().player().cardPileState().hand().size());
+  }
+
+  @Test
+  void useMagicCardUsesMagicalStats() {
+    // 魔法カード (MAGICAL, baseValue=3, AP コスト=1)、Player の魔攻=5、スライムの魔防=2
+    Card magicBolt =
+        new Card(
+            CardId.of("magic-1"),
+            "魔法弾",
+            1,
+            CardTag.ATTACK,
+            CardElement.MAGICAL,
+            new CardEffect.Damage(3));
+    CardPileState piles =
+        new CardPileState(DrawPile.empty(), Hand.empty().add(magicBolt), DiscardPile.empty());
+    Player p =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withStats(new Stats(30, 30, 3, 0, 5, 0, 0)) // 魔攻 5
+            .withCardPileState(piles);
+    Enemy slime =
+        DomainFixtures.slimeAt(new Position(2, 1))
+            .withStats(new Stats(10, 10, 2, 0, 0, 0, 2)); // 魔防 2
+    DungeonState s = newState(p, List.of(slime));
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolvePlayerAction(s, new BattleAction.UseCard(0, Direction.RIGHT));
+
+    assertFalse(result.wasRejected());
+    // ダメージ: max(1, 3 + 5 - 2) = 6、スライム HP 10 → 4
+    assertEquals(4, result.state().enemies().get(0).stats().currentHp());
+  }
+
+  @Test
+  void enemyUseCardInEnemyTurnIsRejected() {
+    Player p = DomainFixtures.playerAt(new Position(1, 1));
+    Enemy slime = DomainFixtures.slimeAt(new Position(2, 1));
+    DungeonState s =
+        new DungeonState(
+            DomainFixtures.squareRoom(), p, List.of(slime), TurnPhase.ENEMY_TURN);
+
+    TurnEngine.StepResult result =
+        TurnEngine.resolveEnemyAction(s, slime.id(), new BattleAction.UseCard(0, Direction.RIGHT));
 
     assertTrue(result.wasRejected());
   }

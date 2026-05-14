@@ -2,6 +2,7 @@ package core.infrastructure.bootstrap;
 
 import core.domain.battle.ActionPoints;
 import core.domain.battle.TurnPhase;
+import core.domain.card.CardPileState;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
@@ -78,7 +79,9 @@ public final class InitialStateFactory {
         new Stats(30, 30, 3, 0, 0, 0, 0),
         ActionPoints.full(5),
         new SkillSlot(List.of(lightSlash(), heavySlash()), 4),
-        Soul.zero());
+        Soul.zero(),
+        // ADR-18: 初期 CardPileState は空。Deck 接続は別 Issue (E-5 Equipment) で後付け予定。
+        CardPileState.empty());
   }
 
   public static Enemy newSlime(String id, Position spawn) {

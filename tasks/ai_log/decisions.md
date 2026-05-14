@@ -297,3 +297,37 @@
   - − ADR-16 の `CardEffect.java` Javadoc 「application 層の解決器 (TurnEngine 等) が Stats と組み合わせて算出」と若干齟齬。実装時に Javadoc を「CardEffect.Damage.resolve が算出、TurnEngine は結果を反映」に書き換える
   - − Issue #15 のスコープが「Stats 7 引数化 + CardEffect.Damage.resolve + テスト」に狭まる (DamageFormula 廃案、with\* 廃案、fixture 数値設計は別 Issue)
 - **Reference**: ADR-02, ADR-16, [Issue #15](https://github.com/NPCdotcom/DDD-Jyogi-Kuroto-F/issues/15), 3 サブエージェント並列レビュー出力 (本セッション、2026-05-14)
+
+## ADR-18: CardPileState は Player record に内蔵 + UseCard は Damage カードのみ実装
+
+- **Status**: Accepted (3 サブエージェント並列レビュー結論、main session 統合判断、ユーザー承認済)
+- **Date**: 2026-05-14
+- **Context**: 依存事項 D (BattleAction.UseCard + TurnEngine カード解決統合) の最大の設計分岐 = `CardPileState` の所有者をどうするか。初版 (domain-architect) は **案 Y (DungeonState に Map で集約)** を推奨したが、3 並列レビューで final-architect と domain-architect 自己再評価が **案 X (Player に内蔵)** を推奨。general-purpose は ADR-16 の「戦闘中の動的状態を局所閉包」を根拠に案 Y を推奨し、3 観点で意見分岐。
+
+  分岐点の整理:
+  - **案 X (Player に CardPileState 内蔵)**: `Player(ActorId, Position, Stats, ActionPoints, SkillSlot, Soul, CardPileState)` 7 引数化
+  - **案 Y (DungeonState に Map で集約)**: `DungeonState(..., Map<ActorId, CardPileState>)` 5 引数化
+  - **案 Z (PlayerCards 中間 record)**: 1:1 関係を 1 階層余分に包む、却下
+
+- **Decision**: 以下を採用
+  1. **案 X (Player に CardPileState 内蔵)** を採用 — 投票 2 対 1、実測コスト最小、ドメイン意味論的整合
+  2. `Player` record を 6 引数 → 7 引数化 (`CardPileState cardPileState` 追加)、`withCardPileState` 1 メソッド追加、既存 4 with* で新フィールド伝播
+  3. `BattleAction.UseCard(int handIndex, Direction direction)` を sealed permits に追加 (`direction` は本 Issue では Damage カードの隣接攻撃方向指定で必須)
+  4. **Damage カードのみ実装**、Move/Buff/Trap は `BattleEvent.ActionRejected` で「未実装のカード効果」を明示 (本 Issue スコープ外、別 Issue で実装)
+  5. `BattleEvent.CardUsed` は **新設しない**、既存 `SkillUsed(ActorId, String)` を流用してカード表示文言 (`card.displayName()`) を渡す (YAGNI)
+  6. `TurnEngine.resolveDamageToEnemy/Player` を `int finalDamage` 受け取り形に統一 (DRY、Skill 経路と Card 経路で共有)
+  7. `CardPileState.empty()` static factory を追加 (Player 初期生成時に空デッキ状態を渡せるよう)
+  8. `InitialStateFactory.newPlayer` / `DomainFixtures.playerAt` を 7 引数化、`CardPileState.empty()` を渡す (Deck 接続は別 Issue / E-5 Equipment で後付け)
+  9. TurnEngineTest に UseCard 系 6 件追加: 正常系 / AP 不足 / 対象不在 / Hand 範囲外 / MAGICAL 属性ダメ計算 / 敵 UseCard reject
+
+- **Consequences**:
+  - + 依存方向が `entity → card` 追加 (既存 `entity → skill` の前例ありで驚き最小)
+  - + 実装コスト最小 (実測: `new Player(...)` 直接呼出 2 箇所 + `with*` 内部 4 箇所伝播)
+  - + Player の「持ち物」「戦闘中状態」が record 内に一元化、§15-9 Equipment 系列との所有レイヤー統一
+  - + Skill 経路と Card 経路の対称性確保 (固定ダメと計算式ダメの差を `int finalDamage` 受け取り形で吸収)
+  - − `Player` record が 6 → 7 引数化 (fat record の懸念だが、§15 全体で見れば必然)
+  - − 戦闘終了時に CardPileState を `empty` 化するロジックが将来必要 (現状はラン中ずっと保持で OK、明示クリアは別 Issue)
+  - − general-purpose 指摘「Deck=永続 / CardPileState=戦闘中限り」の二層分離は、本 PR では `CardPileState` のみ Player に持たせ、Deck (永続) は別 Issue / E-5 Equipment で後付けする形で両立 (Deck 接続は本 PR スコープ外)
+  - − Move/Buff/Trap カードを本 Issue で reject するため、E-1 単体ではまだゲーム内で「攻撃カードのみ」しか使えない (Move/Buff/Trap は別 Issue で順次)
+
+- **Reference**: ADR-05 (戦闘モード境界廃止), ADR-16 (E-1 カード設計), ADR-17 (Damage.resolve 配置), [Issue #18](https://github.com/NPCdotcom/DDD-Jyogi-Kuroto-F/issues/18), 3 サブエージェント並列レビュー出力 (本セッション、2026-05-14)
