@@ -2,7 +2,15 @@ package core.infrastructure.bootstrap;
 
 import core.domain.battle.ActionPoints;
 import core.domain.battle.TurnPhase;
+import core.domain.card.Card;
+import core.domain.card.CardEffect;
+import core.domain.card.CardElement;
+import core.domain.card.CardId;
 import core.domain.card.CardPileState;
+import core.domain.card.CardTag;
+import core.domain.card.DiscardPile;
+import core.domain.card.DrawPile;
+import core.domain.card.Hand;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
@@ -17,6 +25,7 @@ import core.domain.skill.SkillEffect;
 import core.domain.skill.SkillId;
 import core.domain.skill.SkillSlot;
 import java.util.List;
+import java.util.Random;
 
 /**
  * ダンジョン初期状態 (1 ラン分の DungeonState) を組み立てるファクトリ。
@@ -40,6 +49,53 @@ public final class InitialStateFactory {
 
   public static Skill slimeBite() {
     return new Skill(SkillId.of("slime_bite"), "Bite", 1, new SkillEffect.Damage(4));
+  }
+
+  // ----------------------------- カードマスタ -----------------------------
+
+  /**
+   * 斬撃カード (物理 / ダメージ 5 ベース)。
+   *
+   * <p>物攻ステに連動するため、{@link Stats#physicalAttack()} が高いほど最終ダメージが伸びる。
+   */
+  public static Card zangetuCard() {
+    return new Card(
+        CardId.of("zangeki"),
+        "斬撃",
+        1,
+        CardTag.ATTACK,
+        CardElement.PHYSICAL,
+        new CardEffect.Damage(5));
+  }
+
+  /**
+   * 魔法弾カード (魔法 / ダメージ 3 ベース)。
+   *
+   * <p>魔攻ステに連動する。
+   */
+  public static Card magicBoltCard() {
+    return new Card(
+        CardId.of("magic_bolt"),
+        "魔法弾",
+        2,
+        CardTag.ATTACK,
+        CardElement.MAGICAL,
+        new CardEffect.Damage(3));
+  }
+
+  /**
+   * 強打カード (物理 / ダメージ 4 ベース)。
+   *
+   * <p>斬撃より基礎値は低いが AP コストも 1 で使いやすい。
+   */
+  public static Card strongStrikeCard() {
+    return new Card(
+        CardId.of("strong_strike"),
+        "強打",
+        1,
+        CardTag.ATTACK,
+        CardElement.PHYSICAL,
+        new CardEffect.Damage(4));
   }
 
   // ----------------------------- マップ -----------------------------
@@ -72,24 +128,32 @@ public final class InitialStateFactory {
   }
 
   public static Player newPlayer(Position spawn) {
+    // テスト用初期デッキ (3 枚、ADR-18 通り E-5 Equipment で動的化されるまでのハードコード)
+    List<Card> deckCards = List.of(zangetuCard(), magicBoltCard(), strongStrikeCard());
+    // Random を 1 個に統一 (シャッフルと初期ドローで同じシードを共有、再現性確保)
+    Random rng = new Random(42);
+    DrawPile drawPile = DrawPile.shuffledFrom(deckCards, rng);
+    CardPileState pileBase = new CardPileState(drawPile, Hand.empty(), DiscardPile.empty());
+    // 初期ドロー枚数は §15-3 仕様の CardPileState.initialDrawCount でデッキ枚数から自動決定
+    // (deck 1-2→deck サイズ、3-5→3、6 以上→5)。デッキ枚数を変えても仕様準拠を構造的に保証。
+    int initialDraw = CardPileState.initialDrawCount(deckCards.size());
+    CardPileState initialPile = pileBase.drawN(initialDraw, rng);
+
     return new Player(
         ActorId.of("player"),
         spawn,
-        // ADR-17: 物攻/魔攻/物防/魔防 は暫定 0 埋め。キャラビルド数値は別 Issue で再設計予定。
-        new Stats(30, 30, 3, 0, 0, 0, 0),
+        new Stats(30, 30, 3, 1, 2, 1, 1),
         ActionPoints.full(5),
         new SkillSlot(List.of(lightSlash(), heavySlash()), 4),
         Soul.zero(),
-        // ADR-18: 初期 CardPileState は空。Deck 接続は別 Issue (E-5 Equipment) で後付け予定。
-        CardPileState.empty());
+        initialPile);
   }
 
   public static Enemy newSlime(String id, Position spawn) {
     return new Enemy(
         ActorId.of(id),
         spawn,
-        // ADR-17: 物攻/魔攻/物防/魔防 は暫定 0 埋め。
-        new Stats(10, 10, 2, 0, 0, 0, 0),
+        new Stats(10, 10, 2, 2, 0, 0, 0),
         ActionPoints.full(3),
         new SkillSlot(List.of(slimeBite()), 4),
         EnemyKind.SLIME);
