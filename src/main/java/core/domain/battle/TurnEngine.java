@@ -82,9 +82,11 @@ public final class TurnEngine {
     Objects.requireNonNull(state, "state");
     Objects.requireNonNull(rng, "rng");
     Player p = state.player();
+    // ADR-21: pendingMoveCount はターンまたぎ持ち越さない (移動権は当該ターンに使い切る)。
     Player refreshed =
         p.withActionPoints(p.actionPoints().refilledTo(p.stats().speed()))
-            .withCardPileState(p.cardPileState().drawN(1, rng));
+            .withCardPileState(p.cardPileState().drawN(1, rng))
+            .withPendingMoveCount(0);
     DungeonState ns = state.withPlayer(refreshed).withPhase(TurnPhase.PLAYER_TURN);
     return new StepResult(ns, List.of(new BattleEvent.TurnPhaseChanged(TurnPhase.PLAYER_TURN)));
   }
@@ -131,16 +133,29 @@ public final class TurnEngine {
   //  プレイヤー個別アクション
   // ===================================================================================
 
+  /**
+   * プレイヤー移動 (§15-5 / ADR-21)。{@code pendingMoveCount > 0} なら AP 消費なし (移動権使用)、それ以外は AP 1 消費 (通常移動)。
+   *
+   * <p>ADR-20 / ADR-21 「移動カード切る → distance ぶん AWSD で連続移動」を本メソッドで実装。
+   */
   private static StepResult applyPlayerMove(DungeonState state, Direction direction) {
     Player player = state.player();
-    if (!player.actionPoints().canSpend(1)) {
+    boolean usingPendingMove = player.pendingMoveCount() > 0;
+    if (!usingPendingMove && !player.actionPoints().canSpend(1)) {
       return reject(state, player.id(), "AP 不足");
     }
     Position next = player.position().move(direction);
     if (!state.map().isWalkable(next) || state.findEnemyAt(next).isPresent()) {
       return reject(state, player.id(), "そこへは移動できない");
     }
-    Player moved = player.withPosition(next).withActionPoints(player.actionPoints().spend(1));
+    Player moved;
+    if (usingPendingMove) {
+      // 移動権消費: AP 据置、pendingMoveCount を 1 減らす。
+      moved = player.withPosition(next).withPendingMoveCount(player.pendingMoveCount() - 1);
+    } else {
+      // 通常移動: AP 1 消費。
+      moved = player.withPosition(next).withActionPoints(player.actionPoints().spend(1));
+    }
     DungeonState afterMove = state.withPlayer(moved);
     List<BattleEvent> events = new ArrayList<>();
     events.add(new BattleEvent.Moved(player.id(), player.position(), next));
@@ -190,10 +205,32 @@ public final class TurnEngine {
     return switch (card.effect()) {
       case CardEffect.Damage dmg ->
           resolveCardDamage(state, card, dmg, action.direction(), handIndex);
-      case CardEffect.Move ignored -> reject(state, player.id(), "未実装のカード効果 (Move)");
+      case CardEffect.Move move -> resolveCardMove(state, card, move, handIndex);
       case CardEffect.Buff ignored -> reject(state, player.id(), "未実装のカード効果 (Buff)");
       case CardEffect.Trap ignored -> reject(state, player.id(), "未実装のカード効果 (Trap)");
     };
+  }
+
+  /**
+   * Move カード解決 (§15-5 / ADR-21)。AP コスト消費 + Hand→Discard + pendingMoveCount = distance 設定。
+   *
+   * <p>本メソッドではカード使用時点で移動は行わない (= 距離 1 でも UseCard 後の AWSD 押下で 1 マス進む)。これにより「カードを切る → 方向キーで動く」操作を
+   * 明示的に分離 (移動 α 案、ADR-20)。
+   */
+  private static StepResult resolveCardMove(
+      DungeonState state, Card card, CardEffect.Move move, int handIndex) {
+    Player player = state.player();
+    Player afterUse =
+        player
+            .withActionPoints(player.actionPoints().spend(card.apCost()))
+            .withCardPileState(player.cardPileState().playFromHand(handIndex))
+            .withPendingMoveCount(move.distance());
+    DungeonState ns = state.withPlayer(afterUse);
+    List<BattleEvent> events = new ArrayList<>();
+    // ADR-18 / ADR-21: 使用宣言は SkillUsed 流用、追加で MovementGranted を発火 (HUD 表示用)。
+    events.add(new BattleEvent.SkillUsed(player.id(), card.displayName()));
+    events.add(new BattleEvent.MovementGranted(player.id(), move.distance()));
+    return new StepResult(ns, events);
   }
 
   /**

@@ -4,21 +4,28 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
 import core.domain.battle.BattleAction;
 import core.domain.common.Direction;
+import core.domain.dungeon.DungeonState;
 import java.util.Optional;
 
 /**
  * キーボード入力を {@link BattleAction} にマッピングする。
  *
- * <p>2 ステートモデル:
+ * <p>3 ステートモデル (ADR-21 §15-5):
  *
  * <ul>
  *   <li>状態0 (通常): 数字キー 1〜9 でカード選択 (状態1へ)、WASD/矢印で移動、SPACE/ENTER は待機/ターン終了
  *   <li>状態1 (カード選択中): 方向キーで {@link BattleAction.UseCard} 発行しリセット、ESC でキャンセル
+ *   <li>状態2 (移動権保持中): {@code DungeonState.player().pendingMoveCount() > 0} のとき自動遷移。
+ *       WASD/方向キーで {@link BattleAction.Move} 発行 (TurnEngine が AP 0 で処理)、数字キーは無視。
+ *       ESC による移動権破棄は YAGNI (ADR-21 §Decision-6)、本実装では実装しない。
  * </ul>
  *
  * <p>{@code pendingCardIndex()} で現在選択中のカード番号を参照できる (HudRenderer からハイライト用に利用)。 -1 は「未選択」を意味する。
  *
  * <p>1 フレームで複数キーが押されても先勝ち。Application 層から poll される。
+ *
+ * <p>状態2 の判定はドメイン側 {@code pendingMoveCount} を毎フレーム読み取る方式。PlayerInputs にキャッシュを持たない
+ * (ドメインが唯一の真実の源、セーブ整合を保つ)。
  */
 public final class PlayerInputs {
 
@@ -41,14 +48,53 @@ public final class PlayerInputs {
   /**
    * 現在フレームの入力を {@link BattleAction} に変換する。
    *
-   * <p>カード選択中 (pendingCardIndex >= 0) のときは方向キーを UseCard に変換し、ESC でキャンセルする。
-   * 通常状態では移動・数字キー・待機・ターン終了のみ受け付ける。
+   * <p>優先度: 状態2 (移動権保持中) > 状態1 (カード選択中) > 状態0 (通常)。
+   *
+   * <p>状態2 は {@code state.player().pendingMoveCount() > 0} で判定する。
+   * この条件が成立している間は状態1 への遷移 (数字キー) をブロックする。
+   *
+   * @param state 現在のダンジョン状態 (pendingMoveCount 参照のため必要)
    */
+  public Optional<BattleAction> poll(DungeonState state) {
+    // 状態2: 移動権保持中 — ドメインの pendingMoveCount を毎フレーム参照
+    if (state.player().pendingMoveCount() > 0) {
+      return pollMovementTokenMode();
+    }
+    // 状態1: カード選択中
+    if (pendingCardIndex >= 0) {
+      return pollCardDirectionMode();
+    }
+    // 状態0: 通常
+    return pollNormalMode();
+  }
+
+  /**
+   * 後方互換オーバーロード。移動権を持たない状態で呼ぶ場合に使用。
+   *
+   * <p>移動権判定が不要な箇所 (テスト等) 向け。本番の DungeonScreen では {@link #poll(DungeonState)} を使うこと。
+   *
+   * @deprecated DungeonScreen は {@link #poll(DungeonState)} に移行済み。残存する呼び出しは移行すること。
+   */
+  @Deprecated
   public Optional<BattleAction> poll() {
     if (pendingCardIndex >= 0) {
       return pollCardDirectionMode();
     }
     return pollNormalMode();
+  }
+
+  /**
+   * 状態2 (移動権保持中): WASD/方向キーで Move 発行。数字キーは無視。
+   *
+   * <p>ESC による移動権破棄は YAGNI (ADR-21 §Decision-6)、本実装では不要。
+   */
+  private Optional<BattleAction> pollMovementTokenMode() {
+    Direction dir = readDirection();
+    if (dir != null) {
+      return Optional.of(new BattleAction.Move(dir));
+    }
+    // 数字キー・SPACE・ENTER は移動権保持中は無視 (仕様: 移動専念)
+    return Optional.empty();
   }
 
   /** 状態1 (カード選択中): 方向キーで UseCard 発行、ESC でキャンセル。 */

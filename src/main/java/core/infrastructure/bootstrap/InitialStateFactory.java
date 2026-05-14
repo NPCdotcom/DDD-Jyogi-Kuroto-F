@@ -165,7 +165,8 @@ public final class InitialStateFactory {
         ActionPoints.full(5),
         new SkillSlot(List.of(lightSlash(), heavySlash()), 4),
         Soul.zero(),
-        initialPile);
+        initialPile,
+        0);
   }
 
   public static Enemy newSlime(String id, Position spawn) {
