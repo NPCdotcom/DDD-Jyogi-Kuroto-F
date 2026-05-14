@@ -29,7 +29,13 @@
 | `npm run test` | `./gradlew test` |
 | `npm run lint` | `./gradlew spotlessCheck` (適用は `spotlessApply`) |
 
-Windows では `gradlew.bat run`、macOS/Linux では `./gradlew run`。JAVA_HOME / PATH の自動設定は `/gradle-runner` Skill が担当。
+起動コマンドはシェルによって違う:
+
+- **Windows (PowerShell)**: `.\gradlew.bat run` (PowerShell はカレントディレクトリの実行ファイルに `.\` 必須)
+- **Windows (cmd.exe)**: `gradlew.bat run`
+- **macOS/Linux**: `./gradlew run`
+
+以下この文書および他 docs の `./gradlew <task>` 表記は PowerShell では `.\gradlew <task>` (または `.\gradlew.bat <task>`) に読み替えること。JAVA_HOME / PATH の自動設定は `/gradle-runner` Skill が担当。
 
 ---
 

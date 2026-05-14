@@ -21,7 +21,7 @@
 - [ ] スキル枠（4枠）からスキルを発動して敵にダメージを与えられる
 - [ ] HP 0 で死亡判定が走る
 - [ ] 死亡時にソウルが保持される（金貨・装備は喪失）
-- [ ] ローカルで JAR or `gradlew run` で起動できる
+- [ ] ローカルで JAR or `gradlew run` で起動できる (PowerShell は `.\gradlew run` / cmd は `gradlew run` / Unix は `./gradlew run`)
 
 > 仕様詳細は [GAME_DESIGN.md §11-2](./GAME_DESIGN.md)。
 
