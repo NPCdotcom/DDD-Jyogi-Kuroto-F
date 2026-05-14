@@ -1,5 +1,6 @@
 package core.domain.card;
 
+import core.domain.entity.Stats;
 import java.util.Objects;
 
 /**
@@ -8,8 +9,9 @@ import java.util.Objects;
  * <p>sealed で型を限定し、switch 式の網羅性チェックを利用する。新カードタイプ追加時は permits 一覧を更新するためコンパイラが全 switch 箇所を強制的に書き換えさせる
  * (驚き最小)。
  *
- * <p>仕様: §15-3。ダメージ計算式は CardEffect 自身は知らず、 application 層の解決器 (TurnEngine 等) が Stats と組み合わせて算出する
- * (副作用と純粋値の分離)。
+ * <p>仕様: §15-3 / §15-4。ダメージ計算式 (`max(1, baseValue + 物攻 - 物防)`) は {@link
+ * Damage#resolve(Stats, Stats, CardElement)} に集約する (ADR-17)。`CardEffect.Damage` 自身が「自分の最終ダメージを確定する」責務を持ち、TurnEngine
+ * 等の上位層は結果の整数を Stats へ反映するだけ。
  */
 public sealed interface CardEffect
     permits CardEffect.Damage, CardEffect.Move, CardEffect.Buff, CardEffect.Trap {
@@ -42,6 +44,29 @@ public sealed interface CardEffect
       if (baseValue < 1) {
         throw new IllegalArgumentException("baseValue must be >= 1 (got " + baseValue + ")");
       }
+    }
+
+    /**
+     * 最終ダメージを確定する (§15-4、ADR-17)。
+     *
+     * <p>計算式: {@code max(1, baseValue + 攻 - 防)}。element が PHYSICAL なら物攻/物防、MAGICAL なら魔攻/魔防を参照。最低 1
+     * ダメ保証 (防御 > 攻撃でも 1 を返す)。
+     *
+     * @param attacker 攻撃側の Stats (物攻 / 魔攻を参照)
+     * @param defender 防御側の Stats (物防 / 魔防を参照)
+     * @param element カード属性 (Card.element() を渡す)
+     * @return 最終ダメージ ({@code >= 1})
+     */
+    public int resolve(Stats attacker, Stats defender, CardElement element) {
+      Objects.requireNonNull(attacker, "attacker");
+      Objects.requireNonNull(defender, "defender");
+      Objects.requireNonNull(element, "element");
+      int raw =
+          switch (element) {
+            case PHYSICAL -> baseValue + attacker.physicalAttack() - defender.physicalDefense();
+            case MAGICAL -> baseValue + attacker.magicalAttack() - defender.magicalDefense();
+          };
+      return Math.max(1, raw);
     }
   }
 

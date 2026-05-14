@@ -269,3 +269,31 @@
   7. 別 Issue を立てて依存 A〜E を順次着手
 
 - **Reference**: [Issue #12](https://github.com/NPCdotcom/DDD-Jyogi-Kuroto-F/issues/12), [docs/GAME_DESIGN.md §15-3](../../docs/GAME_DESIGN.md), [.claude/agents/domain-architect.md](../../.claude/agents/domain-architect.md), domain-architect Agent 出力 (本セッション、2026-05-14)
+
+## ADR-17: ダメージ計算は CardEffect.Damage.resolve に置く + fixture 新フィールドは暫定 0 埋め
+
+- **Status**: Accepted (3 サブエージェント並列レビュー結論、ユーザー承認済)
+- **Date**: 2026-05-14
+- **Context**: ADR-02 で「Stats を 6 ステ化、ダメージ計算は `max(1, 基礎値 + 物攻 - 物防)`」と確定したが、計算ロジックをどこに置くかは未定。設計時の候補 4 案:
+  - (a) `Stats` 内 static method
+  - (b) `core.domain.battle.DamageFormula` 新クラス
+  - (c) `TurnEngine` 内 private method
+  - (d) `CardEffect.Damage` record にメソッド追加
+
+  3 サブエージェント (domain-architect 自己再評価 / general-purpose docs 横断 / final-architect 8 原則) で並列検証した結果、(b) と (d) の対立があり、final-architect が「battle → card は層越境、card 層内に閉じる (d) が依存方向クリーン」と指摘。実コード調査で `core.domain.battle` は現状 `core.domain.card` を一切 import していないことが確認された。
+- **Decision**: 以下を採用
+  1. ダメージ計算は **`CardEffect.Damage.resolve(Stats attacker, Stats defender, CardElement element)`** メソッドとして `CardEffect.Damage` record 内に置く ((d) 案)
+  2. `core.domain.battle.DamageFormula` 新クラスは **作らない** (KISS、層越境回避)
+  3. `Stats` 内 static method は **作らない** (entity → card 逆方向依存を回避)
+  4. `SkillEffect.Damage` は **触らない** (Skill = 固定ダメ継続、対称性確保 = `SkillEffect.Damage.amount` をそのまま使う)
+  5. `Stats` に `withPhysicalAttack` 等の `with*` メソッドは **本 PR で追加しない** (バフ適用 Issue で必要時に追加、YAGNI)
+  6. fixture (`DomainFixtures.java:63,78` / `InitialStateFactory.java:77,87`) の新フィールド 4 つは **暫定 0 埋め**。プレイヤー / 敵のキャラビルド数値は別 Issue で再設計 (本 PR スコープ外)
+- **Consequences**:
+  - + 依存方向が `battle → card → entity` のクリーンな単方向に保たれる
+  - + `CardEffect.Damage` 自身が「自分のダメージ確定」責務を持つ自然な設計
+  - + Skill 経路と Card 経路の意味論分離が明確 (Skill=固定ダメ、Card=計算式)
+  - + fixture 暫定 0 埋めにより既存 TurnEngineTest 全 PASS を保てる (`max(1, 15+0-0) = 15` で等価)
+  - − キャラビルド数値設計が別 Issue になり、ゲーム内バランスは本 PR で確定しない
+  - − ADR-16 の `CardEffect.java` Javadoc 「application 層の解決器 (TurnEngine 等) が Stats と組み合わせて算出」と若干齟齬。実装時に Javadoc を「CardEffect.Damage.resolve が算出、TurnEngine は結果を反映」に書き換える
+  - − Issue #15 のスコープが「Stats 7 引数化 + CardEffect.Damage.resolve + テスト」に狭まる (DamageFormula 廃案、with\* 廃案、fixture 数値設計は別 Issue)
+- **Reference**: ADR-02, ADR-16, [Issue #15](https://github.com/NPCdotcom/DDD-Jyogi-Kuroto-F/issues/15), 3 サブエージェント並列レビュー出力 (本セッション、2026-05-14)

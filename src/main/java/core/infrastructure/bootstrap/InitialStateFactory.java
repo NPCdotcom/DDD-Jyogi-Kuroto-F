@@ -74,7 +74,8 @@ public final class InitialStateFactory {
     return new Player(
         ActorId.of("player"),
         spawn,
-        new Stats(30, 30, 3),
+        // ADR-17: 物攻/魔攻/物防/魔防 は暫定 0 埋め。キャラビルド数値は別 Issue で再設計予定。
+        new Stats(30, 30, 3, 0, 0, 0, 0),
         ActionPoints.full(5),
         new SkillSlot(List.of(lightSlash(), heavySlash()), 4),
         Soul.zero());
@@ -84,7 +85,8 @@ public final class InitialStateFactory {
     return new Enemy(
         ActorId.of(id),
         spawn,
-        new Stats(10, 10, 2),
+        // ADR-17: 物攻/魔攻/物防/魔防 は暫定 0 埋め。
+        new Stats(10, 10, 2, 0, 0, 0, 0),
         ActionPoints.full(3),
         new SkillSlot(List.of(slimeBite()), 4),
         EnemyKind.SLIME);
