@@ -43,6 +43,8 @@
 | 18 | **#33** | **Trap カード実装 + PlacedTrap + 踏み判定 + ライフタイム管理 (ADR-22)** | `e386f93` |
 | 19 | **#34** | handoff Gold + Trap 反映 | `4882ad8` |
 | 20 | **#35** | **E-3 層構造の最小実装 (Layer + advanceLayer、ADR-23、195 件 PASS)** | `d9d4e06` |
+| 21 | **#36** | handoff E-3 反映 + メタレビュー教訓 | `24da500` |
+| 22 | **#37** | **チームメイト提案カード (5+5) 段階採用 (ADR-24)** | `55aae99` |
 
 `gradlew test` 全 **157 件 PASS** (+2 for 毎ターンドロー検証)、final-architect レビュー全 PR で **A 判定** (#21 は B → 修正 2 件で A 相当)。
 
@@ -178,6 +180,7 @@
 35. **E-3 層構造**: `Layer record (number, displayName)`、DungeonState 6 引数化 + 互換 5/4 引数、`InitialStateFactory.advanceLayer` + `newSlimeForLayer`、敵 AP = 層番号 (ADR-06 が初実装)、UI 連動は別 PR — **ADR-23**、PR #35
 36. **メタレビュー教訓 (本セッション)**: 「multifaceted ≠ 並列数」「同質コホート (技術者 3 名) は擬似的多角性」「真の多角性 = 観点の独立性 + ステークホルダー網羅 + 時間軸 + リスクカテゴリ」。次回以降 Agent 構成を異質化必須 (teammate-pov / playtester-pov / judge-pov を含める)
 37. **本日の機会費用**: Trap (PR #33) は審査員視点で「30 秒試遊に刺さらない」と判定済、もっと先に E-3 をやるべきだった (deck 構築は OK だが進行感ゼロは敗北筋)。本日 5 PR (#22/#24/#27/#29/#31/#34) は handoff 更新のみで PR 数を盛った状態、明日以降は 1 機能 = 1 PR を徹底
+38. **チームメイトカード採用 (PR #37 / ADR-24)**: 異質 3 並列で「マスター登録 4 種 + テンプレ全 10 件 + 初期デッキ温存」確定。ember_shot/blaze_nova/blink_step/flame_circle が Java マスター登録済、ショップ販売や強化個体撃破時の選択肢として将来参照される素材。arcane_veil (Buff) と装備 5 種は明日 ADR-25 / E-5 で取り込み合流。**物理 5 種依頼を Discord でチームメイトに送る** (魔法偏重緩和のため)
 
 ## 採用済ツール / バージョン
 
@@ -234,7 +237,7 @@ JAVA_HOME: `C:\Program Files\Java\jdk-25.0.3`
 
 - **2026-05-12**: MVP 完成
 - **2026-05-13**: §15 仕様策定 + バランス調整
-- **2026-05-14 (今日)** ✅: **M1.5 コア + 毎ターンドロー + 解像度 + テンプレ配布準備 + Move + Gold + Trap + E-3 層構造** (PR #13〜#35、ADR-23 まで蓄積、**195 件全 PASS**)
+- **2026-05-14 (今日)** ✅: **M1.5 コア + 毎ターンドロー + 解像度 + テンプレ + Move + Gold + Trap + E-3 + チームカード採用** (PR #13〜#37、ADR-24 まで蓄積、**195 件全 PASS**)
 - **2026-05-15 (金)** **朝**: Discord にカード設計テンプレ共有 (3 投稿構成) + Google Drive / Sheets URL 共有
 - **2026-05-15 (金)** 日中:
   - **ADR-23 起票**: Player 引数増加問題の解決 (PlayerStatuses 集約 record 案 vs 8 引数維持)。Buff + 装備の同時実装に必要
