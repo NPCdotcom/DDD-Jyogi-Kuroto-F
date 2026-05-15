@@ -124,6 +124,97 @@
         "iconAsset": "icons/cards/test.png",
         "rarity": "COMMON"
       }
+    },
+    {
+      "_comment": "↓ チームメイト提案 (2026-05-14 深夜、ADR-24)、魔法ビルド一式",
+      "gameplay": {
+        "id": "ember_shot",
+        "displayName": "炎弾",
+        "apCost": 1,
+        "tag": "ATTACK",
+        "element": "MAGICAL",
+        "effect": { "type": "Damage", "baseValue": 2 }
+      },
+      "metadata": {
+        "loreText": "指先から放つ小さな炎の弾。速く、確実に届く。",
+        "gameText": "魔法ダメージ 2。",
+        "subGenre": "遠距離攻撃",
+        "iconAsset": "icons/cards/ember_shot.png",
+        "rarity": "COMMON"
+      }
+    },
+    {
+      "gameplay": {
+        "id": "blaze_nova",
+        "displayName": "爆炎",
+        "apCost": 3,
+        "tag": "ATTACK",
+        "element": "MAGICAL",
+        "effect": { "type": "Damage", "baseValue": 6 }
+      },
+      "metadata": {
+        "loreText": "全身の魔力を一点に凝縮し、爆発させる。代償は大きい。",
+        "gameText": "魔法ダメージ 6。",
+        "subGenre": "大魔法",
+        "iconAsset": "icons/cards/blaze_nova.png",
+        "rarity": "RARE"
+      }
+    },
+    {
+      "gameplay": {
+        "id": "blink_step",
+        "displayName": "瞬歩",
+        "apCost": 1,
+        "tag": "MOVEMENT",
+        "element": "MAGICAL",
+        "effect": { "type": "Move", "distance": 3 }
+      },
+      "metadata": {
+        "loreText": "空間を折り畳む、一瞬の転移。足音すら残らない。",
+        "gameText": "3 マス移動。",
+        "subGenre": "高速移動",
+        "iconAsset": "icons/cards/blink_step.png",
+        "rarity": "UNCOMMON"
+      }
+    },
+    {
+      "_comment": "↓ Buff カード、TurnEngine で reject 中。Buff 実装 (ADR-25 予定) と一緒に Java 化予定",
+      "gameplay": {
+        "id": "arcane_veil",
+        "displayName": "魔力の帳",
+        "apCost": 2,
+        "tag": "BUFF",
+        "element": "MAGICAL",
+        "effect": { "type": "Buff", "kind": "MAGICAL_DEFENSE_UP", "amount": 3, "durationTurns": 2 }
+      },
+      "metadata": {
+        "loreText": "魔力の膜が体を包み、触れた魔法が霧散していく。",
+        "gameText": "2 ターンの間、魔防 +3。",
+        "subGenre": "魔法防御",
+        "iconAsset": "icons/cards/arcane_veil.png",
+        "rarity": "UNCOMMON"
+      }
+    },
+    {
+      "gameplay": {
+        "id": "flame_circle",
+        "displayName": "炎の魔法陣",
+        "apCost": 2,
+        "tag": "TRAP",
+        "element": "MAGICAL",
+        "effect": {
+          "type": "Trap",
+          "baseValue": 3,
+          "lifetime": { "type": "Turns", "remaining": 4 }
+        }
+      },
+      "metadata": {
+        "loreText": "床に刻む炎の紋様。4 ターン後に消えるが、踏めば業火に包まれる。",
+        "gameText": "4 ターン残る魔法罠。踏んだ敵に魔法ダメージ 3。",
+        "subGenre": "魔法罠",
+        "iconAsset": "icons/cards/flame_circle.png",
+        "rarity": "UNCOMMON"
+      }
     }
   ]
 }
