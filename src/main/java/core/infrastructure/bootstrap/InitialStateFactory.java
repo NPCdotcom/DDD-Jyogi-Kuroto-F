@@ -11,6 +11,7 @@ import core.domain.card.CardTag;
 import core.domain.card.DiscardPile;
 import core.domain.card.DrawPile;
 import core.domain.card.Hand;
+import core.domain.card.TrapLifetime;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
@@ -113,6 +114,56 @@ public final class InitialStateFactory {
         CardElement.MAGICAL,
         new CardEffect.Damage(3));
   }
+
+  // ----- チームメイト提案カード (ADR-24、本 PR で Java マスター登録、初期デッキには含めず将来 -----
+  // ----- ショップ販売・強化個体撃破時の選択肢・装備固有カード解放で参照する素材として確保) -----
+
+  /** 炎弾カード (魔法 / ダメージ 2 ベース、AP 1)。軽量連射型、AP 効率 2.0。 */
+  public static Card emberShotCard() {
+    return new Card(
+        CardId.of("ember_shot"),
+        "炎弾",
+        1,
+        CardTag.ATTACK,
+        CardElement.MAGICAL,
+        new CardEffect.Damage(2));
+  }
+
+  /** 爆炎カード (魔法 / ダメージ 6 ベース、AP 3)。1 ターン全力フィニッシャー、AP 効率 2.0。 */
+  public static Card blazeNovaCard() {
+    return new Card(
+        CardId.of("blaze_nova"),
+        "爆炎",
+        3,
+        CardTag.ATTACK,
+        CardElement.MAGICAL,
+        new CardEffect.Damage(6));
+  }
+
+  /** 瞬歩カード (魔法移動 / 距離 3、AP 1)。長距離移動、ADR-21 移動 α 案で動作。 */
+  public static Card blinkStepCard() {
+    return new Card(
+        CardId.of("blink_step"),
+        "瞬歩",
+        1,
+        CardTag.MOVEMENT,
+        CardElement.MAGICAL,
+        new CardEffect.Move(3));
+  }
+
+  /** 炎の魔法陣カード (魔法罠 / ダメージ 3 / 4 ターン残、AP 2)。Turns 型ライフタイム、ADR-22 で動作。 */
+  public static Card flameCircleCard() {
+    return new Card(
+        CardId.of("flame_circle"),
+        "炎の魔法陣",
+        2,
+        CardTag.TRAP,
+        CardElement.MAGICAL,
+        new CardEffect.Trap(3, new TrapLifetime.Turns(4)));
+  }
+
+  // arcane_veil (Buff) は TurnEngine.applyPlayerUseCard で reject されるため本 PR では Java 化しない。
+  // 明日 ADR-25 で Buff 実装と一緒に取り込み予定。
 
   // ----------------------------- マップ -----------------------------
 
