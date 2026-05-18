@@ -44,6 +44,9 @@ public final class Strings {
     public static final String SOULS_KEPT = "持ち帰ったソウル: ";
     public static final String NEW_RUN_HINT = "ENTER で新たな挑戦を始める";
 
+    // CLEARED 状態 (階段踏破直後) の操作ヒント (§15-6 / ADR-23)
+    public static final String CLEARED_HINT = "ENTER で次の層へ進む";
+
     // 手札表示ラベル
     public static final String HAND_LABEL = "手札:";
     public static final String HAND_HINT = "数字キー: カード選択  方向キー: 使用方向  ESC: キャンセル";
@@ -100,6 +103,9 @@ public final class Strings {
     public static final String CLEARED_HEADER = "FLOOR CLEARED";
     public static final String SOULS_KEPT = "Souls carried out: ";
     public static final String NEW_RUN_HINT = "Press ENTER to start a new run";
+
+    // Hint shown after stepping on stairs (§15-6 / ADR-23)
+    public static final String CLEARED_HINT = "Press ENTER to descend to the next floor";
 
     // 手札表示ラベル
     public static final String HAND_LABEL = "Hand:";

@@ -71,7 +71,8 @@ public final class HudRenderer {
     // 移動権保持中のみ CYAN で「移動権 残 N 歩」を表示 (ADR-21 §15-5)
     drawMoveToken(batch, font, jp, p.pendingMoveCount());
 
-    drawControlsHint(batch, font, jp, pendingCardIndex, p.pendingMoveCount() > 0);
+    drawControlsHint(
+        batch, font, jp, pendingCardIndex, p.pendingMoveCount() > 0, context.state().phase());
     drawLog(batch, font, jp, context.latestEvents(RenderLayout.LOG_LINES_VISIBLE));
     drawHand(batch, font, jp, p, pendingCardIndex);
   }
@@ -172,16 +173,23 @@ public final class HudRenderer {
       BitmapFont font,
       boolean jp,
       int pendingCardIndex,
-      boolean inMovementTokenMode) {
-    font.setColor(0.7f, 0.7f, 0.7f, 1f);
-    // 優先度: 移動権保持中 > カード選択中 > 通常
+      boolean inMovementTokenMode,
+      TurnPhase phase) {
+    // 優先度: CLEARED (層踏破) > 移動権保持中 > カード選択中 > 通常
     String hint;
-    if (inMovementTokenMode) {
-      hint = jp ? Strings.Ja.MOVE_TOKEN_HINT : Strings.En.MOVE_TOKEN_HINT;
-    } else if (pendingCardIndex >= 0) {
-      hint = jp ? Strings.Ja.HAND_HINT : Strings.En.HAND_HINT;
+    if (phase == TurnPhase.CLEARED) {
+      // CLEARED は強調のため YELLOW (§15-6 / ADR-23)
+      font.setColor(0.95f, 0.85f, 0.3f, 1f);
+      hint = jp ? Strings.Ja.CLEARED_HINT : Strings.En.CLEARED_HINT;
     } else {
-      hint = jp ? Strings.Ja.HUD_HINT : Strings.En.HUD_HINT;
+      font.setColor(0.7f, 0.7f, 0.7f, 1f);
+      if (inMovementTokenMode) {
+        hint = jp ? Strings.Ja.MOVE_TOKEN_HINT : Strings.En.MOVE_TOKEN_HINT;
+      } else if (pendingCardIndex >= 0) {
+        hint = jp ? Strings.Ja.HAND_HINT : Strings.En.HAND_HINT;
+      } else {
+        hint = jp ? Strings.Ja.HUD_HINT : Strings.En.HUD_HINT;
+      }
     }
     font.draw(batch, hint, RenderLayout.HUD_X + 240, RenderLayout.HUD_Y_PHASE);
   }

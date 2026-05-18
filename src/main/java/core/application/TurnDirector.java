@@ -1,6 +1,7 @@
 package core.application;
 
 import core.domain.battle.BattleAction;
+import core.domain.battle.BattleEvent;
 import core.domain.battle.EnemyAi;
 import core.domain.battle.TurnEngine;
 import core.domain.battle.TurnEngine.StepResult;
@@ -8,6 +9,7 @@ import core.domain.battle.TurnPhase;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
@@ -78,6 +80,36 @@ public final class TurnDirector {
       StepResult r = TurnEngine.startPlayerTurn(context.state(), rng);
       context.applyResult(r);
     }
+  }
+
+  /**
+   * 階段踏破後 (CLEARED 状態) に次の層へ進む (§15-6 / ADR-23)。
+   *
+   * <p>処理:
+   *
+   * <ol>
+   *   <li>呼出側 (DddGame) が生成した次層 {@link DungeonState} を反映
+   *   <li>{@link BattleEvent.FloorAdvanced} を発火し HUD ログに「N 層に到達」を表示
+   *   <li>{@link TurnEngine#startPlayerTurn} 流用で AP リフィル + 1 枚ドロー (新層初手のリソースを整える)
+   * </ol>
+   *
+   * <p>CLEARED 以外の状態で呼ばれた場合は no-op (DungeonScreen 側のキー入力で誤って呼ばれるケースを防ぐ二重ガード)。
+   *
+   * <p>次層 {@link DungeonState} の生成は呼出側に委ねる (依存逆転)。application 層は infrastructure 層を直接 import しない。
+   */
+  public void advanceFloor(DungeonState nextLayerState) {
+    Objects.requireNonNull(nextLayerState, "nextLayerState");
+    if (context.state().phase() != TurnPhase.CLEARED) {
+      return;
+    }
+    context.applyResult(
+        new StepResult(
+            nextLayerState,
+            List.of(new BattleEvent.FloorAdvanced(nextLayerState.layer().number()))));
+    // 新層開始時の AP リフィル + 1 枚ドローを startPlayerTurn 流用で適用 (DRY)。
+    // advanceLayer は既に PLAYER_TURN 状態を返しているため、startPlayerTurn 内の withPhase は no-op、
+    // TurnPhaseChanged(PLAYER_TURN) イベントが「次層スタート = プレイヤーターン頭」として発火する。
+    context.applyResult(TurnEngine.startPlayerTurn(context.state(), rng));
   }
 
   private void driveEnemy(ActorId id) {

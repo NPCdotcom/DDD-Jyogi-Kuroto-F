@@ -43,6 +43,17 @@ public final class DddGame extends Game {
     this.director = new TurnDirector(this.context, new Random());
   }
 
+  /**
+   * 階段踏破後 (CLEARED 状態) に次の層へ進む (§15-6 / ADR-23)。
+   *
+   * <p>infrastructure 層の {@link InitialStateFactory#advanceLayer} を呼んで次層 state を生成し、application 層の
+   * {@link TurnDirector#advanceFloor} に委譲する。application が infrastructure を直接 import しないための依存逆転を本クラス
+   * (presentation 層、両方を import 可能) が担当する。
+   */
+  public void advanceFloor() {
+    director.advanceFloor(InitialStateFactory.advanceLayer(context.state()));
+  }
+
   @Override
   public void create() {
     fonts = new Fonts();

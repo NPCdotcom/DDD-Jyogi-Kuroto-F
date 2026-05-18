@@ -1,5 +1,7 @@
 package core.presentation.screen;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -54,7 +56,7 @@ public final class DungeonScreen extends ScreenAdapter {
   public void render(float delta) {
     updateState();
     drawFrame();
-    transitionIfRunEnded();
+    transitionIfGameOver();
   }
 
   private void updateState() {
@@ -66,6 +68,13 @@ public final class DungeonScreen extends ScreenAdapter {
       action.ifPresent(director::applyPlayerAction);
     } else if (phase == TurnPhase.ENEMY_TURN) {
       director.runEnemyTurn();
+    } else if (phase == TurnPhase.CLEARED) {
+      // 階段踏破後の入力: ENTER で次層へ進む (§15-6 / ADR-23)。
+      // GAME_OVER のように画面遷移せず、その場でプレイヤーの確認入力を待つ。
+      // この間 ENEMY_TURN への遷移は起きず、敵は静止する (CLEARED は層遷移の前段で全行動凍結)。
+      if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
+        game.advanceFloor();
+      }
     }
   }
 
@@ -82,13 +91,14 @@ public final class DungeonScreen extends ScreenAdapter {
     batch.end();
   }
 
-  private void transitionIfRunEnded() {
+  private void transitionIfGameOver() {
     TurnPhase phase = game.context().state().phase();
     if (phase == TurnPhase.GAME_OVER) {
       game.setScreen(new GameOverScreen(game, false));
-    } else if (phase == TurnPhase.CLEARED) {
-      game.setScreen(new GameOverScreen(game, true));
     }
+    // CLEARED は階段踏破直後の「次層へ進む確認待ち」状態 (§15-6 / ADR-23)。
+    // 画面遷移は行わず、updateState() 内の ENTER 検知で advanceFloor を発火する。
+    // GameOverScreen(game, true) の呼出は最終層クリア概念が定義されるまで保留 (現状最終層なし)。
   }
 
   @Override
