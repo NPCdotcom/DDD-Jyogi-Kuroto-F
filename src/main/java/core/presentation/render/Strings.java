@@ -44,8 +44,12 @@ public final class Strings {
     public static final String SOULS_KEPT = "持ち帰ったソウル: ";
     public static final String NEW_RUN_HINT = "ENTER で新たな挑戦を始める";
 
-    // CLEARED 状態 (階段踏破直後) の操作ヒント (§15-6 / ADR-23)
-    public static final String CLEARED_HINT = "ENTER で次の層へ進む";
+    // CLEARED 状態 (階段踏破直後) の操作ヒント (§15-6 / §15-8 / E-6)。
+    // ポップアップが前面に出るが、HUD ヒント領域にも同等情報を残して二重視認性を確保。
+    public static final String CLEARED_HINT = "層末ノード選択中: 1〜3 で選択";
+
+    // 層末ノード選択ポップアップのタイトル (§15-8 / E-6)
+    public static final String LAYER_END_TITLE = "層末ノード — 1 つ選んでください";
 
     // 手札表示ラベル
     public static final String HAND_LABEL = "手札:";
@@ -104,8 +108,12 @@ public final class Strings {
     public static final String SOULS_KEPT = "Souls carried out: ";
     public static final String NEW_RUN_HINT = "Press ENTER to start a new run";
 
-    // Hint shown after stepping on stairs (§15-6 / ADR-23)
-    public static final String CLEARED_HINT = "Press ENTER to descend to the next floor";
+    // Hint shown after stepping on stairs (§15-6 / §15-8 / E-6).
+    // Popup overlays the screen; HUD hint area also shows the same info for redundancy.
+    public static final String CLEARED_HINT = "Layer-end node: press 1, 2, or 3";
+
+    // Title shown on the layer-end node selection popup (§15-8 / E-6)
+    public static final String LAYER_END_TITLE = "Layer-end node — choose one";
 
     // 手札表示ラベル
     public static final String HAND_LABEL = "Hand:";
