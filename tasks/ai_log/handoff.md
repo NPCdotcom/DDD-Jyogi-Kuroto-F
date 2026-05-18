@@ -8,12 +8,16 @@
 
 ## 最終更新
 
-- **日時**: 2026-05-14 (火) 深夜 (**E-3 層構造の最小実装まで完了**。Stage 1 メタレビュー + Stage 2 異質 3 並列で「審査員視点最優先」と確定して着手、ローグライト名乗れる状態に進化)
-- **更新者**: Claude (本セッション)
+- **日時**: 2026-05-19 (火) (**E-3 UI 連動 + E-6 ポップアップ UI 基盤 + 層末ノード選択ミニマム** を別 PC 移行直前に完了。Scene2D Stage/Window/Skin 本プロジェクト初導入、層遷移が UI 含めて動作するローグライト形に到達)
+- **更新者**: Claude (本セッション、ユーザーは別 PC で続きを進める予定)
 
 ## アクティブブランチ
 
-`chore/post-ui-handoff-update` (handoff.md 更新用、低リスク docs PR)
+- **handoff 更新中**: `chore/post-e6-handoff` (本 PR)
+- **OPEN 機能 PR**:
+  - `feat/e-3-ui-connection` (#39 OPEN、base = **main**) — CLEARED → ENTER 経由の次層遷移、TurnDirector.advanceFloor 新設
+  - `feat/e-6-popup-ui` (#40 OPEN、base = `feat/e-3-ui-connection`、**stacked**) — 層末ノード選択 + Scene2D Window 初導入
+- **⚠️ PR #39 base = main 問題**: 過去 PR (#35-#37) は develop ベースだった可能性。別 PC で再開時に `gh pr edit 39 --base develop` で修正検討 (要過去 PR の base 確認)
 
 ローカルメインリポジトリ: `C:\.program\DDD-Jyogi-Kuroto-F`
 
@@ -45,23 +49,40 @@
 | 20 | **#35** | **E-3 層構造の最小実装 (Layer + advanceLayer、ADR-23、195 件 PASS)** | `d9d4e06` |
 | 21 | **#36** | handoff E-3 反映 + メタレビュー教訓 | `24da500` |
 | 22 | **#37** | **チームメイト提案カード (5+5) 段階採用 (ADR-24)** | `55aae99` |
+| 23 | **#39 (OPEN)** | **E-3 UI 連動 (CLEARED → ENTER で次層遷移、ADR-23)** | `e728c0d` |
+| 24 | **#40 (OPEN)** | **E-6 ポップアップ UI 基盤 + 層末ノード選択 (§15-8、stacked on #39)** | `a95b6e6` |
 
-`gradlew test` 全 **157 件 PASS** (+2 for 毎ターンドロー検証)、final-architect レビュー全 PR で **A 判定** (#21 は B → 修正 2 件で A 相当)。
+`gradlew test` 全 **215+ 件 PASS** (TurnDirectorTest 8 + LayerEndNodeTest 12 新規追加)、final-architect レビュー両 PR で **A 相当** (PR #39 は A、PR #40 は B → 改善余地 3 点反映で A 相当)。
 
-実機確認: 本セッション中に `gradlew run` を 11 分間動作確認、エラーなく終了。
+実機確認: 本セッションで PR #39 のみ `.\gradlew run` で確認済 (1 層階段踏破 → ENTER → 2 層遷移)。PR #40 (層末ノード選択ポップアップ) の実機確認は **別 PC で実施予定**。
 
-### 圧縮後の Claude が最初にやること
+### 別 PC で Claude が最初にやること
 
-1. **移動カード化 + E-5 装備をセットで実装** (ADR-19 で明日着手と予告済、X/Y/Z 案の最終確定が必要):
-   - 案 X: `BattleAction.Move` 完全廃止、移動はすべて UseCard 経由 (§15-5 L534 「移動カードを切らないと動けない」純粋路線)
-   - 案 Y: WASD = 「移動カード自動プレイ」のショートカット、UI 学習コスト最小
-   - 案 Z: 共存、しかし「驚き最小」「DRY」違反で却下推奨
-   - E-5 装備 (`Equipment(EquipmentId, displayName, Stats statsBonus)`)、初期装備「ぼろ靴」固有カードで初期デッキ構築
-   - 推奨: 3 並列レビュー → 新 ADR-20 で確定 → 実装 → PR → self-merge (推定 2〜3h)
-2. 並列で **E-3 層構造 + ノード分岐** (`core.domain.layer/`) - P0'、§15-6 (推定 1.5h)
-3. 並列で **E-4 通貨 Gold** (`core.domain.meta/Gold.java`) - P0'、§15-2 (推定 1h)
-4. **E-6 ポップアップ UI 基盤** (`core.presentation.window/`、Scene2D Window) - P0'、ADR-03 で全 UI 改修の土台 (推定 2〜3h)
-5. **E-2 ソウルツリー** (`core.domain.tree/` + `SoulTreeScreen`) - P0'、§15-7 (推定 3h)
+1. **PR #39 / #40 の base 確認 + マージ判断**:
+   - PR #39 base = main は過去 PR の運用と異なる疑い、`gh pr view 35/37` 等で過去 base を確認
+   - 必要なら `gh pr edit 39 --base develop` で修正
+   - PR #40 (stacked on #39) は #39 マージ後に base が自動切替
+   - 両 PR の self-merge 判断はユーザー権限
+
+2. **PR #40 の実機確認**:
+   ```powershell
+   git checkout feat/e-6-popup-ui
+   git pull
+   .\gradlew run
+   ```
+   階段踏破 → ポップアップ表示 → 1/2/3 で選択 → ステ反映 + 次層遷移 が一連で動くか
+
+3. **次の優先候補** (本セッションでユーザー判断保留、ハッカソン残り 3〜4 日想定):
+   - **E-2 ソウルツリー (簡素な円樹形)** — PoE 風の絵 = 審査員訴求大、3〜4h、§15-7 / `core.domain.tree/` + `SoulTreeScreen`
+   - **Buff カード実装** (arcane_veil / iron_skin が動く、ADR-25 予告) — カード 4 種網羅、1〜2h、TurnEngine の Buff reject 解除 + Player に activeBuffs フィールド
+   - **E-5 装備システム** — チームメイト連携の鍵、Player 9 引数化 (ADR-25)、3〜4h、§15-9 / `core.domain.equipment/`
+
+4. **本セッションで残った設計負債** (M2 送り、見送り判断のリマインダ):
+   - LayerEndNode の `displayName` をドメインに置く負債 (Plan Part 2 C-3)
+   - NodeChoicePopup の Stage Viewport が DungeonScreen と二重管理 (final-architect 指摘 #3)
+   - GameOverScreen の `cleared=true` 経路がデッドコード (最終層クリア概念が定義されたら復活)
+   - Scene2D の `uiskin.json` 未配備 (Java コード組み立てで凌いでいる)
+   - 4 種抽選ロジック (Event / Shop ノード) と マウスクリック対応
 
 ### 本セッションの実装サマリ
 
