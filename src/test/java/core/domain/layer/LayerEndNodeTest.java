@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import core.domain.entity.Player;
 import core.domain.entity.Stats;
@@ -128,10 +129,15 @@ class LayerEndNodeTest {
 
   @Test
   void allPermitsAreReachableViaPatternSwitch() {
-    // §15-8 / E-6: sealed permits の全 3 種が pattern switch で網羅的に処理できることを確認
+    // §15-8 / E-6: sealed permits の全 5 種が pattern switch で網羅的に処理できることを確認
     LayerEndNode[] allKinds =
         new LayerEndNode[] {
-          new LayerEndNode.HpMaxUp(1), new LayerEndNode.SpeedUp(1), new LayerEndNode.Rest()
+          new LayerEndNode.HpMaxUp(1),
+          new LayerEndNode.SpeedUp(1),
+          new LayerEndNode.Rest(),
+          new LayerEndNode.Shop(
+              5, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard()),
+          new LayerEndNode.Event(10, -3, 0, "テスト")
         };
     for (LayerEndNode node : allKinds) {
       String tag =
@@ -139,9 +145,109 @@ class LayerEndNodeTest {
             case LayerEndNode.HpMaxUp ignored -> "hp";
             case LayerEndNode.SpeedUp ignored -> "speed";
             case LayerEndNode.Rest ignored -> "rest";
+            case LayerEndNode.Shop ignored -> "shop";
+            case LayerEndNode.Event ignored -> "event";
           };
-      // 各タグが意味ある (空でない) 文字列であることだけ確認 (網羅性はコンパイル時に保証される)
       assertFalse(tag.isEmpty(), "switch arm が空文字を返してはいけない: " + node);
     }
+  }
+
+  // ---------------- Shop ----------------
+
+  @Test
+  void shopRejectsNegativeGoldCost() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new LayerEndNode.Shop(
+                -1, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard()));
+  }
+
+  @Test
+  void shopRejectsNullCard() {
+    assertThrows(NullPointerException.class, () -> new LayerEndNode.Shop(5, null));
+  }
+
+  @Test
+  void shopConsumesGoldAndAddsCardWhenSufficient() {
+    Player p =
+        initialPlayer().addGold(new core.domain.meta.Gold(10));
+    int deckSizeBefore =
+        p.cardPileState().drawPile().size()
+            + p.cardPileState().hand().size()
+            + p.cardPileState().discardPile().size();
+
+    Player after =
+        new LayerEndNode.Shop(
+                5, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard())
+            .apply(p);
+
+    assertEquals(5, after.gold().amount(), "10 - 5 = 5");
+    int deckSizeAfter =
+        after.cardPileState().drawPile().size()
+            + after.cardPileState().hand().size()
+            + after.cardPileState().discardPile().size();
+    assertEquals(deckSizeBefore + 1, deckSizeAfter, "DrawPile に Card 1 枚追加");
+  }
+
+  @Test
+  void shopSilentFailWhenInsufficientGold() {
+    Player p = initialPlayer(); // gold 0
+    Player after =
+        new LayerEndNode.Shop(
+                5, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard())
+            .apply(p);
+    // Gold 不足: apply は引数の Player をそのまま返す (silent fail)
+    assertEquals(p.gold().amount(), after.gold().amount(), "Gold 不変");
+    assertEquals(p.cardPileState(), after.cardPileState(), "デッキ不変");
+  }
+
+  @Test
+  void shopDisplayNameIncludesCardAndCost() {
+    String label =
+        new LayerEndNode.Shop(
+                5, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard())
+            .displayName();
+    assertTrue(label.contains("ショップ"));
+    assertTrue(label.contains("5"));
+  }
+
+  // ---------------- Event ----------------
+
+  @Test
+  void eventAppliesSoulAndHpAndGoldDeltas() {
+    Player p = initialPlayer();
+    int hpBefore = p.stats().currentHp();
+    int soulBefore = p.soul().amount();
+
+    Player after = new LayerEndNode.Event(30, -5, 10, "ソウルの祠").apply(p);
+
+    assertEquals(soulBefore + 30, after.soul().amount());
+    assertEquals(hpBefore - 5, after.stats().currentHp());
+    assertEquals(10, after.gold().amount());
+  }
+
+  @Test
+  void eventWithPositiveHpHeals() {
+    Player p = initialPlayer().withStats(initialPlayer().stats().damaged(10));
+    int hpBeforeHeal = p.stats().currentHp();
+
+    Player after = new LayerEndNode.Event(0, 7, 0, "回復イベント").apply(p);
+
+    assertEquals(hpBeforeHeal + 7, after.stats().currentHp());
+  }
+
+  @Test
+  void eventRejectsNegativeSoulOrGoldDelta() {
+    assertThrows(
+        IllegalArgumentException.class, () -> new LayerEndNode.Event(-1, 0, 0, "x"));
+    assertThrows(
+        IllegalArgumentException.class, () -> new LayerEndNode.Event(0, 0, -1, "x"));
+  }
+
+  @Test
+  void eventRejectsBlankDisplayLabel() {
+    assertThrows(
+        IllegalArgumentException.class, () -> new LayerEndNode.Event(0, 0, 0, ""));
   }
 }

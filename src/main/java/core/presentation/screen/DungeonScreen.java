@@ -27,8 +27,10 @@ import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
 import core.presentation.window.NodeChoicePopup;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 
 /**
  * ゲーム本編画面。
@@ -151,14 +153,25 @@ public final class DungeonScreen extends ScreenAdapter {
   }
 
   /**
-   * 固定 3 提示の {@link NodeChoicePopup} を生成する (§15-8 ミニマム実装、E-6)。
+   * 抽選 5 候補から 3 提示の {@link NodeChoicePopup} を生成する (§15-8 完成仕様縮退)。
    *
-   * <p>抽選ロジック (4 種から Random で 3 提示) は M2 送り、本 PR では「HP +5 / 速度 +1 / HP 全回復」の 3 つで固定。
-   * タイトルは Fonts の日英判定で {@link Strings} の Ja/En を解決して渡す。
+   * <p>§15-8 仕様の「4 種カテゴリ (ステ強化 / 休憩 / イベント / ショップ) から 3 提示」を、本セッション
+   * では 5 候補 (HpMaxUp / SpeedUp / Rest / Shop / Event) から Random で 3 選に縮退。
+   * 候補プールに新 LayerEndNode を増やしたい場合は本メソッドの allCandidates に追加するだけ。
    */
   private NodeChoicePopup createNodeChoicePopup() {
-    List<LayerEndNode> choices =
-        List.of(new LayerEndNode.HpMaxUp(5), new LayerEndNode.SpeedUp(1), new LayerEndNode.Rest());
+    List<LayerEndNode> allCandidates =
+        new ArrayList<>(
+            List.of(
+                new LayerEndNode.HpMaxUp(5),
+                new LayerEndNode.SpeedUp(1),
+                new LayerEndNode.Rest(),
+                new LayerEndNode.Shop(
+                    5, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard()),
+                new LayerEndNode.Event(30, -5, 0, "ソウルの祠 (ソウル +30 / HP -5)")));
+    Collections.shuffle(allCandidates, new Random());
+    List<LayerEndNode> choices = List.copyOf(allCandidates.subList(0, NodeChoicePopup.CHOICE_COUNT));
+
     String title =
         game.fonts().isJapaneseAvailable() ? Strings.Ja.LAYER_END_TITLE : Strings.En.LAYER_END_TITLE;
     return new NodeChoicePopup(game.fonts().hud(), title, choices);
