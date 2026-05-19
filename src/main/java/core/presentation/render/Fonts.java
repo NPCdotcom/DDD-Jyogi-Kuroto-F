@@ -7,6 +7,14 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
 import com.badlogic.gdx.utils.Disposable;
+import core.domain.entity.EnemyKind;
+import core.domain.layer.LayerEndNode;
+import core.domain.tree.SoulTree;
+import core.domain.tree.TreeNode;
+import core.infrastructure.bootstrap.InitialStateFactory;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.TreeSet;
 
 /**
  * プレゼン層が使うフォント群の集約。
@@ -60,8 +68,10 @@ public final class Fonts implements Disposable {
           + "見習鍛冶屋商人冒険者勇者賢者武装防具備品装備解放購入販売"
           + "祠遺跡神秘魔導師術師罠書"
           + "字使方法決定取消"
+          // 追加 (Strings.Ja の旧 GAME_GLYPH_CHARS 欠落分、5 視点レビューで指摘された豆腐文字対策)
+          + "踏成功敗北帰新挑拒否付与数設置矢印累計返却戻黄倒次向指中手札"
           // 記号 (一部 ASCII にないもの)
-          + "→←↑↓・×÷±％";
+          + "→←↑↓・×÷±％—〜";
 
   /** ASCII + 数字 + 記号 (FreeType デフォルト相当)。 */
   private static final String ASCII_CHARS =
@@ -103,13 +113,96 @@ public final class Fonts implements Disposable {
     param.size = size;
     // JDK 25 + LibGDX 1.14 互換: incremental グリフ生成は層遷移時 (NodeChoicePopup 生成) に
     // gdx64.dll Pixmap.drawPixmap で AV クラッシュを引き起こすため、事前生成に切替。
-    // 本作で使う日本語文字を GAME_GLYPH_CHARS + ASCII_CHARS で網羅して param.characters に渡す。
+    // 2 層カバレッジ: 層 1 = 静的ベース (GAME_GLYPH_CHARS + ASCII)、層 2 = Strings.Ja + ドメイン
+    // displayName を Reflection / 動的呼出で収集。例外時は層 1 のみで動作 (fallback)。
     param.incremental = false;
-    param.characters = ASCII_CHARS + GAME_GLYPH_CHARS;
+    param.characters = buildAllCharacters();
     // ピクセルフォントなので Nearest フィルタでドット感を維持 (Linear だとぼやける)。
     param.minFilter = Texture.TextureFilter.Nearest;
     param.magFilter = Texture.TextureFilter.Nearest;
     return generator.generateFont(param);
+  }
+
+  /**
+   * 事前グリフ生成に渡す全文字集合を構築する (2 層カバレッジ)。
+   *
+   * <ul>
+   *   <li>層 1: 静的ベース (ASCII + ひらがな全 + カタカナ全 + 主要漢字 + 記号)
+   *   <li>層 2: Reflection で {@code Strings.Ja} の全 String + ドメインの動的 displayName を収集
+   * </ul>
+   *
+   * <p>層 2 の動的収集で例外が出た場合は層 1 のみで動作 ({@code Gdx.app.log} でログ出力)。
+   * これで Card / Equipment / SoulTree の追加時にも自動的にグリフ生成され、豆腐文字を予防する。
+   */
+  private static String buildAllCharacters() {
+    TreeSet<Character> chars = new TreeSet<>();
+    addAllChars(chars, ASCII_CHARS);
+    addAllChars(chars, GAME_GLYPH_CHARS);
+    try {
+      collectDynamicCharacters(chars);
+    } catch (RuntimeException e) {
+      Gdx.app.log(
+          "Fonts",
+          "Dynamic char collection failed, falling back to static base only: " + e.getMessage());
+    }
+    StringBuilder sb = new StringBuilder(chars.size());
+    chars.forEach(sb::append);
+    return sb.toString();
+  }
+
+  private static void addAllChars(TreeSet<Character> set, String source) {
+    for (int i = 0; i < source.length(); i++) {
+      set.add(source.charAt(i));
+    }
+  }
+
+  /**
+   * 層 2: Strings.Ja の全 String + ドメイン (EnemyKind / SoulTree / InitialStateFactory のカード &
+   * 装備マスタ / LayerEndNode.Rest) の displayName を Reflection / 動的呼出で集約し、{@code set} に
+   * 追加する。
+   *
+   * <p>新カード / 新装備を追加した場合、本メソッドが自動で文字を拾うため、{@code GAME_GLYPH_CHARS} の手動拡張が
+   * 基本的に不要になる (将来の事故予防、5 視点レビュー teammate-pov の懸念対応)。
+   */
+  private static void collectDynamicCharacters(TreeSet<Character> set) {
+    // Strings.Ja の全 static final String を抽出
+    for (Field f : Strings.Ja.class.getDeclaredFields()) {
+      if (Modifier.isStatic(f.getModifiers()) && f.getType() == String.class) {
+        try {
+          Object value = f.get(null);
+          if (value instanceof String s) {
+            addAllChars(set, s);
+          }
+        } catch (IllegalAccessException ignored) {
+          // 個別フィールド失敗は無視 (他のフィールドは続行)
+        }
+      }
+    }
+    // EnemyKind.displayName (SLIME / ELITE_SLIME)
+    for (EnemyKind kind : EnemyKind.values()) {
+      addAllChars(set, kind.displayName());
+    }
+    // SoulTree.allNodes() の displayName (17 ノード、§15-7)
+    for (TreeNode node : SoulTree.allNodes().values()) {
+      addAllChars(set, node.displayName());
+    }
+    // LayerEndNode.Rest (パラメータなし record の displayName = "HP 全回復")
+    addAllChars(set, new LayerEndNode.Rest().displayName());
+    // InitialStateFactory のカードマスタ (11 種、ADR-24 + ADR-30)
+    addAllChars(set, InitialStateFactory.zangetuCard().displayName());
+    addAllChars(set, InitialStateFactory.magicBoltCard().displayName());
+    addAllChars(set, InitialStateFactory.strongStrikeCard().displayName());
+    addAllChars(set, InitialStateFactory.fireballCard().displayName());
+    addAllChars(set, InitialStateFactory.emberShotCard().displayName());
+    addAllChars(set, InitialStateFactory.blazeNovaCard().displayName());
+    addAllChars(set, InitialStateFactory.blinkStepCard().displayName());
+    addAllChars(set, InitialStateFactory.flameCircleCard().displayName());
+    addAllChars(set, InitialStateFactory.dashCard().displayName());
+    addAllChars(set, InitialStateFactory.ironSkinCard().displayName());
+    addAllChars(set, InitialStateFactory.arcaneVeilCard().displayName());
+    // InitialStateFactory の装備マスタ (2 種)
+    addAllChars(set, InitialStateFactory.tatteredBoots().displayName());
+    addAllChars(set, InitialStateFactory.tatteredDagger().displayName());
   }
 
   public boolean isJapaneseAvailable() {
