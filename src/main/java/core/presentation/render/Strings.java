@@ -94,6 +94,21 @@ public final class Strings {
         "[クリック] ノード解放   [R] 全リセット (累計返却)   [ESC] タイトルへ戻る";
     public static final String SOUL_TREE_FLASH_RESET = "ツリーをリセットしました";
     public static final String TITLE_OPEN_TREE_HINT_FORMAT = "[T] ソウルツリーを開く (所持ソウル: %d)";
+
+    // §15-10 / E-10 チュートリアル
+    public static final String TUTORIAL_TITLE = "操作説明";
+    public static final String TUTORIAL_BODY =
+        """
+        WASD / 矢印キー : 1 マス移動 (1 AP 消費)
+        1 - 9 : 手札のカードを選択
+        矢印キー (選択中) : カード使用方向を指定
+        SPACE : 1 ターン待機
+        ENTER : ターン終了
+
+        階段 (黄) に到達すると次層へ進める。
+        敵を倒すとソウル + 金貨を獲得。
+        層末でステ強化 / ショップ / イベント のノードを選択。""";
+    public static final String TUTORIAL_CLOSE_HINT = "ENTER または ESC で閉じる";
   }
 
   /** 英語版 (フォント未配置時の fallback)。 */
@@ -179,5 +194,20 @@ public final class Strings {
         "[Click] Unlock   [R] Reset (full refund)   [ESC] Back to Title";
     public static final String SOUL_TREE_FLASH_RESET = "Tree reset";
     public static final String TITLE_OPEN_TREE_HINT_FORMAT = "[T] Open Soul Tree (Soul: %d)";
+
+    // §15-10 / E-10 Tutorial
+    public static final String TUTORIAL_TITLE = "How to Play";
+    public static final String TUTORIAL_BODY =
+        """
+        WASD / Arrows  : Move 1 tile (1 AP)
+        1 - 9          : Select a card from hand
+        Arrows (after) : Pick a direction for the card
+        SPACE          : Wait 1 turn
+        ENTER          : End your turn
+
+        Reach the yellow stairs to descend.
+        Defeat enemies to earn Soul + Gold.
+        At each layer end, pick a node: stat / shop / event.""";
+    public static final String TUTORIAL_CLOSE_HINT = "Press ENTER or ESC to close";
   }
 }

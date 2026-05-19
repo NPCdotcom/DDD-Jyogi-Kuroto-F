@@ -13,6 +13,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import core.presentation.render.Fonts;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
+import core.presentation.window.TutorialOverlay;
 
 /** タイトル画面。ENTER でダンジョンに入る。 */
 public final class TitleScreen extends ScreenAdapter {
@@ -21,6 +22,9 @@ public final class TitleScreen extends ScreenAdapter {
   private OrthographicCamera camera;
   private Viewport viewport;
   private SpriteBatch batch;
+
+  /** §15-10 / E-10: 初回起動時のチュートリアル overlay (閉じたら null)。 */
+  private TutorialOverlay tutorial;
 
   public TitleScreen(DddGame game) {
     this.game = game;
@@ -31,6 +35,16 @@ public final class TitleScreen extends ScreenAdapter {
     camera = new OrthographicCamera();
     viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
     batch = new SpriteBatch();
+    // §15-10 / E-10: 初回のみチュートリアル overlay を表示
+    if (!game.isTutorialSeen()) {
+      boolean jp = game.fonts().isJapaneseAvailable();
+      tutorial =
+          new TutorialOverlay(
+              game.fonts().hud(),
+              jp ? Strings.Ja.TUTORIAL_TITLE : Strings.En.TUTORIAL_TITLE,
+              jp ? Strings.Ja.TUTORIAL_BODY : Strings.En.TUTORIAL_BODY,
+              jp ? Strings.Ja.TUTORIAL_CLOSE_HINT : Strings.En.TUTORIAL_CLOSE_HINT);
+    }
   }
 
   @Override
@@ -73,6 +87,18 @@ public final class TitleScreen extends ScreenAdapter {
     large.draw(batch, jp ? Strings.Ja.CONTROLS_END : Strings.En.CONTROLS_END, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT * 3);
     batch.end();
 
+    // §15-10 / E-10: チュートリアル overlay は HUD 描画の最後に重ねる。
+    // 表示中は ENTER でダンジョン遷移せず、overlay を閉じる動線を優先する。
+    if (tutorial != null) {
+      tutorial.render(delta);
+      if (Gdx.input.isKeyJustPressed(Keys.ENTER) || Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
+        tutorial.dispose();
+        tutorial = null;
+        game.markTutorialSeen();
+      }
+      return;
+    }
+
     if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
       game.setScreen(new DungeonScreen(game));
     } else if (Gdx.input.isKeyJustPressed(Keys.T)) {
@@ -84,12 +110,19 @@ public final class TitleScreen extends ScreenAdapter {
   public void resize(int width, int height) {
     // true でカメラ位置をリセット (FitViewport の黒帯を正しく配置)
     viewport.update(width, height, true);
+    if (tutorial != null) {
+      tutorial.resize(width, height);
+    }
   }
 
   @Override
   public void dispose() {
     if (batch != null) {
       batch.dispose();
+    }
+    if (tutorial != null) {
+      tutorial.dispose();
+      tutorial = null;
     }
   }
 }

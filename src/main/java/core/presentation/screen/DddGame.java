@@ -43,6 +43,12 @@ public final class DddGame extends Game {
    */
   private Soul playerSoul = Soul.zero();
 
+  /**
+   * チュートリアル既読フラグ (§15-10 / E-10)。初回起動時のタイトル画面で TutorialOverlay を 1 回表示し、
+   * 閉じたら true 化する。E-9 セーブ未実装のため JVM 終了でリセット (起動ごとに 1 回表示で許容)。
+   */
+  private boolean tutorialSeen = false;
+
   public GameContext context() {
     return context;
   }
@@ -61,6 +67,15 @@ public final class DddGame extends Game {
 
   public Soul playerSoul() {
     return playerSoul;
+  }
+
+  public boolean isTutorialSeen() {
+    return tutorialSeen;
+  }
+
+  /** §15-10 / E-10: チュートリアル overlay を閉じた時に呼び、次回以降の自動表示を抑制する。 */
+  public void markTutorialSeen() {
+    this.tutorialSeen = true;
   }
 
   /** ラン外のソウルツリー画面でノード解放した結果を受け取る (§15-7)。 */
