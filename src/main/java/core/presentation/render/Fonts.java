@@ -186,8 +186,18 @@ public final class Fonts implements Disposable {
     for (TreeNode node : SoulTree.allNodes().values()) {
       addAllChars(set, node.displayName());
     }
-    // LayerEndNode.Rest (パラメータなし record の displayName = "HP 全回復")
-    addAllChars(set, new LayerEndNode.Rest().displayName());
+    // LayerEndNode 全 5 種の動的 displayName を網羅 (NodeChoicePopup 文字黒化対策、
+    // §15-8 5 候補抽選で表示される全選択肢のグリフを事前生成)。
+    addAllChars(set, new LayerEndNode.HpMaxUp(5).displayName()); // "HP +5"
+    addAllChars(set, new LayerEndNode.SpeedUp(1).displayName()); // "速度 +1"
+    addAllChars(set, new LayerEndNode.Rest().displayName()); // "HP 全回復"
+    // Shop の固定フォーマット "ショップ: %s (金貨 %d)" の文字を網羅
+    // (引数 Card の displayName は別途 InitialStateFactory のマスタから収集済)。
+    addAllChars(
+        set, new LayerEndNode.Shop(0, InitialStateFactory.dashCard()).displayName());
+    // Event の displayLabel は DungeonScreen.createNodeChoicePopup でハードコード渡し。
+    // 現状の唯一の Event displayLabel をここに転写 (M2 で候補プールを集約して自動化予定)。
+    addAllChars(set, "ソウルの祠 (ソウル +30 / HP -5)");
     // InitialStateFactory のカードマスタ (11 種、ADR-24 + ADR-30)
     addAllChars(set, InitialStateFactory.zangetuCard().displayName());
     addAllChars(set, InitialStateFactory.magicBoltCard().displayName());
