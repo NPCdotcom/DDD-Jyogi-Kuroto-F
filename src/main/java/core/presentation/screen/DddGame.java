@@ -41,9 +41,9 @@ public final class DddGame extends Game {
 
   /** 新しいラン (= ダンジョン挑戦) を開始する。context と director を作り直す。 */
   public void startNewRun() {
-    this.context = GameContext.startNewRun(InitialStateFactory.firstFloor());
-    // ADR-19: TurnDirector に Random を注入 (毎ターンドロー + 山札再シャッフル用)。
-    // ラン毎に new Random() で異なるシード = ゲームプレイは非再現的 (テストでは固定シード使用)。
+    // ADR-19: Random は引数注入で再現性を呼出元に委ねる (初期手札シャッフル + 毎ターンドロー)。
+    // ラン毎に new Random() で異なるシード = 本番プレイは非再現的 (テストでは固定シードを渡す)。
+    this.context = GameContext.startNewRun(InitialStateFactory.firstFloor(new Random()));
     this.director = new TurnDirector(this.context, new Random());
   }
 

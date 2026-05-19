@@ -10,6 +10,7 @@ import core.domain.common.Position;
 import core.domain.dungeon.DungeonState;
 import core.domain.dungeon.PlacedTrap;
 import java.util.List;
+import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 class InitialStateFactoryAdvanceLayerTest {
@@ -19,14 +20,14 @@ class InitialStateFactoryAdvanceLayerTest {
   @Test
   void firstFloorStartsAtLayer1() {
     // §15-6 「1 層目から開始」: firstFloor() が生成する状態は layer.number() == 1
-    DungeonState state = InitialStateFactory.firstFloor();
+    DungeonState state = InitialStateFactory.firstFloor(new Random(42));
     assertEquals(1, state.layer().number());
   }
 
   @Test
   void advanceLayerIncrementsLayerNumber() {
     // §15-6 「層が進むほど敵 AP 増加」: advanceLayer 後の layer.number() == 2
-    DungeonState first = InitialStateFactory.firstFloor();
+    DungeonState first = InitialStateFactory.firstFloor(new Random(42));
     DungeonState second = InitialStateFactory.advanceLayer(first);
 
     assertEquals(2, second.layer().number());
@@ -35,7 +36,7 @@ class InitialStateFactoryAdvanceLayerTest {
   @Test
   void advanceLayerSetsEnemyApEqualToLayerNumber() {
     // ADR-06 / §15-5 「敵 AP = 層番号 N」: 2 層の敵は AP 2 で初期化される
-    DungeonState second = InitialStateFactory.advanceLayer(InitialStateFactory.firstFloor());
+    DungeonState second = InitialStateFactory.advanceLayer(InitialStateFactory.firstFloor(new Random(42)));
 
     int expectedAp = second.layer().number(); // == 2
     boolean allEnemiesHaveCorrectAp =
@@ -49,7 +50,7 @@ class InitialStateFactoryAdvanceLayerTest {
   @Test
   void advanceLayerResetsPlayerPositionToSpawn() {
     // §15-6 「層遷移時にプレイヤー位置をリセット」: advanceLayer 後は (1, 1) にリセット
-    DungeonState first = InitialStateFactory.firstFloor();
+    DungeonState first = InitialStateFactory.firstFloor(new Random(42));
     DungeonState second = InitialStateFactory.advanceLayer(first);
 
     assertEquals(new Position(1, 1), second.player().position());
@@ -58,7 +59,7 @@ class InitialStateFactoryAdvanceLayerTest {
   @Test
   void advanceLayerCarriesPlayerStats() {
     // §15-6 「Player は HP / ソウル / 手札を持ち越し」: HP の変化なし確認
-    DungeonState first = InitialStateFactory.firstFloor();
+    DungeonState first = InitialStateFactory.firstFloor(new Random(42));
     int hpBefore = first.player().stats().currentHp();
     int handSizeBefore = first.player().cardPileState().hand().size();
 
@@ -74,7 +75,7 @@ class InitialStateFactoryAdvanceLayerTest {
     PlacedTrap trap =
         new PlacedTrap(
             new Position(3, 3), 3, TrapLifetime.UntilStepped.INSTANCE, CardElement.PHYSICAL);
-    DungeonState withTrap = InitialStateFactory.firstFloor().withPlacedTraps(List.of(trap));
+    DungeonState withTrap = InitialStateFactory.firstFloor(new Random(42)).withPlacedTraps(List.of(trap));
     assertEquals(1, withTrap.placedTraps().size(), "前提: 罠が 1 件存在する");
 
     DungeonState advanced = InitialStateFactory.advanceLayer(withTrap);
@@ -85,7 +86,7 @@ class InitialStateFactoryAdvanceLayerTest {
   @Test
   void advanceLayerThriceReachesLayer4() {
     // 連続 3 回の advanceLayer で layer.number() == 4 かつ敵 AP = 4 になる
-    DungeonState state = InitialStateFactory.firstFloor();
+    DungeonState state = InitialStateFactory.firstFloor(new Random(42));
     state = InitialStateFactory.advanceLayer(state); // → 2 層
     state = InitialStateFactory.advanceLayer(state); // → 3 層
     state = InitialStateFactory.advanceLayer(state); // → 4 層

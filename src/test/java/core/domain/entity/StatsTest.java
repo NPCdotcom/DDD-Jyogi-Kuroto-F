@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import core.domain.equipment.StatsBonus;
 import org.junit.jupiter.api.Test;
 
 class StatsTest {
@@ -94,5 +95,75 @@ class StatsTest {
     Stats s = new Stats(5, 10, 1, 0, 0, 0, 0);
     assertThrows(IllegalArgumentException.class, () -> s.damaged(-1));
     assertThrows(IllegalArgumentException.class, () -> s.healed(-1));
+  }
+
+  // ---------------- plus(StatsBonus) (ADR-25) ----------------
+
+  @Test
+  void plusAddsAllSixFieldsFromBonus() {
+    Stats base = new Stats(5, 10, 2, 1, 1, 0, 0);
+    Stats up = base.plus(new StatsBonus(3, 1, 2, 1, 1, 2));
+
+    assertEquals(13, up.maxHp(), "maxHp +3");
+    assertEquals(5, up.currentHp(), "currentHp は据置 (新 maxHp 内なら不変)");
+    assertEquals(3, up.speed(), "speed +1");
+    assertEquals(3, up.physicalAttack(), "physicalAttack +2");
+    assertEquals(2, up.magicalAttack(), "magicalAttack +1");
+    assertEquals(1, up.physicalDefense(), "physicalDefense +1");
+    assertEquals(2, up.magicalDefense(), "magicalDefense +2");
+  }
+
+  @Test
+  void plusWithZeroIsIdentity() {
+    Stats base = new Stats(5, 10, 2, 1, 1, 0, 0);
+    assertEquals(base, base.plus(StatsBonus.zero()));
+  }
+
+  @Test
+  void plusClampsCurrentHpToNewMaxHpWhenMaxDecreases() {
+    // 装備の負補正で maxHp が下がる場合、currentHp は新 maxHp でキャップされる (上限張り付き防止)
+    Stats base = new Stats(10, 10, 2, 1, 1, 0, 0);
+    Stats reduced = base.plus(new StatsBonus(-5, 0, 0, 0, 0, 0));
+
+    assertEquals(5, reduced.maxHp(), "maxHp 10 - 5 = 5");
+    assertEquals(5, reduced.currentHp(), "currentHp は 5 にキャップ");
+  }
+
+  @Test
+  void plusEnforcesMinimumMaxHpOfOne() {
+    // 装備の負補正が大きすぎても maxHp は最低 1 を保証 (record コンストラクタの maxHp > 0 制約を満たす)
+    Stats base = new Stats(5, 10, 2, 1, 1, 0, 0);
+    Stats minimal = base.plus(new StatsBonus(-999, 0, 0, 0, 0, 0));
+
+    assertEquals(1, minimal.maxHp());
+    assertEquals(1, minimal.currentHp());
+  }
+
+  @Test
+  void plusClampsNegativeAttackDefenseFieldsToZero() {
+    // 4 攻防ステは負値を弾く (record コンストラクタの非負制約を満たす)
+    Stats base = new Stats(5, 10, 1, 1, 1, 1, 1);
+    Stats stripped = base.plus(new StatsBonus(0, -10, -10, -10, -10, -10));
+
+    assertEquals(0, stripped.speed());
+    assertEquals(0, stripped.physicalAttack());
+    assertEquals(0, stripped.magicalAttack());
+    assertEquals(0, stripped.physicalDefense());
+    assertEquals(0, stripped.magicalDefense());
+  }
+
+  @Test
+  void plusReturnsNewInstanceLeavingOriginalIntact() {
+    Stats base = new Stats(5, 10, 2, 1, 1, 0, 0);
+    Stats up = base.plus(new StatsBonus(5, 1, 1, 1, 1, 1));
+
+    assertEquals(10, base.maxHp(), "元 Stats は変化しない");
+    assertEquals(15, up.maxHp());
+  }
+
+  @Test
+  void plusRejectsNullBonus() {
+    Stats base = new Stats(5, 10, 2, 1, 1, 0, 0);
+    assertThrows(NullPointerException.class, () -> base.plus(null));
   }
 }

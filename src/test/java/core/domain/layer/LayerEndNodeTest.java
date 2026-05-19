@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import core.domain.entity.Player;
 import core.domain.entity.Stats;
 import core.infrastructure.bootstrap.InitialStateFactory;
+import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -18,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class LayerEndNodeTest {
 
   private static Player initialPlayer() {
-    return InitialStateFactory.firstFloor().player();
+    return InitialStateFactory.firstFloor(new Random(42)).player();
   }
 
   // ---------------- HpMaxUp ----------------

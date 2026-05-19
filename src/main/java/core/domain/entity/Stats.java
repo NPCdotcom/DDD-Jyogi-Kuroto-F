@@ -1,5 +1,8 @@
 package core.domain.entity;
 
+import core.domain.equipment.StatsBonus;
+import java.util.Objects;
+
 /**
  * エンティティの能力値 (§15-4)。すべての変化は新インスタンスを返す。
  *
@@ -77,5 +80,24 @@ public record Stats(
         magicalAttack,
         physicalDefense,
         magicalDefense);
+  }
+
+  /**
+   * 装備 / Buff の {@link StatsBonus} を加算した新 Stats を返す純関数 (§15-4 / ADR-25)。
+   *
+   * <p>{@code maxHp} は最低 1 を保証 (装備の負補正で 0 以下にならない)。{@code currentHp} は新 maxHp でクランプ
+   * (max が下がった時に張り付かない)。speed / 4 攻防ステは 0 でクランプ (負値を弾く、コンストラクタの非負制約を満たす)。
+   */
+  public Stats plus(StatsBonus bonus) {
+    Objects.requireNonNull(bonus, "bonus");
+    int newMaxHp = Math.max(1, maxHp + bonus.maxHp());
+    return new Stats(
+        Math.min(newMaxHp, currentHp),
+        newMaxHp,
+        Math.max(0, speed + bonus.speed()),
+        Math.max(0, physicalAttack + bonus.physicalAttack()),
+        Math.max(0, magicalAttack + bonus.magicalAttack()),
+        Math.max(0, physicalDefense + bonus.physicalDefense()),
+        Math.max(0, magicalDefense + bonus.magicalDefense()));
   }
 }

@@ -500,3 +500,67 @@
   - − 物理偏重は次バッチ依頼まで未解決
   - − 「マスター登録だけして使わない」中間状態が一時的に発生 (明日のショップ実装 or 強化個体撃破イベントで解消)
 - **Reference**: ADR-22 (Trap 実装) / ADR-23 (E-3 層構造)、本セッション memory `feedback_review_diversity.md` (異質コホート必須)、Stage 2 異質 3 並列 (チームメイト+バランス / 技術 / プレイヤー試遊)、docs/templates/ (本 PR で 5+5 追加)、チームメイト JSON 提案 (2026-05-14 深夜)
+
+## ADR-25: PlayerStatuses 集約 record で Player を 6 引数化 (Buff + E-5 装備同時着地の前提)
+
+- **Status**: Accepted (2026-05-19 多角的レビュー [Plan agent / multi-perspective / devils-advocate] の統合判断)
+- **Date**: 2026-05-19 (M1.5 ハッカソン残り 4 日、本日 5/19 残り時間で起票 → 着手)
+- **Context**:
+  - `Player` record は現状 8 引数 (`id, position, stats, actionPoints, skillSlot, soul, cardPileState, pendingMoveCount`)。ADR-18 / ADR-21 で「9 引数 = record 設計見直しライン」を予告済
+  - 残り 4 日で着地予定の機能で引数追加圧力:
+    - **Buff カード実装** (§15-3): `List<ActiveBuff>` を Player に持たせる必要 → 9 引数
+    - **E-5 装備 (B 案 ADR-20)**: `Optional<Equipment>` を Player に持たせる必要 → 10 引数
+  - 多角的レビュー 3 並列で「8 引数維持」「集約 record」「Soul/Gold だけ集約」の 3 案を評価し、集約案を採用
+- **Decision**:
+  1. **`core.domain.entity.PlayerStatuses(Stats stats, ActionPoints actionPoints, SkillSlot skillSlot, Optional<Equipment> equipment, List<ActiveBuff> activeBuffs)`** 5 フィールド集約 record を新設
+  2. **`Player(ActorId id, Position position, Soul soul, PlayerStatuses statuses, CardPileState cardPileState, int pendingMoveCount)`** 6 引数に縮退
+  3. **`Player.effectiveStats() → Stats`** 純関数を新設: `statuses.stats().plus(equipment.statsBonus orElse zero).plus(buffSum)`。`TurnEngine` の全ダメージ計算は `effectiveStats()` 経由に変更 (素ステ + 装備補正 + Buff 合算を 1 箇所で表現)
+  4. **本セッションでは Equipment / ActiveBuff の record は空骨組み** (`Optional.empty()` / `List.of()` 初期化) で先に組み、E-5 (5/20) と Buff (5/21) で中身を埋める
+  5. **既存の `Player.stats()` / `actionPoints()` / `skillSlot()` アクセサは委譲メソッドとして残す** (大量の呼出箇所の機械的書換コストを最小化、戦闘ロジックは委譲経由でも素ステを参照可能)
+- **Consequences**:
+  - + Buff + E-5 装備を同じ「statuses」レイヤーに着地、HudRenderer の表示ロジックも `statuses` 単位で整理しやすい
+  - + `Player.effectiveStats()` で「素ステ + 装備補正 + Buff 合算」を 1 箇所表現、ダメージ計算系の重複を予防 (DRY)
+  - + 8 → 6 引数で record 行が読みやすくなり、`with*` メソッドのコピペが減る
+  - − `DomainFixtures` / `InitialStateFactory` / Player 関連テスト 24 件で一括書換が必要 (機械的、IDE リファクタで自動化容易)
+  - − `PlayerStatuses` 経由のアクセスが 1 段深くなる (`player.statuses().stats()` vs `player.stats()`) → 委譲メソッドで吸収
+  - − Enemy には適用しない (本 ADR は Player 限定、Enemy は §15 範囲で Buff/装備対象外)
+- **Alternatives (検討却下)**:
+  - **案 B (8 引数維持)**: KISS だが Buff + E-5 で 10 引数まで膨らみ、record の見通しが悪化。with* メソッドのコピペ量が累積する
+  - **案 C (Soul/Gold だけ MetaResources 集約)**: 中途半端、ADR-18 で導入した `Player.soul` の所在変更が無意味な書換を増やすため却下
+- **撤退ライン**: 5/19 22:00 までに `gradlew test` 全 PASS してなければ、4 引数集約 (Equipment/Buff を除外して `PlayerStatuses(Stats, ActionPoints, SkillSlot)` のみ) に縮退、Equipment/Buff は Player 直結で実装
+- **Reference**: ADR-18 (CardPileState を Player 内蔵) / ADR-21 (Player 8 引数化と「9 引数 = 見直しライン」予告) / ADR-22 (Trap 実装 + DungeonState 集約パターン)、Plan ファイル `c-program-code-ddd-jyogi-kuroto-f-tasks-gentle-galaxy.md` (2026-05-19 多角的レビュー結果)、§15-3 (Buff カード) / §15-9 (E-5 装備)
+
+## ADR-26: 装備固有カードの自動デッキ統合経路 (2 段持ち、装備変更時 CardPileState 再生成)
+
+- **Status**: Accepted (2026-05-19 多角的レビュー統合)
+- **Date**: 2026-05-19
+- **Context**: §15-9 で「装備を着けると対応カードが自動デッキ入り、外すとデッキから抜ける」。実装方式 3 案:
+  - (i) 装備変更時に `CardPileState` を再生成 → 戦闘中のデッキ書換問題あり
+  - (ii) `Player.effectiveDeck()` を毎ターン算出 → ターン途中で装備が無効化されるとデッキ状態が崩壊
+  - (iii) `Player.baseDeck` + `equipmentCards()` の 2 段持ち → 戦闘中の装備変更を「層末ノードのみ」に制限する仕様と整合
+- **Decision**:
+  1. **案 (iii) 2 段持ち を採用**。`InitialStateFactory.newPlayer` の `CardPileState` は装備の `grantedCards` から生成
+  2. **装備変更は層末ショップノードのみ** (LayerEndNode.Shop)、戦闘中の装備変更 UI は提供しない
+  3. **装備変更時の `CardPileState` 再生成 = ラン中の山札/手札/捨て札はリセット** (層末でしか変更できない仕様と整合、戦況リセットの体験は説明文で明示)
+- **Consequences**:
+  - + 仕様の「装備変更でデッキ更新」が層遷移単位で自然に成立
+  - + 戦闘中のデッキ書換問題を構造的に回避
+  - − 装備外し = 山札リセット = 戦況リセット、UI で説明必須 ("装備変更すると手札・山札がリセットされます")
+- **Reference**: §15-9 (装備固有カード) / §15-3 (デッキ管理) / ADR-20 (Equipment B 案)
+
+## ADR-27: Buff の所在は PlayerStatuses.activeBuffs のみ (Enemy Buff は M2 送り)
+
+- **Status**: Accepted (2026-05-19 多角的レビュー統合)
+- **Date**: 2026-05-19
+- **Context**:
+  - `PlacedTrap` は場の状態として `DungeonState.placedTraps` に置く設計 (ADR-22)
+  - Buff は「対象 (Player or Enemy) の状態」なので、当面 Player 側に置くのが自然
+  - 将来 Enemy Buff が来た時の備えとして `Map<ActorId, List<ActiveBuff>>` を `DungeonState` 集約する案もあるが、§15 範囲では Enemy への Buff/デバフは未定義
+- **Decision**:
+  1. **`PlayerStatuses.activeBuffs: List<ActiveBuff>`** に保持。`List.copyOf` 防御コピー
+  2. **Enemy Buff/デバフは本 ADR スコープ外**、M2 以降で要件が来たら `DungeonState` 集約への引っ越しを検討
+  3. **重複 `BuffKind` の合成 = 加算ではなく上書き** (KISS、ADR-22 罠の上書きパターン踏襲)
+- **Consequences**:
+  - + KISS、+ セーブ単位 (層単位、§15-11) で Player に集約され直列化容易
+  - − Enemy Buff が来た時に DungeonState 集約への引っ越しが必要 (M2 負債、本 ADR で明示記録)
+- **Reference**: §15-3 (Buff カード) / ADR-22 (PlacedTrap 同型ライフタイム管理)

@@ -29,7 +29,7 @@ class TurnDirectorTest {
   @Test
   void advanceFloorOnClearedTransitionsToNextLayer() {
     // §15-6: 階段踏破 (CLEARED) → ENTER 相当の入力 → 次層へ進む
-    DungeonState cleared = InitialStateFactory.firstFloor().withPhase(TurnPhase.CLEARED);
+    DungeonState cleared = InitialStateFactory.firstFloor(new Random(SEED)).withPhase(TurnPhase.CLEARED);
     GameContext ctx = GameContext.startNewRun(cleared);
     TurnDirector director = new TurnDirector(ctx, new Random(SEED));
 
@@ -43,7 +43,7 @@ class TurnDirectorTest {
   @Test
   void advanceFloorRefillsApAndDrawsCardOnNewLayer() {
     // §15-6 / ADR-19: 新層開始時に AP リフィル + 1 枚ドロー (startPlayerTurn 流用)
-    DungeonState first = InitialStateFactory.firstFloor();
+    DungeonState first = InitialStateFactory.firstFloor(new Random(SEED));
     // AP を 0 まで使い切った状態を再現してから CLEARED にする (リフィルが効いているか確認するため)
     DungeonState exhausted =
         first.withPlayer(
@@ -66,7 +66,7 @@ class TurnDirectorTest {
   @Test
   void advanceFloorEmitsFloorAdvancedAndPhaseChangedEvents() {
     // FloorAdvanced イベントが新層番号付きで発火する (HUD ログ「2 層に到達」用)
-    DungeonState cleared = InitialStateFactory.firstFloor().withPhase(TurnPhase.CLEARED);
+    DungeonState cleared = InitialStateFactory.firstFloor(new Random(SEED)).withPhase(TurnPhase.CLEARED);
     GameContext ctx = GameContext.startNewRun(cleared);
     TurnDirector director = new TurnDirector(ctx, new Random(SEED));
 
@@ -91,7 +91,7 @@ class TurnDirectorTest {
   @Test
   void advanceFloorChainsAcrossMultipleLayers() {
     // 2 層 → 3 層 への遷移も成立する (連鎖確認)
-    DungeonState cleared = InitialStateFactory.firstFloor().withPhase(TurnPhase.CLEARED);
+    DungeonState cleared = InitialStateFactory.firstFloor(new Random(SEED)).withPhase(TurnPhase.CLEARED);
     GameContext ctx = GameContext.startNewRun(cleared);
     TurnDirector director = new TurnDirector(ctx, new Random(SEED));
 
@@ -110,7 +110,7 @@ class TurnDirectorTest {
   @Test
   void advanceFloorIsNoOpDuringPlayerTurn() {
     // PLAYER_TURN 中に誤って advanceFloor が呼ばれても state を変えない (二重ガード)
-    DungeonState playing = InitialStateFactory.firstFloor(); // phase = PLAYER_TURN
+    DungeonState playing = InitialStateFactory.firstFloor(new Random(SEED)); // phase = PLAYER_TURN
     GameContext ctx = GameContext.startNewRun(playing);
     TurnDirector director = new TurnDirector(ctx, new Random(SEED));
     DungeonState before = ctx.state();
@@ -127,7 +127,7 @@ class TurnDirectorTest {
   void advanceFloorIsNoOpDuringGameOver() {
     // GAME_OVER 中に誤って advanceFloor が呼ばれても state を変えない
     DungeonState gameOver =
-        InitialStateFactory.firstFloor().withPhase(TurnPhase.GAME_OVER);
+        InitialStateFactory.firstFloor(new Random(SEED)).withPhase(TurnPhase.GAME_OVER);
     GameContext ctx = GameContext.startNewRun(gameOver);
     TurnDirector director = new TurnDirector(ctx, new Random(SEED));
     DungeonState before = ctx.state();
@@ -141,7 +141,7 @@ class TurnDirectorTest {
   @Test
   void advanceFloorRejectsNullNextLayerState() {
     // null 引数は NPE で拒絶 (Objects.requireNonNull)
-    DungeonState cleared = InitialStateFactory.firstFloor().withPhase(TurnPhase.CLEARED);
+    DungeonState cleared = InitialStateFactory.firstFloor(new Random(SEED)).withPhase(TurnPhase.CLEARED);
     GameContext ctx = GameContext.startNewRun(cleared);
     TurnDirector director = new TurnDirector(ctx, new Random(SEED));
 
@@ -153,7 +153,7 @@ class TurnDirectorTest {
   @Test
   void advanceFloorDoesNotMutatePassedDungeonState() {
     // 渡した nextLayerState は不変 (record + 純関数フロー)
-    DungeonState cleared = InitialStateFactory.firstFloor().withPhase(TurnPhase.CLEARED);
+    DungeonState cleared = InitialStateFactory.firstFloor(new Random(SEED)).withPhase(TurnPhase.CLEARED);
     GameContext ctx = GameContext.startNewRun(cleared);
     TurnDirector director = new TurnDirector(ctx, new Random(SEED));
 

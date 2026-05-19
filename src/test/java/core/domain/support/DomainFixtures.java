@@ -19,6 +19,7 @@ import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
 import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
+import core.domain.entity.PlayerStatuses;
 import core.domain.entity.Stats;
 import core.domain.meta.Soul;
 import core.domain.skill.Skill;
@@ -61,11 +62,13 @@ public final class DomainFixtures {
     return new Player(
         ActorId.of("p1"),
         position,
-        // ADR-17: 物攻/魔攻/物防/魔防 は暫定 0 埋め。
-        new Stats(30, 30, 3, 0, 0, 0, 0),
-        ActionPoints.full(5),
-        new SkillSlot(List.of(lightAttack(), heavyAttack()), 4),
         Soul.zero(),
+        // ADR-25: PlayerStatuses 集約 (素ステ / AP / SkillSlot / Equipment 未装備 / Buff なし)。
+        // ADR-17: 物攻/魔攻/物防/魔防 は暫定 0 埋め。
+        PlayerStatuses.of(
+            new Stats(30, 30, 3, 0, 0, 0, 0),
+            ActionPoints.full(5),
+            new SkillSlot(List.of(lightAttack(), heavyAttack()), 4)),
         // ADR-18: 空 CardPileState で初期化 (Deck 接続は別 Issue)。
         CardPileState.empty(),
         // ADR-21: pendingMoveCount=0 (テスト用、必要なら withPendingMoveCount で上書き)。

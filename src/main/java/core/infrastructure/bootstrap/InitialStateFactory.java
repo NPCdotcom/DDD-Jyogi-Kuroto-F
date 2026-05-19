@@ -19,6 +19,7 @@ import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
 import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
+import core.domain.entity.PlayerStatuses;
 import core.domain.entity.Stats;
 import core.domain.layer.Layer;
 import core.domain.meta.Soul;
@@ -27,6 +28,7 @@ import core.domain.skill.SkillEffect;
 import core.domain.skill.SkillId;
 import core.domain.skill.SkillSlot;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 /**
@@ -183,9 +185,17 @@ public final class InitialStateFactory {
 
   // ----------------------------- ファクトリ -----------------------------
 
-  public static DungeonState firstFloor() {
+  /**
+   * 1 層目の DungeonState を組み立てる (ADR-19: Random は引数注入で再現性を呼出元に委ねる)。
+   *
+   * <p>本番では {@code core.presentation.screen.DddGame#startNewRun} が {@code new Random()} を渡し、
+   * 毎ラン異なる初期手札シャッフルを得る。テストでは {@code new Random(42)} 等の固定シードを渡し、
+   * 再現可能性を担保する。
+   */
+  public static DungeonState firstFloor(Random rng) {
+    Objects.requireNonNull(rng, "rng");
     DungeonMap map = DungeonMap.of(FLOOR_01);
-    Player player = newPlayer(new Position(1, 1));
+    Player player = newPlayer(new Position(1, 1), rng);
     // 階段 (8, 1) の前に 1 体、フロア中央付近にもう 1 体配置することで、
     // 戦闘を経ずに踏破するルートにも敵を絡みやすくする。
     Enemy slimeNearStairs = newSlime("slime#stairs", new Position(6, 1));
@@ -194,15 +204,21 @@ public final class InitialStateFactory {
         map, player, List.of(slimeNearStairs, slimeMidRoom), TurnPhase.PLAYER_TURN);
   }
 
-  public static Player newPlayer(Position spawn) {
+  /**
+   * 初期 Player を組み立てる (ADR-19: Random は引数注入)。
+   *
+   * <p>{@code rng} は初期手札シャッフルと初期ドローで共有される。同一インスタンスを渡せばシャッフル後の
+   * 山札順 → 初期ドロー結果が一意に定まる。
+   */
+  public static Player newPlayer(Position spawn, Random rng) {
+    Objects.requireNonNull(spawn, "spawn");
+    Objects.requireNonNull(rng, "rng");
     // テスト用初期デッキ (4 枚、ADR-18 通り E-5 Equipment で動的化されるまでのハードコード)
     // docs/templates/cards.json のテンプレに対応する Damage 系カードを揃える。
     // Move/Buff/Trap カードは TurnEngine で reject されるため、ゲーム内で動作可能な
     // Damage 系のみを初期デッキに含める (テンプレに記載はあるが実装は 5/15 以降)。
     List<Card> deckCards =
         List.of(zangetuCard(), magicBoltCard(), strongStrikeCard(), fireballCard());
-    // Random を 1 個に統一 (シャッフルと初期ドローで同じシードを共有、再現性確保)
-    Random rng = new Random(42);
     DrawPile drawPile = DrawPile.shuffledFrom(deckCards, rng);
     CardPileState pileBase = new CardPileState(drawPile, Hand.empty(), DiscardPile.empty());
     // 初期ドロー枚数は §15-3 仕様の CardPileState.initialDrawCount でデッキ枚数から自動決定
@@ -213,10 +229,11 @@ public final class InitialStateFactory {
     return new Player(
         ActorId.of("player"),
         spawn,
-        new Stats(30, 30, 3, 1, 2, 1, 1),
-        ActionPoints.full(5),
-        new SkillSlot(List.of(lightSlash(), heavySlash()), 4),
         Soul.zero(),
+        PlayerStatuses.of(
+            new Stats(30, 30, 3, 1, 2, 1, 1),
+            ActionPoints.full(5),
+            new SkillSlot(List.of(lightSlash(), heavySlash()), 4)),
         initialPile,
         0);
   }
