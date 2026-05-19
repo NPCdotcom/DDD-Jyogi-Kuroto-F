@@ -1,5 +1,6 @@
 package core.domain.battle;
 
+import core.domain.card.CardEffect;
 import core.domain.common.Position;
 import core.domain.entity.ActorId;
 import java.util.Objects;
@@ -20,7 +21,8 @@ public sealed interface BattleEvent
         BattleEvent.MovementGranted,
         BattleEvent.TrapPlaced,
         BattleEvent.TrapTriggered,
-        BattleEvent.FloorAdvanced {
+        BattleEvent.FloorAdvanced,
+        BattleEvent.BuffApplied {
 
   record Moved(ActorId who, Position from, Position to) implements BattleEvent {
     public Moved {
@@ -139,6 +141,30 @@ public sealed interface BattleEvent
       if (newLayer < 2) {
         throw new IllegalArgumentException(
             "newLayer must be >= 2 (advance from 1 to 2 minimum): " + newLayer);
+      }
+    }
+  }
+
+  /**
+   * Buff カード適用通知 (§15-3 / ADR-27)。プレイヤーが Buff カードを使った瞬間に発火し、
+   * {@code PlayerStatuses.activeBuffs} に新規追加された {@link core.domain.card.ActiveBuff} を伝える。
+   *
+   * <p>{@code who} = 適用先 (現状 Player のみ、Enemy Buff は M2 送り)、{@code kind} = どのステを増減するか、
+   * {@code amount} = 増減量 (負値はデバフ)、{@code remainingTurns} = 適用直後の残ターン数。
+   *
+   * <p>HUD ログでは「{プレイヤー} が {物攻 +2} (残 3 ターン)」のように表示する。
+   */
+  record BuffApplied(ActorId who, CardEffect.BuffKind kind, int amount, int remainingTurns)
+      implements BattleEvent {
+    public BuffApplied {
+      Objects.requireNonNull(who, "who");
+      Objects.requireNonNull(kind, "kind");
+      if (amount == 0) {
+        throw new IllegalArgumentException("amount must not be 0");
+      }
+      if (remainingTurns < 0) {
+        throw new IllegalArgumentException(
+            "remainingTurns must be non-negative: " + remainingTurns);
       }
     }
   }

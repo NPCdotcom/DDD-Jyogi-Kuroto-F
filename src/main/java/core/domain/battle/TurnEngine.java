@@ -1,5 +1,6 @@
 package core.domain.battle;
 
+import core.domain.card.ActiveBuff;
 import core.domain.card.Card;
 import core.domain.card.CardEffect;
 import core.domain.card.CardPileState;
@@ -12,6 +13,7 @@ import core.domain.dungeon.Tile;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
 import core.domain.entity.Player;
+import core.domain.entity.PlayerStatuses;
 import core.domain.entity.Stats;
 import core.domain.meta.Soul;
 import core.domain.skill.Skill;
@@ -84,10 +86,25 @@ public final class TurnEngine {
     Objects.requireNonNull(state, "state");
     Objects.requireNonNull(rng, "rng");
     Player p = state.player();
+    // ADR-25 / ADR-27: アクティブ Buff の残ターンを 1 減らし、0 (expired) は除去する。
+    // PlacedTrap.Turns と同型パターン (ADR-22)。effectiveStats() で AP リフィル量が変化するため、
+    // Buff 期限切れ処理を AP リフィルより先に行う。
+    List<ActiveBuff> aliveBuffs = new ArrayList<>(p.statuses().activeBuffs().size());
+    for (ActiveBuff b : p.statuses().activeBuffs()) {
+      ActiveBuff decremented = b.decrementedTurn();
+      if (!decremented.isExpired()) {
+        aliveBuffs.add(decremented);
+      }
+    }
+    PlayerStatuses buffsApplied = p.statuses().withActiveBuffs(aliveBuffs);
+    Player buffsDecremented = p.withStatuses(buffsApplied);
     // ADR-21: pendingMoveCount はターンまたぎ持ち越さない (移動権は当該ターンに使い切る)。
+    // ADR-25: effectiveStats().speed() を使い、装備 + Buff 込みの速度で AP をリフィルする。
     Player refreshed =
-        p.withActionPoints(p.actionPoints().refilledTo(p.stats().speed()))
-            .withCardPileState(p.cardPileState().drawN(1, rng))
+        buffsDecremented
+            .withActionPoints(
+                buffsDecremented.actionPoints().refilledTo(buffsDecremented.effectiveStats().speed()))
+            .withCardPileState(buffsDecremented.cardPileState().drawN(1, rng))
             .withPendingMoveCount(0);
     // ADR-22: Turns 罠の remaining-- + expired (=0) を除去。UntilStepped 罠は据置。
     List<PlacedTrap> aliveTraps = new ArrayList<>(state.placedTraps().size());
@@ -219,10 +236,54 @@ public final class TurnEngine {
       case CardEffect.Damage dmg ->
           resolveCardDamage(state, card, dmg, action.direction(), handIndex);
       case CardEffect.Move move -> resolveCardMove(state, card, move, handIndex);
-      case CardEffect.Buff ignored -> reject(state, player.id(), "未実装のカード効果 (Buff)");
+      case CardEffect.Buff buff -> resolveCardBuff(state, card, buff, handIndex);
       case CardEffect.Trap trap ->
           resolveCardTrap(state, card, trap, action.direction(), handIndex);
     };
+  }
+
+  /**
+   * Buff カード解決 (§15-3 / ADR-27)。{@link PlayerStatuses#activeBuffs()} に新規 {@link ActiveBuff}
+   * を追加し、{@link Player#effectiveStats()} 経由で以降のカード使用 / 受けるダメージに効果が反映される。
+   *
+   * <p>処理:
+   *
+   * <ol>
+   *   <li>AP 消費 + Hand→Discard (副作用は新インスタンス返却)
+   *   <li>同じ {@link CardEffect.BuffKind} の既存 ActiveBuff は除去 (上書き、ADR-22 罠の上書き同型)
+   *   <li>新 {@link ActiveBuff(buff.kind(), buff.amount(), buff.durationTurns())} を追加
+   *   <li>{@link BattleEvent.SkillUsed} + {@link BattleEvent.BuffApplied} を発火
+   * </ol>
+   */
+  private static StepResult resolveCardBuff(
+      DungeonState state, Card card, CardEffect.Buff buff, int handIndex) {
+    Player player = state.player();
+    PlayerStatuses statuses = player.statuses();
+
+    // 重複 BuffKind は上書き (ADR-27 / KISS)
+    List<ActiveBuff> newBuffs = new ArrayList<>(statuses.activeBuffs().size() + 1);
+    for (ActiveBuff b : statuses.activeBuffs()) {
+      if (b.kind() != buff.kind()) {
+        newBuffs.add(b);
+      }
+    }
+    ActiveBuff applied = new ActiveBuff(buff.kind(), buff.amount(), buff.durationTurns());
+    newBuffs.add(applied);
+
+    PlayerStatuses newStatuses = statuses.withActiveBuffs(newBuffs);
+    Player afterUse =
+        player
+            .withStatuses(newStatuses)
+            .withActionPoints(player.actionPoints().spend(card.apCost()))
+            .withCardPileState(player.cardPileState().playFromHand(handIndex));
+
+    DungeonState ns = state.withPlayer(afterUse);
+    List<BattleEvent> events = new ArrayList<>();
+    events.add(new BattleEvent.SkillUsed(player.id(), card.displayName()));
+    events.add(
+        new BattleEvent.BuffApplied(
+            player.id(), applied.kind(), applied.amount(), applied.remainingTurns()));
+    return new StepResult(ns, events);
   }
 
   /**
@@ -305,7 +366,8 @@ public final class TurnEngine {
       return reject(state, player.id(), "対象がいない");
     }
     Enemy target = targetOpt.get();
-    int finalDamage = dmg.resolve(player.stats(), target.stats(), card.element());
+    // ADR-25: effectiveStats() で装備 + Buff 込みの攻撃力を使う (素ステは Buff 期限管理用に保持)
+    int finalDamage = dmg.resolve(player.effectiveStats(), target.stats(), card.element());
     Player afterAction =
         player
             .withActionPoints(player.actionPoints().spend(card.apCost()))

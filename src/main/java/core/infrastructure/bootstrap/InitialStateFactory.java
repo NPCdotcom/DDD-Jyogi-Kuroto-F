@@ -184,8 +184,33 @@ public final class InitialStateFactory {
         new CardEffect.Move(2));
   }
 
-  // arcane_veil / iron_skin (Buff) は TurnEngine.applyPlayerUseCard で reject される現状でも将来 Buff 実装
-  // (ADR-27 / Phase 3) で取り込み予定。本 Phase では未登録。
+  /**
+   * 鉄の皮膚カード (物理 Buff / 物防 +2 / 3 ターン残、AP 1)。{@code docs/templates/cards.json} の
+   * {@code iron_skin} エントリ準拠 (§15-3 / ADR-27)。
+   */
+  public static Card ironSkinCard() {
+    return new Card(
+        CardId.of("iron_skin"),
+        "鉄の皮膚",
+        1,
+        CardTag.BUFF,
+        CardElement.PHYSICAL,
+        new CardEffect.Buff(CardEffect.BuffKind.PHYSICAL_DEFENSE_UP, 2, 3));
+  }
+
+  /**
+   * 魔力の帳カード (魔法 Buff / 魔防 +3 / 2 ターン残、AP 2)。{@code docs/templates/cards.json} の
+   * {@code arcane_veil} エントリ準拠 (§15-3 / ADR-27)。
+   */
+  public static Card arcaneVeilCard() {
+    return new Card(
+        CardId.of("arcane_veil"),
+        "魔力の帳",
+        2,
+        CardTag.BUFF,
+        CardElement.MAGICAL,
+        new CardEffect.Buff(CardEffect.BuffKind.MAGICAL_DEFENSE_UP, 3, 2));
+  }
 
   // ----------------------------- 装備マスタ (§15-9 / ADR-26) -----------------------------
 
@@ -236,6 +261,8 @@ public final class InitialStateFactory {
       case "blaze_nova" -> blazeNovaCard();
       case "blink_step" -> blinkStepCard();
       case "flame_circle" -> flameCircleCard();
+      case "iron_skin" -> ironSkinCard();
+      case "arcane_veil" -> arcaneVeilCard();
       default ->
           throw new IllegalArgumentException("Unknown CardId for resolution: " + id.value());
     };

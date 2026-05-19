@@ -272,6 +272,24 @@ public final class HudRenderer {
       case BattleEvent.FloorAdvanced fa ->
           (jp ? Strings.Ja.EV_FLOOR_ADVANCED_FORMAT : Strings.En.EV_FLOOR_ADVANCED_FORMAT)
               .formatted(fa.newLayer());
+      case BattleEvent.BuffApplied ba ->
+          (jp ? Strings.Ja.EV_BUFF_APPLIED_FORMAT : Strings.En.EV_BUFF_APPLIED_FORMAT)
+              .formatted(ba.who().value(), buffKindLabel(jp, ba.kind()), ba.amount(), ba.remainingTurns());
+    };
+  }
+
+  /** {@link core.domain.card.CardEffect.BuffKind} の日英表示ラベル (HUD ログ用)。 */
+  private static String buffKindLabel(boolean jp, core.domain.card.CardEffect.BuffKind kind) {
+    return switch (kind) {
+      case PHYSICAL_ATTACK_UP ->
+          jp ? Strings.Ja.BUFF_KIND_PHYSICAL_ATTACK : Strings.En.BUFF_KIND_PHYSICAL_ATTACK;
+      case MAGICAL_ATTACK_UP ->
+          jp ? Strings.Ja.BUFF_KIND_MAGICAL_ATTACK : Strings.En.BUFF_KIND_MAGICAL_ATTACK;
+      case PHYSICAL_DEFENSE_UP ->
+          jp ? Strings.Ja.BUFF_KIND_PHYSICAL_DEFENSE : Strings.En.BUFF_KIND_PHYSICAL_DEFENSE;
+      case MAGICAL_DEFENSE_UP ->
+          jp ? Strings.Ja.BUFF_KIND_MAGICAL_DEFENSE : Strings.En.BUFF_KIND_MAGICAL_DEFENSE;
+      case SPEED_UP -> jp ? Strings.Ja.BUFF_KIND_SPEED : Strings.En.BUFF_KIND_SPEED;
     };
   }
 }

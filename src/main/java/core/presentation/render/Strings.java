@@ -72,6 +72,15 @@ public final class Strings {
     public static final String EV_TRAP_PLACED_FORMAT = "%s が (%d, %d) に罠を設置";
     public static final String EV_TRAP_TRIGGERED_FORMAT = "%s が罠を踏み %d ダメージ (残 HP %d)";
     public static final String EV_FLOOR_ADVANCED_FORMAT = "%d 層に到達";
+    /** Buff 適用ログ: %s = ActorId、%s = BuffKind 表示名、%+d = 符号付き量、%d = 残ターン数。 */
+    public static final String EV_BUFF_APPLIED_FORMAT = "%s に %s %+d (残 %d ターン)";
+
+    /** BuffKind の日本語表示名。 */
+    public static final String BUFF_KIND_PHYSICAL_ATTACK = "物攻";
+    public static final String BUFF_KIND_MAGICAL_ATTACK = "魔攻";
+    public static final String BUFF_KIND_PHYSICAL_DEFENSE = "物防";
+    public static final String BUFF_KIND_MAGICAL_DEFENSE = "魔防";
+    public static final String BUFF_KIND_SPEED = "速度";
   }
 
   /** 英語版 (フォント未配置時の fallback)。 */
@@ -135,5 +144,14 @@ public final class Strings {
     public static final String EV_TRAP_PLACED_FORMAT = "%s placed a trap at (%d, %d)";
     public static final String EV_TRAP_TRIGGERED_FORMAT = "%s stepped on a trap: %d damage (HP %d left)";
     public static final String EV_FLOOR_ADVANCED_FORMAT = "Reached floor %d";
+    /** Buff applied log: %s = ActorId, %s = BuffKind label, %+d = signed amount, %d = remaining. */
+    public static final String EV_BUFF_APPLIED_FORMAT = "%s buffed: %s %+d (%d turns left)";
+
+    /** BuffKind English label. */
+    public static final String BUFF_KIND_PHYSICAL_ATTACK = "PhyAtk";
+    public static final String BUFF_KIND_MAGICAL_ATTACK = "MagAtk";
+    public static final String BUFF_KIND_PHYSICAL_DEFENSE = "PhyDef";
+    public static final String BUFF_KIND_MAGICAL_DEFENSE = "MagDef";
+    public static final String BUFF_KIND_SPEED = "Speed";
   }
 }
