@@ -75,19 +75,24 @@ public final class NodeChoicePopup implements Disposable {
     Window window = new Window(title, windowStyle);
     window.setMovable(false);
     window.setResizable(false);
-    window.padTop(48f);
-    window.padLeft(24f).padRight(24f).padBottom(20f);
+    window.padTop(96f); // タイトルラベルも拡大するため上余白を増加
+    window.padLeft(32f).padRight(32f).padBottom(32f);
+    // §UI 拡大方針: タイトルラベルを setFontScale(2f) で 16px → 32px 相当に拡大
+    window.getTitleLabel().setFontScale(2f);
 
     for (int i = 0; i < CHOICE_COUNT; i++) {
       Label line =
           new Label("  [%d]  %s".formatted(i + 1, choices.get(i).displayName()), labelStyle);
       line.setColor(Color.WHITE);
-      window.add(line).left().padBottom(8f).row();
+      // §UI 拡大方針: 選択肢ラベルを setFontScale(2f) で大きく
+      line.setFontScale(2f);
+      window.add(line).left().padBottom(16f).row();
     }
 
     Label hint = new Label("数字キー 1 〜 3 で選択", labelStyle);
     hint.setColor(new Color(0.65f, 0.65f, 0.7f, 1f));
-    window.add(hint).left().padTop(12f).row();
+    hint.setFontScale(2f);
+    window.add(hint).left().padTop(20f).row();
 
     window.pack();
     window.setPosition(

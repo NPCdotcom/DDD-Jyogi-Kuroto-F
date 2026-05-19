@@ -43,7 +43,6 @@ public final class TitleScreen extends ScreenAdapter {
     boolean jp = fonts.isJapaneseAvailable();
     BitmapFont title = fonts.title();
     BitmapFont large = fonts.large();
-    BitmapFont hud = fonts.hud();
 
     batch.begin();
     title.setColor(Color.WHITE);
@@ -52,23 +51,26 @@ public final class TitleScreen extends ScreenAdapter {
     large.setColor(Color.LIGHT_GRAY);
     large.draw(batch, jp ? Strings.Ja.SUBTITLE : Strings.En.SUBTITLE, RenderLayout.SUBTITLE_X, RenderLayout.SUBTITLE_Y);
 
-    hud.setColor(Color.LIGHT_GRAY);
-    hud.draw(batch, jp ? Strings.Ja.START_HINT : Strings.En.START_HINT, RenderLayout.START_HINT_X, RenderLayout.START_HINT_Y);
+    // §UI 拡大方針: 旧 hud() (16px) → large() (32px) で操作系を全て表示。large の行高は約 40px。
+    final int largeLineHeight = 48;
+    large.setColor(Color.LIGHT_GRAY);
+    large.draw(batch, jp ? Strings.Ja.START_HINT : Strings.En.START_HINT, RenderLayout.START_HINT_X, RenderLayout.START_HINT_Y);
 
     // §15-7 / E-2: ソウルツリーへの動線。所持ソウルも表示してプレイヤーに解放可能性を示す。
-    hud.setColor(0.9f, 0.85f, 0.4f, 1f);
-    hud.draw(
+    large.setColor(0.9f, 0.85f, 0.4f, 1f);
+    large.draw(
         batch,
-        "[T] ソウルツリーを開く  (所持ソウル: " + game.playerSoul().amount() + ")",
+        (jp ? Strings.Ja.TITLE_OPEN_TREE_HINT_FORMAT : Strings.En.TITLE_OPEN_TREE_HINT_FORMAT)
+            .formatted(game.playerSoul().amount()),
         RenderLayout.START_HINT_X,
-        RenderLayout.START_HINT_Y - RenderLayout.CONTROLS_LINE_HEIGHT);
+        RenderLayout.START_HINT_Y - largeLineHeight);
 
-    hud.setColor(Color.GRAY);
-    hud.draw(batch, jp ? Strings.Ja.CONTROLS_HEADER : Strings.En.CONTROLS_HEADER, RenderLayout.CONTROLS_HEADER_X, RenderLayout.CONTROLS_HEADER_Y);
-    hud.draw(batch, jp ? Strings.Ja.CONTROLS_MOVE : Strings.En.CONTROLS_MOVE, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y);
-    hud.draw(batch, jp ? Strings.Ja.CONTROLS_SKILL : Strings.En.CONTROLS_SKILL, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT);
-    hud.draw(batch, jp ? Strings.Ja.CONTROLS_WAIT : Strings.En.CONTROLS_WAIT, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT * 2);
-    hud.draw(batch, jp ? Strings.Ja.CONTROLS_END : Strings.En.CONTROLS_END, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT * 3);
+    large.setColor(Color.GRAY);
+    large.draw(batch, jp ? Strings.Ja.CONTROLS_HEADER : Strings.En.CONTROLS_HEADER, RenderLayout.CONTROLS_HEADER_X, RenderLayout.CONTROLS_HEADER_Y);
+    large.draw(batch, jp ? Strings.Ja.CONTROLS_MOVE : Strings.En.CONTROLS_MOVE, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y);
+    large.draw(batch, jp ? Strings.Ja.CONTROLS_SKILL : Strings.En.CONTROLS_SKILL, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - largeLineHeight);
+    large.draw(batch, jp ? Strings.Ja.CONTROLS_WAIT : Strings.En.CONTROLS_WAIT, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - largeLineHeight * 2);
+    large.draw(batch, jp ? Strings.Ja.CONTROLS_END : Strings.En.CONTROLS_END, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - largeLineHeight * 3);
     batch.end();
 
     if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {

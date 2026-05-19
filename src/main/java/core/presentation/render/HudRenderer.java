@@ -83,7 +83,7 @@ public final class HudRenderer {
     drawMoveToken(batch, font, jp, p.pendingMoveCount());
 
     drawControlsHint(
-        batch, font, jp, pendingCardIndex, p.pendingMoveCount() > 0, context.state().phase());
+        batch, fonts, jp, pendingCardIndex, p.pendingMoveCount() > 0, context.state().phase());
     drawLog(batch, font, jp, context.latestEvents(RenderLayout.LOG_LINES_VISIBLE));
     drawHand(batch, font, jp, p, pendingCardIndex);
   }
@@ -194,12 +194,14 @@ public final class HudRenderer {
 
   private static void drawControlsHint(
       SpriteBatch batch,
-      BitmapFont font,
+      Fonts fonts,
       boolean jp,
       int pendingCardIndex,
       boolean inMovementTokenMode,
       TurnPhase phase) {
     // 優先度: CLEARED (層踏破) > 移動権保持中 > カード選択中 > 通常
+    // ヒントは large() (32px) で描画 (プロジェクタ視聴対応、§UI 拡大方針)
+    BitmapFont font = fonts.large();
     String hint;
     if (phase == TurnPhase.CLEARED) {
       // CLEARED は強調のため YELLOW (§15-6 / ADR-23)

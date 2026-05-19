@@ -21,6 +21,7 @@ import core.domain.tree.SoulTree;
 import core.domain.tree.TreeNode;
 import core.presentation.render.Fonts;
 import core.presentation.render.RenderLayout;
+import core.presentation.render.Strings;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -162,7 +163,8 @@ public final class SoulTreeScreen extends ScreenAdapter {
     // 2) ノードテクスチャ + テキスト
     batch.begin();
     Fonts fonts = game.fonts();
-    BitmapFont hud = fonts.hud();
+    boolean jp = fonts.isJapaneseAvailable();
+    BitmapFont large = fonts.large();
     BitmapFont title = fonts.title();
 
     for (Map.Entry<NodeId, TreeNode> entry : defs.entrySet()) {
@@ -190,36 +192,41 @@ public final class SoulTreeScreen extends ScreenAdapter {
           NODE_TEX_SIZE,
           NODE_TEX_SIZE);
 
-      // テキスト (displayName + コスト)
+      // テキスト (displayName + コスト) — large 32px、ノード画像と重ならないよう Y を下げる
       if (unlocked) {
-        hud.setColor(Color.WHITE);
+        large.setColor(Color.WHITE);
       } else if (unlockable) {
-        hud.setColor(0.7f, 1f, 0.7f, 1f);
+        large.setColor(0.7f, 1f, 0.7f, 1f);
       } else {
-        hud.setColor(Color.LIGHT_GRAY);
+        large.setColor(Color.LIGHT_GRAY);
       }
-      hud.draw(batch, node.displayName(), pos.x - 60, pos.y - NODE_TEX_SIZE / 2 - 8);
+      large.draw(batch, node.displayName(), pos.x - 90, pos.y - NODE_TEX_SIZE / 2 - 16);
       if (node.soulCost() > 0) {
-        hud.draw(
-            batch,
-            "Soul " + node.soulCost(),
-            pos.x - 60,
-            pos.y - NODE_TEX_SIZE / 2 - 32);
+        String costText =
+            (jp ? Strings.Ja.SOUL_COST_FORMAT : Strings.En.SOUL_COST_FORMAT).formatted(node.soulCost());
+        large.draw(batch, costText, pos.x - 90, pos.y - NODE_TEX_SIZE / 2 - 56);
       }
     }
     batch.setColor(Color.WHITE);
 
-    // 画面下部 HUD: タイトル / 操作ヒント / Soul 残量 / フラッシュメッセージ
+    // 画面下部 HUD: タイトル / 操作ヒント / Soul 残量 / フラッシュメッセージ (large 経由で拡大)
     title.setColor(0.9f, 0.85f, 0.4f, 1f);
-    title.draw(batch, "ソウルツリー", 60, 1020);
+    title.draw(batch, jp ? Strings.Ja.SOUL_TREE_TITLE : Strings.En.SOUL_TREE_TITLE, 60, 1020);
 
-    hud.setColor(Color.LIGHT_GRAY);
-    hud.draw(batch, "所持ソウル: " + game.playerSoul().amount(), 60, 80);
-    hud.draw(batch, "[クリック] ノード解放   [R] 全リセット (累計返却)   [ESC] タイトルへ戻る", 60, 40);
+    large.setColor(Color.LIGHT_GRAY);
+    String inventoryText =
+        (jp ? Strings.Ja.SOUL_TREE_INVENTORY_FORMAT : Strings.En.SOUL_TREE_INVENTORY_FORMAT)
+            .formatted(game.playerSoul().amount());
+    large.draw(batch, inventoryText, 60, 120);
+    large.draw(
+        batch,
+        jp ? Strings.Ja.SOUL_TREE_CONTROLS_HINT : Strings.En.SOUL_TREE_CONTROLS_HINT,
+        60,
+        60);
 
     if (flashMessage != null && flashTimer > 0f) {
-      hud.setColor(1f, 0.55f, 0.35f, 1f);
-      hud.draw(batch, flashMessage, 60, 950);
+      large.setColor(1f, 0.55f, 0.35f, 1f);
+      large.draw(batch, flashMessage, 60, 940);
     }
     batch.end();
 
@@ -240,7 +247,8 @@ public final class SoulTreeScreen extends ScreenAdapter {
     }
     if (Gdx.input.isKeyJustPressed(Keys.R)) {
       game.resetTree();
-      showFlash("ツリーをリセットしました");
+      boolean jp = game.fonts().isJapaneseAvailable();
+      showFlash(jp ? Strings.Ja.SOUL_TREE_FLASH_RESET : Strings.En.SOUL_TREE_FLASH_RESET);
       return;
     }
     if (Gdx.input.justTouched() && Gdx.input.isButtonPressed(Buttons.LEFT)) {

@@ -81,6 +81,15 @@ public final class Strings {
     public static final String BUFF_KIND_PHYSICAL_DEFENSE = "物防";
     public static final String BUFF_KIND_MAGICAL_DEFENSE = "魔防";
     public static final String BUFF_KIND_SPEED = "速度";
+
+    // §15-7 / E-2 ソウルツリー画面 / タイトル画面動線
+    public static final String SOUL_COST_FORMAT = "ソウル %d";
+    public static final String SOUL_TREE_TITLE = "ソウルツリー";
+    public static final String SOUL_TREE_INVENTORY_FORMAT = "所持ソウル: %d";
+    public static final String SOUL_TREE_CONTROLS_HINT =
+        "[クリック] ノード解放   [R] 全リセット (累計返却)   [ESC] タイトルへ戻る";
+    public static final String SOUL_TREE_FLASH_RESET = "ツリーをリセットしました";
+    public static final String TITLE_OPEN_TREE_HINT_FORMAT = "[T] ソウルツリーを開く (所持ソウル: %d)";
   }
 
   /** 英語版 (フォント未配置時の fallback)。 */
@@ -153,5 +162,14 @@ public final class Strings {
     public static final String BUFF_KIND_PHYSICAL_DEFENSE = "PhyDef";
     public static final String BUFF_KIND_MAGICAL_DEFENSE = "MagDef";
     public static final String BUFF_KIND_SPEED = "Speed";
+
+    // §15-7 / E-2 Soul Tree screen / title screen entry
+    public static final String SOUL_COST_FORMAT = "Soul %d";
+    public static final String SOUL_TREE_TITLE = "Soul Tree";
+    public static final String SOUL_TREE_INVENTORY_FORMAT = "Owned Soul: %d";
+    public static final String SOUL_TREE_CONTROLS_HINT =
+        "[Click] Unlock   [R] Reset (full refund)   [ESC] Back to Title";
+    public static final String SOUL_TREE_FLASH_RESET = "Tree reset";
+    public static final String TITLE_OPEN_TREE_HINT_FORMAT = "[T] Open Soul Tree (Soul: %d)";
   }
 }
