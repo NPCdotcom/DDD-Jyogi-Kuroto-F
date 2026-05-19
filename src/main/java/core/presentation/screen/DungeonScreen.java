@@ -371,12 +371,18 @@ public final class DungeonScreen extends ScreenAdapter {
     shakeRemaining = SHAKE_DURATION;
   }
 
-  /** §15-5 色分け方針: 被弾=赤、暴力的 (>=10) =黄、それ以外=白。 */
+  /**
+   * §15-5 色分け方針: 被弾=赤、暴力的 (>=8) =黄、それ以外=白。
+   *
+   * <p>閾値 8 は ADR-30 修正後の物攻 2 (素 1 + 装備 +1) で「斬撃 (基礎値 5) → ダメ 7」が
+   * 通常、「強打 (基礎値 4) + Buff 物攻 +2 → ダメ 6」程度、「Elite 物攻 3 + 斬撃 → 8」が
+   * 暴力的ヒットの閾値になるよう設定。初期実装の 10 では装備 + Buff 込みでも届かなかった。
+   */
   private static Color colorForDamage(boolean toPlayer, int amount) {
     if (toPlayer) {
       return new Color(1f, 0.4f, 0.35f, 1f);
     }
-    if (amount >= 10) {
+    if (amount >= 8) {
       return new Color(1f, 0.9f, 0.2f, 1f);
     }
     return new Color(1f, 1f, 1f, 1f);
