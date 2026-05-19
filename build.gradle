@@ -81,8 +81,11 @@ application {
 
 // macOS では LWJGL3 を動かすメインスレッドの制約から -XstartOnFirstThread が必須。
 // Windows / Linux では無害なので run タスクに常時付与する。
+// JDK 25 の strict native access に対応するため --enable-native-access=ALL-UNNAMED を付与
+// (LibGDX SharedLibraryLoader の System.load 呼出に対する将来ブロックを回避)。
 tasks.named('run', JavaExec) {
     standardInput = System.in
+    jvmArgs += ['--enable-native-access=ALL-UNNAMED']
     if (System.getProperty('os.name').toLowerCase().contains('mac')) {
         jvmArgs += ['-XstartOnFirstThread']
     }
