@@ -3,8 +3,13 @@ package core.presentation.screen;
 import com.badlogic.gdx.Game;
 import core.application.GameContext;
 import core.application.TurnDirector;
+import core.domain.dungeon.DungeonState;
+import core.domain.entity.Player;
+import core.domain.layer.LayerEndNode;
 import core.infrastructure.bootstrap.InitialStateFactory;
 import core.presentation.render.Fonts;
+import java.util.Objects;
+import java.util.Random;
 
 /**
  * LibGDX の {@link Game} を継承したエントリポイント。
@@ -37,7 +42,42 @@ public final class DddGame extends Game {
   /** 新しいラン (= ダンジョン挑戦) を開始する。context と director を作り直す。 */
   public void startNewRun() {
     this.context = GameContext.startNewRun(InitialStateFactory.firstFloor());
-    this.director = new TurnDirector(this.context);
+    // ADR-19: TurnDirector に Random を注入 (毎ターンドロー + 山札再シャッフル用)。
+    // ラン毎に new Random() で異なるシード = ゲームプレイは非再現的 (テストでは固定シード使用)。
+    this.director = new TurnDirector(this.context, new Random());
+  }
+
+  /**
+   * 階段踏破後 (CLEARED 状態) に次の層へ進む (§15-6 / ADR-23)。
+   *
+   * <p>infrastructure 層の {@link InitialStateFactory#advanceLayer} を呼んで次層 state を生成し、application 層の
+   * {@link TurnDirector#advanceFloor} に委譲する。application が infrastructure を直接 import しないための依存逆転を本クラス
+   * (presentation 層、両方を import 可能) が担当する。
+   */
+  public void advanceFloor() {
+    director.advanceFloor(InitialStateFactory.advanceLayer(context.state()));
+  }
+
+  /**
+   * 層末ノードを 1 つ選択 → 効果適用 → 次層へ進む (§15-8 / E-6)。
+   *
+   * <p>処理:
+   *
+   * <ol>
+   *   <li>{@link LayerEndNode#apply(Player)} で Player を強化 (純関数)
+   *   <li>強化済の Player を含む新 state を {@link InitialStateFactory#advanceLayer} に渡し、次層 state を生成
+   *   <li>{@link TurnDirector#advanceFloor} に委譲し、AP リフィル + 1 枚ドロー + イベント発火
+   * </ol>
+   *
+   * <p>CLEARED 以外の状態で呼ばれた場合、効果は player に適用されるが {@link TurnDirector#advanceFloor} の no-op ガードで層遷移は起きない
+   * (二重ガード)。 ただし通常は DungeonScreen 側で CLEARED 時にのみ呼ばれるよう制御する。
+   */
+  public void resolveLayerEndChoice(LayerEndNode choice) {
+    Objects.requireNonNull(choice, "choice");
+    DungeonState current = context.state();
+    Player upgraded = choice.apply(current.player());
+    DungeonState withUpgrade = current.withPlayer(upgraded);
+    director.advanceFloor(InitialStateFactory.advanceLayer(withUpgrade));
   }
 
   @Override

@@ -1,6 +1,6 @@
 # DDD-Jyogi-Kuroto-F
 
-> **誰でも | どれでも | どんな | 場所でも 動くゲーム** — *Doko-demo Rogue*
+> **「誰でも | どれでも | どんな | 場所でも」 動くゲーム** — *Doko-demo Rogue*
 
 Java 単体で **PC・スマホで動く** 2D ピクセルアートのローグライト。
 死を繰り返して強くなる、3〜5分の最小ループ。
@@ -25,11 +25,16 @@ LibGDX を採用し、Windows / macOS / Linux / Android で「どこでも動く
 
 ## 主要システム
 
-| システム | 概要 |
-|---|---|
-| **AP制スキルバトル** | スキル枠 + 行動ポイントの変動ターン制。速度ステで実質行動量が変動 |
-| **動的生成ダンジョン** | マップ / 敵配置 / アイテム / UI を段階的に動的化 |
-| **ソウル経済** | 死後の編成画面でソウル消費 → スキル習得・枠拡張・ステータス強化 |
+| システム | 概要 | ステージ |
+|---|---|---|
+| **AP制バトル** | 行動ポイント (= 速度ステ) の変動ターン制。**MVP はスキル枠 4 個装着型、MVP 後はカード式デッキ (§15-3) と併存** | MVP ✓ |
+| **動的生成ダンジョン** | マップ / 敵配置 / アイテム / UI を段階的に動的化 | MVP ✓ |
+| **ソウル経済** | ソウル消費でステ・カードを永続強化 (死後の編成画面) | MVP ✓ |
+| **カード式デッキ構築** | スキル枠と併存。タグ × 属性で 8 サブカテゴリ、AP コストでプレイ | MVP 後 §15-3 |
+| **多層ダンジョン + ノード分岐** | 初期 3 層 (ソウルで拡張)、Slay the Spire 風の層内マップ | MVP 後 §15-6 |
+| **装備システム** | ステ補正 + UI テーマ変動 + 装備固有カードの自動追加 | MVP 後 §15-9 |
+| **ソウルツリー** | 円樹形の永続強化ツリー、経路選択で暗黙的に職業が決まる | MVP 後 §15-7 |
+| **ポップアップ式 UI** | FancyMenu Mod 的サブウィンドウ方式、基本解像度 1920×1080 | MVP 後 §15-1 |
 
 ---
 
@@ -54,6 +59,7 @@ LibGDX を採用し、Windows / macOS / Linux / Android で「どこでも動く
 ## 開発状況
 
 部内ハッカソン作品。**今週金曜 MVP** → **来週土日に本番** 提出予定。
+**§15「MVP 後の機能仕様」** を本番提出までに段階実装する方針。
 
 MVP コア実装 (1 階層 / AP 制戦闘 / 死亡時ソウル保持 / 階段踏破でクリア) は完成済み。詳細な進行は [tasks/todo.md](tasks/todo.md) を参照。
 
@@ -82,7 +88,8 @@ JDK 25 が PATH に通っていれば、次の `gradlew` 経由で必要な依�
 ```bash
 # ゲーム起動 (Desktop)
 ./gradlew run            # macOS / Linux
-gradlew.bat run          # Windows
+.\gradlew.bat run        # Windows (PowerShell — `.\` 必須)
+gradlew.bat run          # Windows (cmd.exe)
 
 # ドメイン層テスト
 ./gradlew test
@@ -113,6 +120,8 @@ AP を使い切ると自動でターン終了。階段 `>` に到達すると CL
 ## 詳細ドキュメント
 
 - **ゲーム仕様の確定書（Single Source of Truth）**: [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md)
+  - §11: MVP 定義 (今週金曜の最小達成ライン)
+  - **§15: MVP 後の機能仕様** (本番対応の指針 — カード / 層構造 / ソウルツリー / 装備 / ポップアップ UI など)
 - ドキュメント一覧: [docs/INDEX.md](docs/INDEX.md)
 - 開発者ガイド: [docs/ContributingGuide.md](docs/ContributingGuide.md)
 - ブランチ戦略: [docs/BranchingStrategy.md](docs/BranchingStrategy.md)

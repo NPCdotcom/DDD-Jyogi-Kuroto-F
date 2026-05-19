@@ -23,7 +23,7 @@ cd DDD-Jyogi-Kuroto-F
 java --version  # 25.x.x が出ること
 ```
 
-ビルドおよび実行手順は [README §ローカル開発](../README.md#ローカル開発) を参照。`gradlew` 経由で `./gradlew run` (Linux/Mac) / `gradlew.bat run` (Windows) で起動する。
+ビルドおよび実行手順は [README §ローカル開発](../README.md#ローカル開発) を参照。`gradlew` 経由で `./gradlew run` (Linux/Mac) / `.\gradlew.bat run` (Windows PowerShell) / `gradlew.bat run` (Windows cmd.exe) で起動する。
 
 ---
 
@@ -116,5 +116,13 @@ HackMD で固まったものを PR で `docs/` に反映するのが基本フロ
 - アセット生成: GPT / VOICEVOX
 - 設計: AI 主導
 - レビュー: AI 可、ただし人間チェック必須
+
+### MVP 後の実装時 (§15 対応)
+
+- ポップアップ式 UI ([§15-1](./GAME_DESIGN.md)) 実装時は FancyMenu Mod 等の参照実装を AI に提示する
+- カードシステム ([§15-3](./GAME_DESIGN.md)) のコスト・効果調整は AI 大量生成 → 人間選別の運用を推奨
+- ソウルツリー ([§15-7](./GAME_DESIGN.md)) のノード配置は AI 生成 → 人間がバランス調整に回す
+
+> **運用フロー詳細は実装段階で詰める**。当面は「実装着手者が参照 URL・要件を Issue or PR に貼り、AI に渡す → 出力を人間が選別」の素朴な運用で開始。`.claude/skills/` の整備は M1.5 以降で。
 
 将来は `.claude/skills/` に共通スキル定義を置き、全メンバーが同一の AI 出力傾向で開発できるようにする。
