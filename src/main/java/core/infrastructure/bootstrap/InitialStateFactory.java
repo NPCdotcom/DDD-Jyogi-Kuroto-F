@@ -320,18 +320,14 @@ public final class InitialStateFactory {
     Objects.requireNonNull(spawn, "spawn");
     Objects.requireNonNull(rng, "rng");
 
-    // §15-9 / ADR-26: 装備固有カードを動的にデッキ化。ハードコード 4 枚は ADR-18 で予告したとおり
-    // E-5 で削除し、装備の grantedCards から動的生成 (装備外し = カード削除のメカニズム整合)。
-    Equipment boots = tatteredBoots();
+    // §15-9 仕様 (1 部位スタート、ADR-30 修正): ぼろい短剣のみ装着。
+    // GAME_DESIGN.md:705 「装備 1 部位スタート」準拠。
+    // ぼろ靴 (dash カード付き) は Shop / Event で獲得可能、初期デッキには含めない。
     Equipment dagger = tatteredDagger();
     Map<EquipmentSlot, Equipment> equipmentMap = new HashMap<>();
-    equipmentMap.put(boots.slot(), boots);
     equipmentMap.put(dagger.slot(), dagger);
 
     List<Card> deckCards = new java.util.ArrayList<>();
-    for (CardId cid : boots.grantedCards()) {
-      deckCards.add(resolveCard(cid));
-    }
     for (CardId cid : dagger.grantedCards()) {
       deckCards.add(resolveCard(cid));
     }

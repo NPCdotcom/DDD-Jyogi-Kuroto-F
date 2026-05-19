@@ -1,6 +1,7 @@
 package core.infrastructure.bootstrap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -50,44 +51,43 @@ class InitialStateFactoryEquipmentTest {
   // ---------------- newPlayer の装備 + デッキ ----------------
 
   @Test
-  void newPlayerEquipsBothBootsAndDagger() {
-    // ADR-26: 2 部位スタート (FEET + HAND)
+  void newPlayerEquipsDaggerOnly() {
+    // §15-9 / ADR-30: 1 部位スタート (HAND のみ)。ぼろ靴は Shop/Event で獲得。
     Player p = InitialStateFactory.newPlayer(new Position(1, 1), new Random(42));
     var equipment = p.statuses().equipment();
-    assertEquals(2, equipment.size(), "2 部位装備");
-    assertTrue(equipment.containsKey(EquipmentSlot.FEET), "FEET にぼろ靴");
+    assertEquals(1, equipment.size(), "1 部位装備 (§15-9 仕様)");
     assertTrue(equipment.containsKey(EquipmentSlot.HAND), "HAND にぼろい短剣");
-    assertEquals("tattered_boots", equipment.get(EquipmentSlot.FEET).id().value());
+    assertFalse(equipment.containsKey(EquipmentSlot.FEET), "FEET は未装備 (Shop で獲得)");
     assertEquals("tattered_dagger", equipment.get(EquipmentSlot.HAND).id().value());
   }
 
   @Test
   void newPlayerInitialDeckMatchesGrantedCards() {
-    // ADR-26: 初期デッキ = ぼろ靴.grantedCards + ぼろい短剣.grantedCards = [dash, zangeki]
+    // §15-9 / ADR-30: 初期デッキ = ぼろい短剣.grantedCards のみ = [zangeki]
     Player p = InitialStateFactory.newPlayer(new Position(1, 1), new Random(42));
     int totalDeckSize =
         p.cardPileState().drawPile().size()
             + p.cardPileState().hand().size()
             + p.cardPileState().discardPile().size();
-    assertEquals(2, totalDeckSize, "デッキ全体は 2 枚 (dash + zangeki)");
+    assertEquals(1, totalDeckSize, "デッキ全体は 1 枚 (zangeki のみ)");
 
-    // 全カードの ID を抽出し、dash と zangeki が含まれることを確認
     java.util.Set<String> ids = new java.util.HashSet<>();
     p.cardPileState().drawPile().cards().forEach(c -> ids.add(c.id().value()));
     p.cardPileState().hand().cards().forEach(c -> ids.add(c.id().value()));
     p.cardPileState().discardPile().cards().forEach(c -> ids.add(c.id().value()));
-    assertTrue(ids.contains("dash"), "デッキに dash カードが含まれる");
     assertTrue(ids.contains("zangeki"), "デッキに zangeki カードが含まれる");
+    assertFalse(ids.contains("dash"), "dash は初期デッキに含まれない (Shop 獲得)");
   }
 
   @Test
   void newPlayerEffectiveStatsReflectEquipmentBonus() {
-    // §15-4 / ADR-25: effectiveStats() で素ステ + 装備補正が合算される
+    // §15-4 / ADR-25 / ADR-30: effectiveStats() で素ステ + 装備補正が合算される。
+    // 1 部位スタート (HAND ぼろい短剣のみ) のため speed 補正なし、物攻 +1 のみ。
     Player p = InitialStateFactory.newPlayer(new Position(1, 1), new Random(42));
     var base = p.stats();
     var eff = p.effectiveStats();
 
-    assertEquals(base.speed() + 1, eff.speed(), "ぼろ靴 speed +1 が反映される");
+    assertEquals(base.speed(), eff.speed(), "ぼろ靴未装備のため speed は素ステ通り");
     assertEquals(base.physicalAttack() + 1, eff.physicalAttack(), "ぼろい短剣 物攻 +1 が反映される");
     assertEquals(base.maxHp(), eff.maxHp(), "maxHp は装備補正なし");
     assertEquals(base.magicalAttack(), eff.magicalAttack(), "魔攻は装備補正なし");

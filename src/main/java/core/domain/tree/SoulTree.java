@@ -65,12 +65,15 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
     nodes.put(ROOT, new TreeNode(ROOT, "中央", 0, NodeEffect.None.INSTANCE, Set.of()));
 
     // 6 ステ軸 (root から放射状、§15-7 のメイン軸)
+    // §15-7 仕様値 (ADR-30 で修正): HP+5 = 6 / 速度+1 = 35 / 物攻+1 = 5 / 魔攻+1 = 5 /
+    // 物防+1 = 4 / 魔防+1 = 4 ソウル。雑魚撃破 Soul 1 (ADR-30) と組み合わせて 1 ラン 10〜15 ソウル
+    // で 1〜2 ノード解放できるバランスを目指す。
     nodes.put(
         NodeId.of("hp_up_1"),
         new TreeNode(
             NodeId.of("hp_up_1"),
             "HP +5",
-            20,
+            6,
             new NodeEffect.StatsBonusEffect(new StatsBonus(5, 0, 0, 0, 0, 0)),
             Set.of(ROOT)));
     nodes.put(
@@ -86,7 +89,7 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
         new TreeNode(
             NodeId.of("phys_atk_up_1"),
             "物攻 +1",
-            25,
+            5,
             new NodeEffect.StatsBonusEffect(new StatsBonus(0, 0, 1, 0, 0, 0)),
             Set.of(ROOT)));
     nodes.put(
@@ -94,7 +97,7 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
         new TreeNode(
             NodeId.of("mag_atk_up_1"),
             "魔攻 +1",
-            25,
+            5,
             new NodeEffect.StatsBonusEffect(new StatsBonus(0, 0, 0, 1, 0, 0)),
             Set.of(ROOT)));
     nodes.put(
@@ -102,7 +105,7 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
         new TreeNode(
             NodeId.of("phys_def_up_1"),
             "物防 +1",
-            20,
+            4,
             new NodeEffect.StatsBonusEffect(new StatsBonus(0, 0, 0, 0, 1, 0)),
             Set.of(ROOT)));
     nodes.put(
@@ -110,7 +113,7 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
         new TreeNode(
             NodeId.of("mag_def_up_1"),
             "魔防 +1",
-            20,
+            4,
             new NodeEffect.StatsBonusEffect(new StatsBonus(0, 0, 0, 0, 0, 1)),
             Set.of(ROOT)));
 

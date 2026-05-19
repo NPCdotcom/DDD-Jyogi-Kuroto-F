@@ -7,8 +7,11 @@ package core.domain.entity;
  * (DRY: 同じ値が定義 / インスタンスに二重に出ない)。
  */
 public enum EnemyKind {
-  // §15-2 撃破レート: 雑魚 = Soul 5 / Gold 5、強化個体 = Gold 15、ボス = Gold 50 (SLIME は雑魚枠)。
-  SLIME("スライム", 5, 5);
+  // §15-2 撃破レート (ADR-30 数値仕様乖離修正): 雑魚 SLIME = Soul 1 / Gold 5。
+  // 仕様 GAME_DESIGN.md §15-2 の「雑魚 Soul 0.5」を整数 record 制約のため切り上げ 1 とし、
+  // §15-7 ノードコスト (HP+5 = 6 / 物攻+1 = 5 / 速度+1 = 35 等) との整合バランスを取る。
+  // ELITE_SLIME / BOSS は §15-6 強化個体実装時に別 enum 値で追加 (本コミット未対応)。
+  SLIME("スライム", 1, 5);
 
   private final String displayName;
   private final int soulReward;

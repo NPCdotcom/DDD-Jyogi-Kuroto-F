@@ -86,13 +86,13 @@ class SoulTreeTest {
     SoulTree.UnlockResult result = tree.unlock(NodeId.of("hp_up_1"), new Soul(30));
 
     assertTrue(result.newTree().unlockedNodes().contains(NodeId.of("hp_up_1")));
-    assertEquals(20, result.newTree().totalSpentSoul(), "HP +5 のコスト 20 が累計に");
-    assertEquals(10, result.newSoul().amount(), "30 - 20 = 10");
+    assertEquals(6, result.newTree().totalSpentSoul(), "§15-7 HP+5 のコスト 6 が累計に");
+    assertEquals(24, result.newSoul().amount(), "30 - 6 = 24");
   }
 
   @Test
   void unlockChainStatThenDerivedSucceeds() {
-    // 物攻 +1 → 強打 +1 枚 の連鎖解放
+    // 物攻 +1 → 強打 +1 枚 の連鎖解放 (ADR-30 で物攻+1 = 5 ソウル)
     SoulTree tree = SoulTree.empty();
     SoulTree afterStat =
         tree.unlock(NodeId.of("phys_atk_up_1"), new Soul(100)).newTree();
@@ -100,7 +100,7 @@ class SoulTreeTest {
         afterStat.unlock(NodeId.of("card_grant_strong_strike"), new Soul(100));
 
     assertTrue(afterCard.newTree().unlockedNodes().contains(NodeId.of("card_grant_strong_strike")));
-    assertEquals(25 + 30, afterCard.newTree().totalSpentSoul(), "物攻 25 + 強打 30 = 55");
+    assertEquals(5 + 30, afterCard.newTree().totalSpentSoul(), "物攻 5 + 強打 30 = 35");
   }
 
   // ---------------- unlock: 異常 ----------------
@@ -132,10 +132,10 @@ class SoulTreeTest {
   @Test
   void unlockWithInsufficientSoulRejected() {
     SoulTree tree = SoulTree.empty();
-    // HP +5 のコスト 20、19 ソウルでは足りない
+    // §15-7 / ADR-30: HP+5 のコスト 6、5 ソウルでは足りない
     assertThrows(
         IllegalStateException.class,
-        () -> tree.unlock(NodeId.of("hp_up_1"), new Soul(19)));
+        () -> tree.unlock(NodeId.of("hp_up_1"), new Soul(5)));
   }
 
   // ---------------- reset ----------------
@@ -143,14 +143,14 @@ class SoulTreeTest {
   @Test
   void resetReturnsEmptyTreeAndRefundsTotalSpent() {
     SoulTree tree = SoulTree.empty();
-    tree = tree.unlock(NodeId.of("hp_up_1"), new Soul(100)).newTree(); // -20
-    tree = tree.unlock(NodeId.of("phys_atk_up_1"), new Soul(100)).newTree(); // -25
+    tree = tree.unlock(NodeId.of("hp_up_1"), new Soul(100)).newTree(); // -6 (§15-7)
+    tree = tree.unlock(NodeId.of("phys_atk_up_1"), new Soul(100)).newTree(); // -5 (§15-7)
 
     SoulTree.ResetResult result = tree.reset();
 
     assertEquals(1, result.newTree().unlockedNodes().size(), "root のみに戻る");
     assertEquals(0, result.newTree().totalSpentSoul());
-    assertEquals(45, result.refundedSoul().amount(), "20 + 25 = 45 ソウル返却");
+    assertEquals(11, result.refundedSoul().amount(), "6 + 5 = 11 ソウル返却");
   }
 
   @Test

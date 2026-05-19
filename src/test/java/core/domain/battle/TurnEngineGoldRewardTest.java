@@ -72,8 +72,8 @@ class TurnEngineGoldRewardTest {
         TurnEngine.resolvePlayerAction(state, new BattleAction.UseCard(0, Direction.UP));
 
     Player after = result.state().player();
-    // EnemyKind.SLIME: soulReward=5, goldReward=5 (§15-2 雑魚レート)
-    assertEquals(soulBefore + 5, after.soul().amount(), "ソウル +5");
+    // EnemyKind.SLIME: soulReward=1, goldReward=5 (§15-2 雑魚レート、ADR-30 で Soul を 5→1 に修正)
+    assertEquals(soulBefore + 1, after.soul().amount(), "ソウル +1");
     assertEquals(goldBefore + 5, after.gold().amount(), "金貨 +5");
   }
 

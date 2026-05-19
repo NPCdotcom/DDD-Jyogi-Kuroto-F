@@ -564,3 +564,61 @@
   - + KISS、+ セーブ単位 (層単位、§15-11) で Player に集約され直列化容易
   - − Enemy Buff が来た時に DungeonState 集約への引っ越しが必要 (M2 負債、本 ADR で明示記録)
 - **Reference**: §15-3 (Buff カード) / ADR-22 (PlacedTrap 同型ライフタイム管理)
+
+## ADR-28: 層末ショップノードを「単発カード追加」に縮退 (装備変更 UI は M2 送り)
+
+- **Status**: Accepted (2026-05-19 多角的レビュー 5 視点で発見、ハッカソン本番までの是正)
+- **Date**: 2026-05-19
+- **Context**: ADR-26 で §15-9 Shop の完成形を「装備変更 UI + デッキ再生成 + Gold 消費」と定義したが、ハッカソン残り 4 日でこの UI 改修 (Scene2D の装備選択画面 + 装備外し動線 + デッキ再生成ロジック) を完成させるのは時間不足。一方で「Shop ノードが何もしないままハッカソン本番」も訴求 0
+- **Decision**:
+  1. **Shop ノードは `Shop(int goldCost, Card grantedCard)` の単発効果に縮退**: Gold 消費 + DrawPile に Card 1 枚追加で完結 (`LayerEndNode.java:131-156`)
+  2. **装備変更 UI は M2 送り** (ADR-26 完成形を維持、ハッカソン後の整備イテレーションで対応)
+  3. **Shop の選択候補は `DungeonScreen.createNodeChoicePopup` でハードコード** ("ショップ: 強打 +1 枚 (金貨 5)"): 4 種以上の装備固有カードからのランダム選択は M2
+- **Consequences**:
+  - + ハッカソン本番で「金貨でカードを 1 枚買う」体験が成立、§15-9 関連の存在感が出る
+  - + 既存 NodeChoicePopup を改修なしで流用、開発工数最小
+  - − ADR-26 の完成形 (装備変更 + デッキ再生成) は実装されない、handoff.md / Discord 投稿で「縮退」と明示する必要
+  - − Gold 不足時に silent fail (apply が引数の Player をそのまま返す) で UX バグの温床 → 別途 H2 (DungeonScreen でフラッシュ通知) で対応
+- **Reference**: §15-9 (装備システム) / ADR-26 (装備固有カード自動デッキ統合経路、本 ADR で M2 送り宣言)
+
+## ADR-29: §15-8 層末ノード抽選を「5 個別ノードから shuffle 3」に縮退
+
+- **Status**: Accepted (2026-05-19 多角的レビュー)
+- **Date**: 2026-05-19
+- **Context**: §15-8 仕様の本来形は「4 種カテゴリ (ステ強化 / 休憩 / イベント / ショップ) から 3 提示」で、ステ強化系から 1 つ・休憩・イベント・ショップから各 1 つを別個に抽選するカテゴリ抽選方式。本実装は HpMaxUp(5) / SpeedUp(1) / Rest / Shop(5, strong_strike) / Event(30, -5, 0, ソウルの祠) の 5 個別ノードから Random で 3 個 shuffle 抽出
+- **Decision**:
+  1. **5 個別ノードから shuffle 3 で本セッションは確定** (`DungeonScreen.createNodeChoicePopup:163-178`)
+  2. **4 種カテゴリ抽選は M2 送り**: ステ強化サブカテゴリ (HP/速度/物攻/魔攻/物防/魔防) の中から 1 つ抽出するロジックは整備イテレーションで対応
+  3. **重複なし保証**: `Collections.shuffle` でリスト順をランダム化し `subList(0, 3)` で重複なく抽出 (現状の実装と整合)
+- **Consequences**:
+  - + 仕様の「異なる 3 種が提示される」体感は維持される (5 種それぞれが別カテゴリと見なせる)
+  - + 候補プール拡張時は allCandidates に追加するだけ、コードシンプル
+  - − 「ステ強化が 2 枚同時に提示される」がない反面、「ショップが連続層で出る」可能性あり (Random 性のブレ)
+  - − §15-8 仕様の「カテゴリ抽選」を厳密に満たさない、handoff.md で「縮退」明示必要
+- **Reference**: §15-8 (層末ノード 4 種抽選) / `DungeonScreen.java` の createNodeChoicePopup 改修
+
+## ADR-30: §15-2 数値レート修正 (雑魚 Soul 5 → 1) + §15-7 ノードコスト仕様準拠
+
+- **Status**: Accepted (2026-05-19 devils-advocate + judge-pov 独立発見、緊急修正)
+- **Date**: 2026-05-19
+- **Context**: 多角的レビューで以下の数値仕様乖離が判明:
+  - `EnemyKind.SLIME.soulReward = 5` だが `GAME_DESIGN.md:437` 仕様は **0.5 (10 倍誇張)**
+  - `SoulTree.allNodes()` のステノードコストが §15-7 仕様値の 3〜5 倍誇張 (HP+5: 20 vs 仕様 6、物攻+1: 25 vs 仕様 5 等)
+  - 影響: デモ動画 + GAME_DESIGN.md を照合する審査員に「実装が仕様を裏切っている」明白な証拠になる
+- **Decision**:
+  1. **`Soul` record は整数制約のため、仕様 0.5 を切り上げて 1 に正規化**: `EnemyKind.SLIME.soulReward = 1` で確定
+  2. **`SoulTree.allNodes()` のステノードコストを §15-7 仕様値に合わせる**:
+     - HP+5: 20 → **6**
+     - 物攻+1: 25 → **5**
+     - 魔攻+1: 25 → **5**
+     - 物防+1: 20 → **4**
+     - 魔防+1: 20 → **4**
+     - 速度+1: 35 → 35 (一致、変更なし)
+  3. **カード獲得 (30〜50) / 枠拡張 (40) ノードコストは据置**: §15-7 で具体値指定なし、現状値で問題なし
+  4. **既存テストの期待値を新値に揃える**: `SoulTreeTest.unlockStatRootChildSucceedsWithSufficientSoul` 等
+- **Consequences**:
+  - + 1 ラン 10〜15 ソウル想定 (10 体撃破) で HP+5 (6 ソウル) を 1〜2 個解放可能、§15-7 設計バランスを取り戻す
+  - + 仕様と実装の整合性が回復、審査員照合に対する信頼性向上
+  - − 既存 SoulTreeTest / TurnEngineGoldRewardTest の期待値が変わる (テスト改修済み)
+  - − Soul 0.5 の小数表現は整数制約で 1 に丸めるため、厳密な仕様準拠ではない (handoff.md で「整数 1 = 仕様 0.5 を切り上げ」と注釈)
+- **Reference**: §15-2 (Gold/Soul レート) / §15-7 (ノードコスト) / GAME_DESIGN.md:437,649 / multi-perspective + devils-advocate + judge-pov 5 視点レビュー (2026-05-19)
