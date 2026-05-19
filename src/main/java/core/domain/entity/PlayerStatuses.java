@@ -119,6 +119,10 @@ public record PlayerStatuses(
     return new PlayerStatuses(stats, newActionPoints, skillSlot, equipment, activeBuffs);
   }
 
+  public PlayerStatuses withSkillSlot(SkillSlot newSkillSlot) {
+    return new PlayerStatuses(stats, actionPoints, newSkillSlot, equipment, activeBuffs);
+  }
+
   public PlayerStatuses withEquipment(Map<EquipmentSlot, Equipment> newEquipment) {
     return new PlayerStatuses(stats, actionPoints, skillSlot, newEquipment, activeBuffs);
   }

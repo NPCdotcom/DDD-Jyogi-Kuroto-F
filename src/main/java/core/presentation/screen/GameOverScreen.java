@@ -37,8 +37,10 @@ public final class GameOverScreen extends ScreenAdapter {
 
   @Override
   public void show() {
-    // ソウル数のスナップショットは show() 時点で確定させる (Screen ライフサイクル準拠)。
-    soulSnapshot = game.context().state().player().soul().amount();
+    // §15-7 / E-2: ラン中の Player.soul をラン外保持 (DddGame.playerSoul) に書き戻す。
+    // タイトル画面のソウルツリー解放で使えるようにする。
+    game.preserveSoulFromRun();
+    soulSnapshot = game.playerSoul().amount();
     camera = new OrthographicCamera();
     viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
     batch = new SpriteBatch();

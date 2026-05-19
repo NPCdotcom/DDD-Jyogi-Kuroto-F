@@ -37,4 +37,15 @@ public record SkillSlot(List<Skill> skills, int maxSize) {
     }
     return Optional.of(skills.get(index));
   }
+
+  /**
+   * 装着可能なスロット数を {@code amount} だけ増やした新インスタンスを返す (§15-7 ソウルツリー枠拡張ノード用)。
+   * amount は 1 以上 (0 や負値は拡張として無意味)。
+   */
+  public SkillSlot expandedBy(int amount) {
+    if (amount < 1) {
+      throw new IllegalArgumentException("amount must be >= 1: " + amount);
+    }
+    return new SkillSlot(skills, maxSize + amount);
+  }
 }

@@ -55,6 +55,14 @@ public final class TitleScreen extends ScreenAdapter {
     hud.setColor(Color.LIGHT_GRAY);
     hud.draw(batch, jp ? Strings.Ja.START_HINT : Strings.En.START_HINT, RenderLayout.START_HINT_X, RenderLayout.START_HINT_Y);
 
+    // §15-7 / E-2: ソウルツリーへの動線。所持ソウルも表示してプレイヤーに解放可能性を示す。
+    hud.setColor(0.9f, 0.85f, 0.4f, 1f);
+    hud.draw(
+        batch,
+        "[T] ソウルツリーを開く  (所持ソウル: " + game.playerSoul().amount() + ")",
+        RenderLayout.START_HINT_X,
+        RenderLayout.START_HINT_Y - RenderLayout.CONTROLS_LINE_HEIGHT);
+
     hud.setColor(Color.GRAY);
     hud.draw(batch, jp ? Strings.Ja.CONTROLS_HEADER : Strings.En.CONTROLS_HEADER, RenderLayout.CONTROLS_HEADER_X, RenderLayout.CONTROLS_HEADER_Y);
     hud.draw(batch, jp ? Strings.Ja.CONTROLS_MOVE : Strings.En.CONTROLS_MOVE, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y);
@@ -65,6 +73,8 @@ public final class TitleScreen extends ScreenAdapter {
 
     if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
       game.setScreen(new DungeonScreen(game));
+    } else if (Gdx.input.isKeyJustPressed(Keys.T)) {
+      game.setScreen(new SoulTreeScreen(game));
     }
   }
 
