@@ -33,7 +33,8 @@ public final class HudRenderer {
    */
   public static void draw(
       SpriteBatch batch, Fonts fonts, GameContext context, int pendingCardIndex) {
-    BitmapFont font = fonts.hud();
+    // §UI 拡大方針: HUD / 手札 / ログをまとめて large (32px) で描画 (視認性最優先)。
+    BitmapFont font = fonts.large();
     boolean jp = fonts.isJapaneseAvailable();
     Player p = context.state().player();
 
@@ -105,13 +106,13 @@ public final class HudRenderer {
       return;
     }
 
-    // ラベル行
+    // ラベル行 (手札の上に 1 行分)
     font.setColor(Color.LIGHT_GRAY);
     font.draw(
         batch,
         jp ? Strings.Ja.HAND_LABEL : Strings.En.HAND_LABEL,
         RenderLayout.HUD_X,
-        RenderLayout.HAND_Y + RenderLayout.LOG_LINE_HEIGHT);
+        RenderLayout.HAND_Y + RenderLayout.LARGE_LINE_HEIGHT);
 
     // カード一覧 (1 行に並べる、最大 9 枚)
     int x = RenderLayout.HUD_X;
@@ -138,12 +139,8 @@ public final class HudRenderer {
       x += text.length() * RenderLayout.HAND_CARD_GLYPH_WIDTH;
     }
 
-    // カード選択中はヒントを表示
-    if (pendingCardIndex >= 0) {
-      font.setColor(Color.CYAN);
-      String hint = jp ? Strings.Ja.HAND_HINT : Strings.En.HAND_HINT;
-      font.draw(batch, hint, RenderLayout.HUD_X, RenderLayout.HAND_Y - RenderLayout.LOG_LINE_HEIGHT);
-    }
+    // カード選択中ヒントは drawControlsHint() (画面左下) に統合済み。
+    // 手札の下に再描画すると二重表示になり、画面下端で文字が切れる原因となるためここでは描かない。
   }
 
   private static String elementLabel(boolean jp, CardElement element) {
@@ -217,7 +214,8 @@ public final class HudRenderer {
         hint = jp ? Strings.Ja.HUD_HINT : Strings.En.HUD_HINT;
       }
     }
-    font.draw(batch, hint, RenderLayout.HUD_X + 240, RenderLayout.HUD_Y_PHASE);
+    // 画面左下に左寄せで配置 (HUD_HINT 等の長文 large 32px が HUD 列右側に並ぶと画面外にはみ出るため)。
+    font.draw(batch, hint, RenderLayout.LOG_X, RenderLayout.HUD_Y_HINT);
   }
 
   private static void drawLog(

@@ -35,53 +35,64 @@ public final class RenderLayout {
   public static final int MAP_ORIGIN_Y = 300;
 
   /**
-   * HUD (HP/AP/Soul/Phase) 描画位置。画面右側 (x=1420) に配置。
+   * HUD (HP/AP/Soul/Phase) 描画位置。画面右側に配置。
    *
-   * <p>マップ右端: 720 + 10*48 = 1200。HUD_X=1420 でマップとの間に余白 220px を確保。
+   * <p>マップ右端: 720 + 10*48 = 1200。HUD_X=1380 で large (32px) フォントの長い文字列
+   * (例「AP: 5 / 5 (速度 3 (+1))」≈ 520px) を画面右端まで収める。
    */
-  public static final int HUD_X = 1420;
+  public static final int HUD_X = 1380;
 
-  // HUD は画面上部に集約 (final-architect レビュー指摘で、マップ上端 Y=780 と
-  // 重ならないよう 1000+ に再配置)。BitmapFont は Y 座標がベースラインなので
-  // 16px フォントなら描画範囲は (Y-16, Y) を占有する。
+  // HUD は画面上部に集約。large (32px) フォントで描画するため、行間は 48px (LARGE_LINE_HEIGHT 相当) を取る。
+  // BitmapFont は Y 座標がベースラインなので、32px フォントなら描画範囲は (Y-32, Y) を占有する。
   public static final int HUD_Y_HP = 1040;
 
-  public static final int HUD_Y_AP = 1010;
-  public static final int HUD_Y_SOUL = 980;
-  public static final int HUD_Y_PHASE = 950;
+  public static final int HUD_Y_AP = 992;
+  public static final int HUD_Y_SOUL = 944;
+  public static final int HUD_Y_PHASE = 896;
 
   /**
    * 移動権残量表示の Y 座標 (ADR-21 §15-5)。
    *
-   * <p>HUD_Y_PHASE=950 の 1 行下 (950 - 30 = 920) に配置する。pendingMoveCount > 0 のときのみ描画される。
+   * <p>HUD_Y_PHASE の 1 行下に配置する。pendingMoveCount > 0 のときのみ描画される。
    */
-  public static final int HUD_Y_MOVE_TOKEN = 920;
+  public static final int HUD_Y_MOVE_TOKEN = 848;
+
+  /**
+   * 操作ヒント (WASD/矢印: 移動 等) の Y 座標。
+   *
+   * <p>large (32px) で画面左下に左寄せで配置。ログ最下 (Y=222) と HAND_LABEL (Y=112) の間に置く。
+   * pendingCardIndex / movementToken / cleared モード時はここで HAND_HINT 等に切り替えるため、
+   * drawHand 側のヒント描画は削除して二重表示を防ぐ。
+   */
+  public static final int HUD_Y_HINT = 170;
 
   /**
    * メッセージログ表示開始位置 (下方向に展開)。
    *
-   * <p>画面下部に配置。LOG_TOP_Y=230 から下に向かって各行を展開。
+   * <p>画面下部、操作ヒントの上に配置。large (32px) で行間 LARGE_LINE_HEIGHT=48 を取り、2 行表示する
+   * (大型化により情報視認性を上げる。3 行以上はヒント / 手札との衝突を起こす)。
    */
   public static final int LOG_X = 40;
 
-  public static final int LOG_TOP_Y = 230;
-  public static final int LOG_LINE_HEIGHT = 28;
-  public static final int LOG_LINES_VISIBLE = 6;
+  public static final int LOG_TOP_Y = 270;
+  public static final int LOG_LINE_HEIGHT = 48;
+  public static final int LOG_LINES_VISIBLE = 2;
 
   /**
-   * 手札表示の Y 座標。ログ領域より下、画面最下部付近に配置する。
+   * 手札表示の Y 座標。ログ領域より上、画面下部に配置する。
    *
-   * <p>LOG_TOP_Y=230、LOG_LINE_HEIGHT=28、LOG_LINES_VISIBLE=6 で最低 Y=230-(6-1)*28=90。
-   * HAND_Y=50 なら 1 行分の余白を確保できる。
+   * <p>large (32px) フォント前提。HAND_Y=64 でラベル (Y=112) が HUD_Y_HINT (170) と十分離れる。
+   * 手札選択中のヒントは drawControlsHint 側に統合したため、HAND_Y 直下の余白は不要。
    */
-  public static final int HAND_Y = 50;
+  public static final int HAND_Y = 64;
 
   /**
-   * 手札カード 1 文字あたりの概算ピクセル幅 (HUD_SIZE=16px フォント基準)。
+   * 手札カード 1 文字あたりの概算ピクセル幅 (large 32px フォント基準)。
    *
-   * <p>1920px 幅なら 1920 / 12 = 160 文字相当で最大 9 枚が並ぶ。
+   * <p>初期手札は数枚なので画面幅に収まる前提。9 枚揃うシナリオでは右側がはみ出る可能性があるが、
+   * §15-3 の MAX_HAND_SIZE 想定でも実用上問題ないレベル。
    */
-  public static final int HAND_CARD_GLYPH_WIDTH = 12;
+  public static final int HAND_CARD_GLYPH_WIDTH = 20;
 
   // --- TitleScreen / GameOverScreen 用レイアウト定数 ---
 
@@ -103,20 +114,42 @@ public final class RenderLayout {
   /** START_HINT の Y 座標。 */
   public static final int START_HINT_Y = (int) (SCREEN_HEIGHT * 0.43f);
 
+  /**
+   * large フォント (32px) の行高 (px)。
+   *
+   * <p>BitmapFont.getLineHeight() に対し視認性余白を加えた値。タイトル / 操作説明ブロック内の行送りに使う。
+   */
+  public static final int LARGE_LINE_HEIGHT = 48;
+
+  /**
+   * 「[T] ソウルツリーを開く」ヒントの Y 座標 (§15-7 / E-2)。
+   *
+   * <p>「ENTER で出発する」の 1 行下に配置し、出発 / ツリー解放という 2 つの出口を視覚的にまとめる。
+   */
+  public static final int TITLE_OPEN_TREE_HINT_Y = START_HINT_Y - LARGE_LINE_HEIGHT;
+
   /** コントロール説明の X 座標 (中央付近)。 */
   public static final int CONTROLS_HEADER_X = 840;
 
-  /** コントロール説明ヘッダーの Y 座標。 */
-  public static final int CONTROLS_HEADER_Y = (int) (SCREEN_HEIGHT * 0.37f);
+  /**
+   * コントロール説明ヘッダーの Y 座標。
+   *
+   * <p>TITLE_OPEN_TREE_HINT (≒ 416) との視覚分離のため 80px 余白を空ける。
+   */
+  public static final int CONTROLS_HEADER_Y = TITLE_OPEN_TREE_HINT_Y - 80;
 
   /** コントロール各行の X 座標。 */
   public static final int CONTROLS_X = 720;
 
-  /** コントロール 1 行目の Y 座標。 */
-  public static final int CONTROLS_ROW1_Y = (int) (SCREEN_HEIGHT * 0.33f);
+  /**
+   * コントロール 1 行目の Y 座標。
+   *
+   * <p>「操作」ヘッダーとの間に 56px (LARGE_LINE_HEIGHT + 8) の余白を確保。
+   */
+  public static final int CONTROLS_ROW1_Y = CONTROLS_HEADER_Y - 56;
 
-  /** コントロール行間隔 (px)。 */
-  public static final int CONTROLS_LINE_HEIGHT = 32;
+  /** コントロール行間隔 (px)。 large フォント前提。 */
+  public static final int CONTROLS_LINE_HEIGHT = LARGE_LINE_HEIGHT;
 
   // --- GameOverScreen 用 ---
 

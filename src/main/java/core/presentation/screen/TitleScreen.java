@@ -51,8 +51,8 @@ public final class TitleScreen extends ScreenAdapter {
     large.setColor(Color.LIGHT_GRAY);
     large.draw(batch, jp ? Strings.Ja.SUBTITLE : Strings.En.SUBTITLE, RenderLayout.SUBTITLE_X, RenderLayout.SUBTITLE_Y);
 
-    // §UI 拡大方針: 旧 hud() (16px) → large() (32px) で操作系を全て表示。large の行高は約 40px。
-    final int largeLineHeight = 48;
+    // §UI 拡大方針: 旧 hud() (16px) → large() (32px) で操作系を全て表示。
+    // 行高 / 各 Y 座標は RenderLayout に集約 (CONTROLS_HEADER_Y と TITLE_OPEN_TREE_HINT_Y の衝突を回避)。
     large.setColor(Color.LIGHT_GRAY);
     large.draw(batch, jp ? Strings.Ja.START_HINT : Strings.En.START_HINT, RenderLayout.START_HINT_X, RenderLayout.START_HINT_Y);
 
@@ -63,14 +63,14 @@ public final class TitleScreen extends ScreenAdapter {
         (jp ? Strings.Ja.TITLE_OPEN_TREE_HINT_FORMAT : Strings.En.TITLE_OPEN_TREE_HINT_FORMAT)
             .formatted(game.playerSoul().amount()),
         RenderLayout.START_HINT_X,
-        RenderLayout.START_HINT_Y - largeLineHeight);
+        RenderLayout.TITLE_OPEN_TREE_HINT_Y);
 
     large.setColor(Color.GRAY);
     large.draw(batch, jp ? Strings.Ja.CONTROLS_HEADER : Strings.En.CONTROLS_HEADER, RenderLayout.CONTROLS_HEADER_X, RenderLayout.CONTROLS_HEADER_Y);
     large.draw(batch, jp ? Strings.Ja.CONTROLS_MOVE : Strings.En.CONTROLS_MOVE, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y);
-    large.draw(batch, jp ? Strings.Ja.CONTROLS_SKILL : Strings.En.CONTROLS_SKILL, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - largeLineHeight);
-    large.draw(batch, jp ? Strings.Ja.CONTROLS_WAIT : Strings.En.CONTROLS_WAIT, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - largeLineHeight * 2);
-    large.draw(batch, jp ? Strings.Ja.CONTROLS_END : Strings.En.CONTROLS_END, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - largeLineHeight * 3);
+    large.draw(batch, jp ? Strings.Ja.CONTROLS_SKILL : Strings.En.CONTROLS_SKILL, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT);
+    large.draw(batch, jp ? Strings.Ja.CONTROLS_WAIT : Strings.En.CONTROLS_WAIT, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT * 2);
+    large.draw(batch, jp ? Strings.Ja.CONTROLS_END : Strings.En.CONTROLS_END, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT * 3);
     batch.end();
 
     if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
