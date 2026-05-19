@@ -80,6 +80,12 @@ public final class DungeonScreen extends ScreenAdapter {
   private ShapeRenderer shapes;
   private PlayerInputs playerInputs;
   private NodeChoicePopup nodeChoice;
+  /** §15-3 / §15-6: 強化個体撃破時のカード追加 UI (1 ノード選択 = 1 枚 DrawPile 追加)。 */
+  private NodeChoicePopup eliteCardChoice;
+  /** §15-9 / Shop silent fail 通知: 一時的なフラッシュメッセージ (~2 秒で消える)。 */
+  private String flashMessage;
+
+  private float flashTimer;
 
   public DungeonScreen(DddGame game) {
     this.game = game;
@@ -97,13 +103,17 @@ public final class DungeonScreen extends ScreenAdapter {
   @Override
   public void render(float delta) {
     updateState();
-    processNewEvents();   // §15-5 / E-8: 新規 DamageDealt → popup + shake
-    advanceEffects(delta); // popup の age 加算 + 期限切れ除去 + shake デクリメント
+    processNewEvents();   // §15-5 / E-8: 新規 DamageDealt → popup + shake / EliteDefeated → カード追加 UI
+    advanceEffects(delta); // popup の age 加算 + 期限切れ除去 + shake デクリメント + flash デクリメント
+    handleEliteCardChoice(); // §15-3 / §15-6: Elite 撃破 popup の入力処理
     drawFrame();
     // Popup は HUD の上に重ねて描画する (CLEARED 中の前面 UI)。drawFrame() で batch.end() 済みのため、
     // Stage の SpriteBatch とは衝突しない (描画スタックの順序: ダンジョン → HUD → Popup)。
     if (nodeChoice != null) {
       nodeChoice.render(delta);
+    }
+    if (eliteCardChoice != null) {
+      eliteCardChoice.render(delta);
     }
     transitionIfGameOver();
   }
@@ -146,10 +156,77 @@ public final class DungeonScreen extends ScreenAdapter {
         .consume()
         .ifPresent(
             choice -> {
+              // §15-9 / Shop silent fail 通知: 適用前後の Player を比較し、変化が無ければ
+              // Gold 不足等で apply が no-op だったと判断、HUD フラッシュで通知する。
+              core.domain.entity.Player before = game.context().state().player();
               game.resolveLayerEndChoice(choice);
+              core.domain.entity.Player after = game.context().state().player();
+              if (choice instanceof LayerEndNode.Shop shop
+                  && before.gold().amount() == after.gold().amount()
+                  && before.cardPileState().drawPile().size()
+                      == after.cardPileState().drawPile().size()) {
+                showFlash("金貨が足りません (必要 " + shop.goldCost() + ")");
+              }
               nodeChoice.dispose();
               nodeChoice = null;
             });
+  }
+
+  /**
+   * §15-3 / §15-6: 強化個体撃破時のカード追加 UI 入力処理。{@link NodeChoicePopup} を流用し、
+   * {@link LayerEndNode.Shop}(goldCost=0, ...) を 3 つ提示 → 1 つ選択 → DrawPile に追加。
+   */
+  private void handleEliteCardChoice() {
+    if (eliteCardChoice == null) {
+      return;
+    }
+    for (int i = 0; i < NodeChoicePopup.CHOICE_COUNT; i++) {
+      if (Gdx.input.isKeyJustPressed(numKey(i))) {
+        eliteCardChoice.select(i);
+      }
+    }
+    eliteCardChoice
+        .consume()
+        .ifPresent(
+            choice -> {
+              game.applyEliteCardReward(choice);
+              eliteCardChoice.dispose();
+              eliteCardChoice = null;
+              if (choice instanceof LayerEndNode.Shop shop) {
+                showFlash("カード獲得: " + shop.grantedCard().displayName());
+              }
+            });
+  }
+
+  /**
+   * Elite 撃破時のカード追加候補 (3 種) を {@link NodeChoicePopup} で生成する。
+   *
+   * <p>候補プールはチームメイト提案カード 5+ 種からシャッフルで 3 つ選び、それぞれ
+   * {@link LayerEndNode.Shop}(goldCost=0, card) でラップ。Gold 0 = 無料カード追加。
+   */
+  private NodeChoicePopup createEliteCardChoicePopup() {
+    List<core.domain.card.Card> allRewards =
+        new ArrayList<>(
+            List.of(
+                core.infrastructure.bootstrap.InitialStateFactory.emberShotCard(),
+                core.infrastructure.bootstrap.InitialStateFactory.blazeNovaCard(),
+                core.infrastructure.bootstrap.InitialStateFactory.blinkStepCard(),
+                core.infrastructure.bootstrap.InitialStateFactory.flameCircleCard(),
+                core.infrastructure.bootstrap.InitialStateFactory.ironSkinCard(),
+                core.infrastructure.bootstrap.InitialStateFactory.arcaneVeilCard(),
+                core.infrastructure.bootstrap.InitialStateFactory.fireballCard()));
+    Collections.shuffle(allRewards, new Random());
+    List<LayerEndNode> choices = new ArrayList<>();
+    for (int i = 0; i < NodeChoicePopup.CHOICE_COUNT; i++) {
+      choices.add(new LayerEndNode.Shop(0, allRewards.get(i)));
+    }
+    String title = "強化個体撃破: カード追加";
+    return new NodeChoicePopup(game.fonts().hud(), title, List.copyOf(choices));
+  }
+
+  private void showFlash(String message) {
+    this.flashMessage = message;
+    this.flashTimer = 2.5f;
   }
 
   /**
@@ -201,7 +278,20 @@ public final class DungeonScreen extends ScreenAdapter {
     batch.begin();
     HudRenderer.draw(batch, game.fonts(), game.context(), playerInputs.pendingCardIndex());
     drawPopups(batch);
+    drawFlash(batch);
     batch.end();
+  }
+
+  /** フラッシュメッセージを画面中央上部に描画 (Shop 失敗通知 / Elite カード獲得通知)。 */
+  private void drawFlash(SpriteBatch batch) {
+    if (flashMessage == null || flashTimer <= 0f) {
+      return;
+    }
+    com.badlogic.gdx.graphics.g2d.BitmapFont font = game.fonts().large();
+    float alpha = Math.min(1f, flashTimer / 0.5f); // 最後 0.5 秒でフェードアウト
+    font.setColor(1f, 0.85f, 0.3f, alpha);
+    font.draw(batch, flashMessage, 80f, RenderLayout.SCREEN_HEIGHT - 200f);
+    font.setColor(Color.WHITE);
   }
 
   /**
@@ -220,12 +310,15 @@ public final class DungeonScreen extends ScreenAdapter {
       if (e instanceof BattleEvent.DamageDealt d) {
         spawnPopup(d);
         triggerShake(d);
+      } else if (e instanceof BattleEvent.EliteDefeated && eliteCardChoice == null) {
+        // §15-3 / §15-6: 強化個体撃破時にカード追加 UI を発火
+        eliteCardChoice = createEliteCardChoicePopup();
       }
     }
     lastSeenEventCount = current;
   }
 
-  /** popup の age 加算 + 期限切れ除去 + shake デクリメント (毎フレーム呼出)。 */
+  /** popup の age 加算 + 期限切れ除去 + shake デクリメント + flash デクリメント (毎フレーム呼出)。 */
   private void advanceEffects(float delta) {
     if (!popups.isEmpty()) {
       popups.replaceAll(p -> p.advanced(delta));
@@ -233,6 +326,12 @@ public final class DungeonScreen extends ScreenAdapter {
     }
     if (shakeRemaining > 0f) {
       shakeRemaining = Math.max(0f, shakeRemaining - delta);
+    }
+    if (flashTimer > 0f) {
+      flashTimer = Math.max(0f, flashTimer - delta);
+      if (flashTimer <= 0f) {
+        flashMessage = null;
+      }
     }
   }
 
@@ -329,6 +428,9 @@ public final class DungeonScreen extends ScreenAdapter {
     if (nodeChoice != null) {
       nodeChoice.resize(width, height);
     }
+    if (eliteCardChoice != null) {
+      eliteCardChoice.resize(width, height);
+    }
   }
 
   @Override
@@ -340,6 +442,10 @@ public final class DungeonScreen extends ScreenAdapter {
     if (nodeChoice != null) {
       nodeChoice.dispose();
       nodeChoice = null;
+    }
+    if (eliteCardChoice != null) {
+      eliteCardChoice.dispose();
+      eliteCardChoice = null;
     }
   }
 
@@ -354,6 +460,10 @@ public final class DungeonScreen extends ScreenAdapter {
     if (nodeChoice != null) {
       nodeChoice.dispose();
       nodeChoice = null;
+    }
+    if (eliteCardChoice != null) {
+      eliteCardChoice.dispose();
+      eliteCardChoice = null;
     }
     // playerInputs は LibGDX リソースを持たないので dispose 不要、reset のみ
     if (playerInputs != null) {

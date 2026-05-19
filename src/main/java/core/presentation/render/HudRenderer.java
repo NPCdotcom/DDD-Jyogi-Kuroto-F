@@ -283,6 +283,9 @@ public final class HudRenderer {
       case BattleEvent.BuffApplied ba ->
           (jp ? Strings.Ja.EV_BUFF_APPLIED_FORMAT : Strings.En.EV_BUFF_APPLIED_FORMAT)
               .formatted(ba.who().value(), buffKindLabel(jp, ba.kind()), ba.amount(), ba.remainingTurns());
+      case BattleEvent.EliteDefeated ed ->
+          (jp ? Strings.Ja.EV_ELITE_DEFEATED_FORMAT : Strings.En.EV_ELITE_DEFEATED_FORMAT)
+              .formatted(ed.who().value());
     };
   }
 

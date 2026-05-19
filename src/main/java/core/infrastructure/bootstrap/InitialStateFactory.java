@@ -383,6 +383,26 @@ public final class InitialStateFactory {
   }
 
   /**
+   * 強化個体スライム生成 (§15-6 強化個体、5 層ごとに 1 体出現)。
+   *
+   * <p>雑魚スライムより強い: HP 20 (倍)、物攻 3 (1.5 倍)、物防 1、AP は層番号 +2 で雑魚を凌駕。
+   * 撃破時に {@link core.domain.battle.BattleEvent.EliteDefeated} 発火 →
+   * プレゼン層でカード追加 UI を表示する (§15-3 強化個体撃破時のカード追加)。
+   */
+  public static Enemy newEliteSlimeForLayer(String id, Position spawn, int layerNumber) {
+    if (layerNumber < 1) {
+      throw new IllegalArgumentException("layerNumber must be >= 1: " + layerNumber);
+    }
+    return new Enemy(
+        ActorId.of(id),
+        spawn,
+        new Stats(20, 20, 3, 3, 0, 1, 0),
+        ActionPoints.full(layerNumber + 2),
+        new SkillSlot(List.of(slimeBite()), 4),
+        EnemyKind.ELITE_SLIME);
+  }
+
+  /**
    * 現在の DungeonState から次の階層を生成する (§15-6 / ADR-23)。
    *
    * <p>処理:
@@ -406,11 +426,21 @@ public final class InitialStateFactory {
         newSlimeForLayer("slime_L" + nextLayer.number() + "_a", new Position(6, 1), apForLayer);
     Enemy slimeMidRoom =
         newSlimeForLayer("slime_L" + nextLayer.number() + "_b", new Position(4, 4), apForLayer);
+    List<Enemy> enemies = new java.util.ArrayList<>();
+    enemies.add(slimeNearStairs);
+    enemies.add(slimeMidRoom);
+    // §15-6 強化個体: 5 層ごとに 1 体追加 (5/10/15... 層)。Elite 撃破時に
+    // BattleEvent.EliteDefeated が発火し、プレゼン層がカード追加 UI を表示。
+    if (nextLayer.number() % 5 == 0) {
+      enemies.add(
+          newEliteSlimeForLayer(
+              "elite_L" + nextLayer.number(), new Position(5, 5), apForLayer));
+    }
     Player carriedPlayer = current.player().withPosition(new Position(1, 1));
     return new DungeonState(
         current.map(),
         carriedPlayer,
-        List.of(slimeNearStairs, slimeMidRoom),
+        List.copyOf(enemies),
         TurnPhase.PLAYER_TURN,
         List.of(),
         nextLayer);

@@ -480,6 +480,10 @@ public final class TurnEngine {
               .addGold(new core.domain.meta.Gold(goldReward));
       events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), soulReward));
       events.add(new BattleEvent.GoldGained(rewardedPlayer.id(), goldReward));
+      // §15-3 / §15-6: 強化個体撃破時にプレゼン層でカード追加 UI を発火するためのトリガ。
+      if (target.kind() == core.domain.entity.EnemyKind.ELITE_SLIME) {
+        events.add(new BattleEvent.EliteDefeated(target.id()));
+      }
       DungeonState ns = state.withEnemyRemoved(target.id()).withPlayer(rewardedPlayer);
       // CLEARED への遷移は階段踏破で行う (applyPlayerMove)。
       // 敵全滅では CLEARED にしない: 敵 1 体撃破で即クリアになるのを避けるため。
@@ -578,6 +582,10 @@ public final class TurnEngine {
                 .addGold(new core.domain.meta.Gold(goldReward));
         events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), soulReward));
         events.add(new BattleEvent.GoldGained(rewardedPlayer.id(), goldReward));
+        // §15-3 / §15-6: Elite が罠で死亡した場合もカード追加 UI を発火。
+        if (victimEnemy.kind() == core.domain.entity.EnemyKind.ELITE_SLIME) {
+          events.add(new BattleEvent.EliteDefeated(victimId));
+        }
         ns = ns.withEnemyRemoved(victimId).withPlayer(rewardedPlayer);
       } else {
         ns = ns.withEnemyReplaced(victimEnemy);

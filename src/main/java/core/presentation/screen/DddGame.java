@@ -147,6 +147,20 @@ public final class DddGame extends Game {
     director.advanceFloor(InitialStateFactory.advanceLayer(withUpgrade));
   }
 
+  /**
+   * §15-3 / §15-6: 強化個体撃破時にカード追加効果を Player に適用する (層遷移は伴わない)。
+   *
+   * <p>{@link LayerEndNode#apply(Player)} を呼ぶだけで、{@link
+   * core.application.TurnDirector#advanceFloor} は呼ばない (戦闘継続中のため)。
+   */
+  public void applyEliteCardReward(LayerEndNode choice) {
+    Objects.requireNonNull(choice, "choice");
+    DungeonState current = context.state();
+    Player upgraded = choice.apply(current.player());
+    context.applyResult(
+        new core.domain.battle.TurnEngine.StepResult(current.withPlayer(upgraded), java.util.List.of()));
+  }
+
   @Override
   public void create() {
     fonts = new Fonts();

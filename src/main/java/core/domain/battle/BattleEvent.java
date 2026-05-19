@@ -23,7 +23,8 @@ public sealed interface BattleEvent
         BattleEvent.TrapPlaced,
         BattleEvent.TrapTriggered,
         BattleEvent.FloorAdvanced,
-        BattleEvent.BuffApplied {
+        BattleEvent.BuffApplied,
+        BattleEvent.EliteDefeated {
 
   record Moved(ActorId who, Position from, Position to) implements BattleEvent {
     public Moved {
@@ -180,6 +181,16 @@ public sealed interface BattleEvent
         throw new IllegalArgumentException(
             "remainingTurns must be non-negative: " + remainingTurns);
       }
+    }
+  }
+
+  /**
+   * 強化個体 (ELITE) 撃破通知 (§15-3 / §15-6)。雑魚と区別して、プレゼン層でカード追加 UI
+   * (3 提示から 1 選択) を発火するトリガとして使う。{@link ActorDied} と並列に発火される。
+   */
+  record EliteDefeated(ActorId who) implements BattleEvent {
+    public EliteDefeated {
+      Objects.requireNonNull(who, "who");
     }
   }
 }
