@@ -37,21 +37,32 @@ public final class HudRenderer {
     boolean jp = fonts.isJapaneseAvailable();
     Player p = context.state().player();
 
+    // §15-4 / ADR-25: HP / 速度 は effectiveStats() (素ステ + 装備 + Buff 合算) を使う。
+    // 装備で maxHp が増える場合の表示整合性を確保。差分は素ステとの差で算出して "(+N)" 表記。
+    core.domain.entity.Stats baseStats = p.stats();
+    core.domain.entity.Stats effStats = p.effectiveStats();
+
     font.setColor(Color.WHITE);
     font.draw(
         batch,
-        "%s: %d / %d".formatted(label(jp, "HP"), p.stats().currentHp(), p.stats().maxHp()),
+        "%s: %d / %d%s"
+            .formatted(
+                label(jp, "HP"),
+                baseStats.currentHp(),
+                effStats.maxHp(),
+                bonusSuffix(effStats.maxHp() - baseStats.maxHp())),
         RenderLayout.HUD_X,
         RenderLayout.HUD_Y_HP);
     font.draw(
         batch,
-        "%s: %d / %d  (%s %d)"
+        "%s: %d / %d  (%s %d%s)"
             .formatted(
                 label(jp, "AP"),
                 p.actionPoints().current(),
                 p.actionPoints().max(),
                 jp ? Strings.Ja.HUD_SPEED : Strings.En.HUD_SPEED,
-                p.stats().speed()),
+                baseStats.speed(),
+                bonusSuffix(effStats.speed() - baseStats.speed())),
         RenderLayout.HUD_X,
         RenderLayout.HUD_Y_AP);
     font.draw(
@@ -149,6 +160,19 @@ public final class HudRenderer {
       case "AP" -> jp ? Strings.Ja.HUD_AP : Strings.En.HUD_AP;
       default -> englishLabel;
     };
+  }
+
+  /**
+   * 装備 / Buff の差分ぶん " (+N)" もしくは " (-N)" 表記。0 ならは空文字 (素ステのみ)。
+   *
+   * <p>Plan の「物攻 1 (+1) = 2」形式の簡略版: 装備込み合計値の隣に差分のみ表示し、
+   * "(+1)" が見えれば装備効果がかかっていることが分かる (§15-9 / ADR-25)。
+   */
+  private static String bonusSuffix(int delta) {
+    if (delta == 0) {
+      return "";
+    }
+    return delta > 0 ? " (+%d)".formatted(delta) : " (%d)".formatted(delta);
   }
 
   /**

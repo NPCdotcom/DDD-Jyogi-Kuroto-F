@@ -43,12 +43,20 @@ class TurnDirectorTest {
   @Test
   void advanceFloorRefillsApAndDrawsCardOnNewLayer() {
     // §15-6 / ADR-19: 新層開始時に AP リフィル + 1 枚ドロー (startPlayerTurn 流用)
+    // 初期デッキ (装備固有カード dash + zangeki) は 2 枚で全部初期ドローされて山札 0 になるため、
+    // 1 枚ドローを検証するには捨て札に 1 枚予め積む (山札空 → 捨て札シャッフル → 山札 1 → 1 ドロー)。
     DungeonState first = InitialStateFactory.firstFloor(new Random(SEED));
+    core.domain.card.CardPileState pileWithDiscard =
+        new core.domain.card.CardPileState(
+            first.player().cardPileState().drawPile(),
+            first.player().cardPileState().hand(),
+            first.player().cardPileState().discardPile().add(InitialStateFactory.magicBoltCard()));
+    var playerArmed = first.player().withCardPileState(pileWithDiscard);
     // AP を 0 まで使い切った状態を再現してから CLEARED にする (リフィルが効いているか確認するため)
     DungeonState exhausted =
         first.withPlayer(
-            first.player().withActionPoints(first.player().actionPoints().spend(
-                first.player().actionPoints().current())));
+            playerArmed.withActionPoints(playerArmed.actionPoints().spend(
+                playerArmed.actionPoints().current())));
     DungeonState cleared = exhausted.withPhase(TurnPhase.CLEARED);
     GameContext ctx = GameContext.startNewRun(cleared);
     TurnDirector director = new TurnDirector(ctx, new Random(SEED));

@@ -21,13 +21,19 @@ import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
 import core.domain.entity.PlayerStatuses;
 import core.domain.entity.Stats;
+import core.domain.equipment.Equipment;
+import core.domain.equipment.EquipmentId;
+import core.domain.equipment.EquipmentSlot;
+import core.domain.equipment.StatsBonus;
 import core.domain.layer.Layer;
 import core.domain.meta.Soul;
 import core.domain.skill.Skill;
 import core.domain.skill.SkillEffect;
 import core.domain.skill.SkillId;
 import core.domain.skill.SkillSlot;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 
@@ -164,8 +170,76 @@ public final class InitialStateFactory {
         new CardEffect.Trap(3, new TrapLifetime.Turns(4)));
   }
 
-  // arcane_veil (Buff) は TurnEngine.applyPlayerUseCard で reject されるため本 PR では Java 化しない。
-  // 明日 ADR-25 で Buff 実装と一緒に取り込み予定。
+  /**
+   * ダッシュカード (物理移動 / 距離 2、AP 1)。ぼろ靴の {@code grantedCards} 経由で初期デッキに自動追加される
+   * (§15-9 / ADR-26)。{@code docs/templates/cards.json} の {@code dash} エントリ準拠。
+   */
+  public static Card dashCard() {
+    return new Card(
+        CardId.of("dash"),
+        "ダッシュ",
+        1,
+        CardTag.MOVEMENT,
+        CardElement.PHYSICAL,
+        new CardEffect.Move(2));
+  }
+
+  // arcane_veil / iron_skin (Buff) は TurnEngine.applyPlayerUseCard で reject される現状でも将来 Buff 実装
+  // (ADR-27 / Phase 3) で取り込み予定。本 Phase では未登録。
+
+  // ----------------------------- 装備マスタ (§15-9 / ADR-26) -----------------------------
+
+  /**
+   * ぼろ靴 (初期装備、{@code docs/templates/equipments.json} の {@code tattered_boots} 準拠)。
+   * speed +1、{@link #dashCard()} を {@code grantedCards} で初期デッキに自動追加。
+   */
+  public static Equipment tatteredBoots() {
+    return new Equipment(
+        EquipmentId.of("tattered_boots"),
+        "ぼろ靴",
+        EquipmentSlot.FEET,
+        new StatsBonus(0, 1, 0, 0, 0, 0),
+        List.of(CardId.of("dash")));
+  }
+
+  /**
+   * ぼろい短剣 (初期装備、{@code docs/templates/equipments.json} の {@code tattered_dagger} 準拠)。
+   * 物攻 +1、{@link #zangetuCard()} (id="zangeki") を {@code grantedCards} で初期デッキに自動追加。
+   */
+  public static Equipment tatteredDagger() {
+    return new Equipment(
+        EquipmentId.of("tattered_dagger"),
+        "ぼろい短剣",
+        EquipmentSlot.HAND,
+        new StatsBonus(0, 0, 1, 0, 0, 0),
+        List.of(CardId.of("zangeki")));
+  }
+
+  // ----------------------------- カード ID → Card 解決 (§15-9 / ADR-26) -----------------------------
+
+  /**
+   * カード ID から {@link Card} を解決する (装備固有カード自動追加用)。マスタ未登録の ID は
+   * {@link IllegalArgumentException}。
+   *
+   * <p>本セッションの装備固有カードは {@code dash} (ぼろ靴) と {@code zangeki} (ぼろい短剣) の 2 種のみ。
+   * 将来のショップ販売 / 強化個体撃破時の選択肢で他カードが装備される場合、本メソッドに分岐を追加する。
+   */
+  public static Card resolveCard(CardId id) {
+    Objects.requireNonNull(id, "id");
+    return switch (id.value()) {
+      case "dash" -> dashCard();
+      case "zangeki" -> zangetuCard();
+      case "magic_bolt" -> magicBoltCard();
+      case "strong_strike" -> strongStrikeCard();
+      case "fireball" -> fireballCard();
+      case "ember_shot" -> emberShotCard();
+      case "blaze_nova" -> blazeNovaCard();
+      case "blink_step" -> blinkStepCard();
+      case "flame_circle" -> flameCircleCard();
+      default ->
+          throw new IllegalArgumentException("Unknown CardId for resolution: " + id.value());
+    };
+  }
 
   // ----------------------------- マップ -----------------------------
 
@@ -205,7 +279,11 @@ public final class InitialStateFactory {
   }
 
   /**
-   * 初期 Player を組み立てる (ADR-19: Random は引数注入)。
+   * 初期 Player を組み立てる (§15-9 完全実装 / ADR-25 / ADR-26 / ADR-19: Random は引数注入)。
+   *
+   * <p>初期装備として {@link #tatteredBoots()} (FEET) と {@link #tatteredDagger()} (HAND) を装着し、
+   * その {@code grantedCards} ({@code dash} + {@code zangeki}) を初期デッキとする。素ステに装備の
+   * {@code statsBonus} を加えた {@link Player#effectiveStats()} が「物攻 1 → 2 / 速度 3 → 4」になる。
    *
    * <p>{@code rng} は初期手札シャッフルと初期ドローで共有される。同一インスタンスを渡せばシャッフル後の
    * 山札順 → 初期ドロー結果が一意に定まる。
@@ -213,12 +291,23 @@ public final class InitialStateFactory {
   public static Player newPlayer(Position spawn, Random rng) {
     Objects.requireNonNull(spawn, "spawn");
     Objects.requireNonNull(rng, "rng");
-    // テスト用初期デッキ (4 枚、ADR-18 通り E-5 Equipment で動的化されるまでのハードコード)
-    // docs/templates/cards.json のテンプレに対応する Damage 系カードを揃える。
-    // Move/Buff/Trap カードは TurnEngine で reject されるため、ゲーム内で動作可能な
-    // Damage 系のみを初期デッキに含める (テンプレに記載はあるが実装は 5/15 以降)。
-    List<Card> deckCards =
-        List.of(zangetuCard(), magicBoltCard(), strongStrikeCard(), fireballCard());
+
+    // §15-9 / ADR-26: 装備固有カードを動的にデッキ化。ハードコード 4 枚は ADR-18 で予告したとおり
+    // E-5 で削除し、装備の grantedCards から動的生成 (装備外し = カード削除のメカニズム整合)。
+    Equipment boots = tatteredBoots();
+    Equipment dagger = tatteredDagger();
+    Map<EquipmentSlot, Equipment> equipmentMap = new HashMap<>();
+    equipmentMap.put(boots.slot(), boots);
+    equipmentMap.put(dagger.slot(), dagger);
+
+    List<Card> deckCards = new java.util.ArrayList<>();
+    for (CardId cid : boots.grantedCards()) {
+      deckCards.add(resolveCard(cid));
+    }
+    for (CardId cid : dagger.grantedCards()) {
+      deckCards.add(resolveCard(cid));
+    }
+
     DrawPile drawPile = DrawPile.shuffledFrom(deckCards, rng);
     CardPileState pileBase = new CardPileState(drawPile, Hand.empty(), DiscardPile.empty());
     // 初期ドロー枚数は §15-3 仕様の CardPileState.initialDrawCount でデッキ枚数から自動決定
@@ -230,10 +319,12 @@ public final class InitialStateFactory {
         ActorId.of("player"),
         spawn,
         Soul.zero(),
-        PlayerStatuses.of(
+        new PlayerStatuses(
             new Stats(30, 30, 3, 1, 2, 1, 1),
             ActionPoints.full(5),
-            new SkillSlot(List.of(lightSlash(), heavySlash()), 4)),
+            new SkillSlot(List.of(lightSlash(), heavySlash()), 4),
+            equipmentMap,
+            List.of()),
         initialPile,
         0);
   }
