@@ -3,7 +3,9 @@ package core.presentation.screen;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.ScreenAdapter;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -11,14 +13,20 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import core.application.TurnDirector;
 import core.domain.battle.BattleAction;
+import core.domain.battle.BattleEvent;
 import core.domain.battle.TurnPhase;
+import core.domain.dungeon.DungeonState;
+import core.domain.entity.ActorId;
+import core.domain.entity.Enemy;
 import core.domain.layer.LayerEndNode;
+import core.presentation.effect.DamagePopup;
 import core.presentation.input.PlayerInputs;
 import core.presentation.render.DungeonRenderer;
 import core.presentation.render.HudRenderer;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
 import core.presentation.window.NodeChoicePopup;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,7 +46,31 @@ import java.util.Optional;
  */
 public final class DungeonScreen extends ScreenAdapter {
 
+  /** 画面シェイクの継続時間 (秒、§15-5)。被弾 / 与ダメ共通。 */
+  private static final float SHAKE_DURATION = 0.18f;
+
+  /** 与ダメ時のシェイク振幅 (px)。 */
+  private static final float SHAKE_AMP_DEAL = 6f;
+
+  /** 被弾時のシェイク振幅 (px)。プレイヤーへのフィードバックを強調するため与ダメより大きい。 */
+  private static final float SHAKE_AMP_RECEIVE = 14f;
+
+  /** ダメージポップアップの最大同時表示数 (古いものから破棄、§15-5 描画コスト上限)。 */
+  private static final int MAX_POPUPS = 16;
+
   private final DddGame game;
+
+  /** ダメージポップアップ群 (§15-5 / E-8)。BattleEvent.DamageDealt 発火で push、isExpired で除去。 */
+  private final List<DamagePopup> popups = new ArrayList<>();
+
+  /** GameContext.totalEventsEmitted の前回観測値。新規 DamageDealt 検知のカーソル。 */
+  private long lastSeenEventCount = 0;
+
+  /** 画面シェイクの残り秒数 (0 で停止)。 */
+  private float shakeRemaining = 0f;
+
+  /** 画面シェイクの振幅 (px、被弾 / 与ダメで切替)。 */
+  private float shakeAmplitude = 0f;
 
   private OrthographicCamera camera;
   private Viewport viewport;
@@ -63,6 +95,8 @@ public final class DungeonScreen extends ScreenAdapter {
   @Override
   public void render(float delta) {
     updateState();
+    processNewEvents();   // §15-5 / E-8: 新規 DamageDealt → popup + shake
+    advanceEffects(delta); // popup の age 加算 + 期限切れ除去 + shake デクリメント
     drawFrame();
     // Popup は HUD の上に重ねて描画する (CLEARED 中の前面 UI)。drawFrame() で batch.end() 済みのため、
     // Stage の SpriteBatch とは衝突しない (描画スタックの順序: ダンジョン → HUD → Popup)。
@@ -141,6 +175,9 @@ public final class DungeonScreen extends ScreenAdapter {
   }
 
   private void drawFrame() {
+    // §15-5 / E-8: 画面シェイク。残り時間に応じて振幅を線形減衰させ、ランダム角度で揺らす。
+    applyCameraShake();
+
     ScreenUtils.clear(0.08f, 0.08f, 0.1f, 1f);
     viewport.apply();
     shapes.setProjectionMatrix(camera.combined);
@@ -150,7 +187,116 @@ public final class DungeonScreen extends ScreenAdapter {
 
     batch.begin();
     HudRenderer.draw(batch, game.fonts(), game.context(), playerInputs.pendingCardIndex());
+    drawPopups(batch);
     batch.end();
+  }
+
+  /**
+   * 新規 {@link BattleEvent.DamageDealt} を検知してダメージポップアップを spawn + 画面シェイクをトリガする
+   * (§15-5 / E-8)。{@link core.application.GameContext#totalEventsEmitted()} を前回観測値と比較し、
+   * 差分ぶんだけ {@code latestEvents} で取得する。
+   */
+  private void processNewEvents() {
+    long current = game.context().totalEventsEmitted();
+    if (current <= lastSeenEventCount) {
+      return;
+    }
+    int delta = (int) Math.min(current - lastSeenEventCount, 64L);
+    List<BattleEvent> newEvents = game.context().latestEvents(delta);
+    for (BattleEvent e : newEvents) {
+      if (e instanceof BattleEvent.DamageDealt d) {
+        spawnPopup(d);
+        triggerShake(d);
+      }
+    }
+    lastSeenEventCount = current;
+  }
+
+  /** popup の age 加算 + 期限切れ除去 + shake デクリメント (毎フレーム呼出)。 */
+  private void advanceEffects(float delta) {
+    if (!popups.isEmpty()) {
+      popups.replaceAll(p -> p.advanced(delta));
+      popups.removeIf(DamagePopup::isExpired);
+    }
+    if (shakeRemaining > 0f) {
+      shakeRemaining = Math.max(0f, shakeRemaining - delta);
+    }
+  }
+
+  /** DamageDealt から target タイル座標を逆引きして popup を spawn する。 */
+  private void spawnPopup(BattleEvent.DamageDealt d) {
+    DungeonState s = game.context().state();
+    int tileX;
+    int tileY;
+    boolean toPlayer = d.to().equals(s.player().id());
+    if (toPlayer) {
+      tileX = s.player().position().x();
+      tileY = s.player().position().y();
+    } else {
+      Optional<Enemy> enemyOpt = s.findEnemy(d.to());
+      if (enemyOpt.isEmpty()) {
+        return; // 既に死亡で除去された敵 → popup スキップ
+      }
+      tileX = enemyOpt.get().position().x();
+      tileY = enemyOpt.get().position().y();
+    }
+    float worldX =
+        RenderLayout.MAP_ORIGIN_X + tileX * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f - 12f;
+    float worldY =
+        RenderLayout.MAP_ORIGIN_Y + tileY * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f + 4f;
+    Color color = colorForDamage(toPlayer, d.damage());
+    if (popups.size() >= MAX_POPUPS) {
+      popups.remove(0);
+    }
+    popups.add(new DamagePopup(worldX, worldY, d.damage(), 0f, color));
+  }
+
+  /** 被弾は強シェイク、与ダメは弱シェイクをセット。残り時間は最大値で上書き (連続ヒット時の強調)。 */
+  private void triggerShake(BattleEvent.DamageDealt d) {
+    ActorId playerId = game.context().state().player().id();
+    boolean toPlayer = d.to().equals(playerId);
+    shakeAmplitude = toPlayer ? SHAKE_AMP_RECEIVE : SHAKE_AMP_DEAL;
+    shakeRemaining = SHAKE_DURATION;
+  }
+
+  /** §15-5 色分け方針: 被弾=赤、暴力的 (>=10) =黄、それ以外=白。 */
+  private static Color colorForDamage(boolean toPlayer, int amount) {
+    if (toPlayer) {
+      return new Color(1f, 0.4f, 0.35f, 1f);
+    }
+    if (amount >= 10) {
+      return new Color(1f, 0.9f, 0.2f, 1f);
+    }
+    return new Color(1f, 1f, 1f, 1f);
+  }
+
+  /** カメラを揺らす (FitViewport の中心を基準に dx/dy を加算)。残り時間で線形減衰。 */
+  private void applyCameraShake() {
+    float dx = 0f;
+    float dy = 0f;
+    if (shakeRemaining > 0f) {
+      float intensity = shakeAmplitude * (shakeRemaining / SHAKE_DURATION);
+      float angle = (float) (Math.random() * Math.PI * 2.0);
+      dx = (float) (Math.cos(angle) * intensity);
+      dy = (float) (Math.sin(angle) * intensity);
+    }
+    camera.position.set(
+        RenderLayout.SCREEN_WIDTH / 2f + dx, RenderLayout.SCREEN_HEIGHT / 2f + dy, 0f);
+    camera.update();
+  }
+
+  /** popup 群を large フォントで描画 (HUD の上)。 */
+  private void drawPopups(SpriteBatch batch) {
+    if (popups.isEmpty()) {
+      return;
+    }
+    BitmapFont font = game.fonts().large();
+    for (DamagePopup p : popups) {
+      Color c = p.baseColor();
+      font.setColor(c.r, c.g, c.b, p.alpha());
+      font.draw(batch, String.valueOf(p.amount()), p.worldX(), p.currentY());
+    }
+    font.setColor(Color.WHITE); // 後続描画への影響を避ける
   }
 
   private void transitionIfGameOver() {
