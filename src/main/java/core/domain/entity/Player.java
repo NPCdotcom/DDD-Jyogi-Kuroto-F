@@ -3,6 +3,7 @@ package core.domain.entity;
 import core.domain.battle.ActionPoints;
 import core.domain.card.CardPileState;
 import core.domain.common.Position;
+import core.domain.meta.Gold;
 import core.domain.meta.Soul;
 import core.domain.skill.SkillSlot;
 import java.util.Objects;
@@ -26,6 +27,7 @@ public record Player(
     ActorId id,
     Position position,
     Soul soul,
+    Gold gold,
     PlayerStatuses statuses,
     CardPileState cardPileState,
     int pendingMoveCount) {
@@ -34,6 +36,7 @@ public record Player(
     Objects.requireNonNull(id, "id");
     Objects.requireNonNull(position, "position");
     Objects.requireNonNull(soul, "soul");
+    Objects.requireNonNull(gold, "gold");
     Objects.requireNonNull(statuses, "statuses");
     Objects.requireNonNull(cardPileState, "cardPileState");
     if (pendingMoveCount < 0) {
@@ -68,12 +71,12 @@ public record Player(
   // ---- with* (内部で PlayerStatuses 経由) ----
 
   public Player withPosition(Position newPosition) {
-    return new Player(id, newPosition, soul, statuses, cardPileState, pendingMoveCount);
+    return new Player(id, newPosition, soul, gold, statuses, cardPileState, pendingMoveCount);
   }
 
   public Player withStats(Stats newStats) {
     return new Player(
-        id, position, soul, statuses.withStats(newStats), cardPileState, pendingMoveCount);
+        id, position, soul, gold, statuses.withStats(newStats), cardPileState, pendingMoveCount);
   }
 
   public Player withActionPoints(ActionPoints newActionPoints) {
@@ -81,25 +84,39 @@ public record Player(
         id,
         position,
         soul,
+        gold,
         statuses.withActionPoints(newActionPoints),
         cardPileState,
         pendingMoveCount);
   }
 
   public Player addSoul(Soul delta) {
-    return new Player(id, position, soul.add(delta), statuses, cardPileState, pendingMoveCount);
+    return new Player(
+        id, position, soul.add(delta), gold, statuses, cardPileState, pendingMoveCount);
+  }
+
+  /** §15-2 / §15-9: 金貨を加算した新 Player を返す純関数。 */
+  public Player addGold(Gold delta) {
+    return new Player(
+        id, position, soul, gold.add(delta), statuses, cardPileState, pendingMoveCount);
+  }
+
+  /** §15-9 Shop: 金貨を消費した新 Player を返す。残量不足は {@link IllegalStateException}。 */
+  public Player spendGold(Gold cost) {
+    return new Player(
+        id, position, soul, gold.subtract(cost), statuses, cardPileState, pendingMoveCount);
   }
 
   public Player withCardPileState(CardPileState newCardPileState) {
-    return new Player(id, position, soul, statuses, newCardPileState, pendingMoveCount);
+    return new Player(id, position, soul, gold, statuses, newCardPileState, pendingMoveCount);
   }
 
   public Player withPendingMoveCount(int newPendingMoveCount) {
-    return new Player(id, position, soul, statuses, cardPileState, newPendingMoveCount);
+    return new Player(id, position, soul, gold, statuses, cardPileState, newPendingMoveCount);
   }
 
   /** Buff / 装備の追加・除去で {@link PlayerStatuses} 全体を差し替える時に使う (ADR-25)。 */
   public Player withStatuses(PlayerStatuses newStatuses) {
-    return new Player(id, position, soul, newStatuses, cardPileState, pendingMoveCount);
+    return new Player(id, position, soul, gold, newStatuses, cardPileState, pendingMoveCount);
   }
 }

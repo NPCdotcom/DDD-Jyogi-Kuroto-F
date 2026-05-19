@@ -21,6 +21,7 @@ import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
 import core.domain.entity.PlayerStatuses;
 import core.domain.entity.Stats;
+import core.domain.meta.Gold;
 import core.domain.meta.Soul;
 import core.domain.skill.Skill;
 import core.domain.skill.SkillEffect;
@@ -63,6 +64,8 @@ public final class DomainFixtures {
         ActorId.of("p1"),
         position,
         Soul.zero(),
+        // §15-2: ラン内通貨 Gold は 0 で初期化。
+        Gold.zero(),
         // ADR-25: PlayerStatuses 集約 (素ステ / AP / SkillSlot / Equipment 未装備 / Buff なし)。
         // ADR-17: 物攻/魔攻/物防/魔防 は暫定 0 埋め。
         PlayerStatuses.of(

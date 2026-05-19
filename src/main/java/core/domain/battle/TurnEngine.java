@@ -470,9 +470,16 @@ public final class TurnEngine {
             state.player().id(), target.id(), finalDamage, damagedStats.currentHp()));
     if (!damagedStats.isAlive()) {
       events.add(new BattleEvent.ActorDied(target.id()));
-      int reward = target.kind().soulReward();
-      Player rewardedPlayer = state.player().addSoul(new Soul(reward));
-      events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), reward));
+      int soulReward = target.kind().soulReward();
+      int goldReward = target.kind().goldReward();
+      // §15-2: 撃破時に Soul + Gold を加算 (敵種ごとのレート)。
+      Player rewardedPlayer =
+          state
+              .player()
+              .addSoul(new Soul(soulReward))
+              .addGold(new core.domain.meta.Gold(goldReward));
+      events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), soulReward));
+      events.add(new BattleEvent.GoldGained(rewardedPlayer.id(), goldReward));
       DungeonState ns = state.withEnemyRemoved(target.id()).withPlayer(rewardedPlayer);
       // CLEARED への遷移は階段踏破で行う (applyPlayerMove)。
       // 敵全滅では CLEARED にしない: 敵 1 体撃破で即クリアになるのを避けるため。
@@ -562,9 +569,15 @@ public final class TurnEngine {
       Enemy victimEnemy = state.findEnemy(victimId).orElseThrow().withStats(damagedStats);
       if (!damagedStats.isAlive()) {
         events.add(new BattleEvent.ActorDied(victimId));
-        int reward = victimEnemy.kind().soulReward();
-        Player rewardedPlayer = ns.player().addSoul(new Soul(reward));
-        events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), reward));
+        int soulReward = victimEnemy.kind().soulReward();
+        int goldReward = victimEnemy.kind().goldReward();
+        // §15-2: 罠撃破でも通常撃破と同じレートで Soul + Gold を加算。
+        Player rewardedPlayer =
+            ns.player()
+                .addSoul(new Soul(soulReward))
+                .addGold(new core.domain.meta.Gold(goldReward));
+        events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), soulReward));
+        events.add(new BattleEvent.GoldGained(rewardedPlayer.id(), goldReward));
         ns = ns.withEnemyRemoved(victimId).withPlayer(rewardedPlayer);
       } else {
         ns = ns.withEnemyReplaced(victimEnemy);

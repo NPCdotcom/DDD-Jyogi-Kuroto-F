@@ -73,6 +73,11 @@ public final class HudRenderer {
         RenderLayout.HUD_Y_SOUL);
     font.draw(
         batch,
+        "%s: %d".formatted(jp ? Strings.Ja.HUD_GOLD : Strings.En.HUD_GOLD, p.gold().amount()),
+        RenderLayout.HUD_X,
+        RenderLayout.HUD_Y_GOLD);
+    font.draw(
+        batch,
         "%s: %s"
             .formatted(
                 jp ? Strings.Ja.HUD_PHASE : Strings.En.HUD_PHASE,
@@ -254,6 +259,9 @@ public final class HudRenderer {
       case BattleEvent.SoulGained sg ->
           (jp ? Strings.Ja.EV_SOUL_GAINED_FORMAT : Strings.En.EV_SOUL_GAINED_FORMAT)
               .formatted(sg.who().value(), sg.amount());
+      case BattleEvent.GoldGained gg ->
+          (jp ? Strings.Ja.EV_GOLD_GAINED_FORMAT : Strings.En.EV_GOLD_GAINED_FORMAT)
+              .formatted(gg.who().value(), gg.amount());
       case BattleEvent.TurnPhaseChanged tp ->
           (jp ? Strings.Ja.EV_PHASE_FORMAT : Strings.En.EV_PHASE_FORMAT)
               .formatted(phaseLabel(jp, tp.newPhase()));

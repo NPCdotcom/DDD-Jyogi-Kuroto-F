@@ -48,14 +48,15 @@ public final class RenderLayout {
 
   public static final int HUD_Y_AP = 992;
   public static final int HUD_Y_SOUL = 944;
-  public static final int HUD_Y_PHASE = 896;
+  public static final int HUD_Y_GOLD = 896;
+  public static final int HUD_Y_PHASE = 848;
 
   /**
    * 移動権残量表示の Y 座標 (ADR-21 §15-5)。
    *
    * <p>HUD_Y_PHASE の 1 行下に配置する。pendingMoveCount > 0 のときのみ描画される。
    */
-  public static final int HUD_Y_MOVE_TOKEN = 848;
+  public static final int HUD_Y_MOVE_TOKEN = 800;
 
   /**
    * 操作ヒント (WASD/矢印: 移動 等) の Y 座標。

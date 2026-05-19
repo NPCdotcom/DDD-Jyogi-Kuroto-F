@@ -16,6 +16,7 @@ public sealed interface BattleEvent
         BattleEvent.DamageDealt,
         BattleEvent.ActorDied,
         BattleEvent.SoulGained,
+        BattleEvent.GoldGained,
         BattleEvent.TurnPhaseChanged,
         BattleEvent.ActionRejected,
         BattleEvent.MovementGranted,
@@ -60,6 +61,19 @@ public sealed interface BattleEvent
 
   record SoulGained(ActorId who, int amount) implements BattleEvent {
     public SoulGained {
+      Objects.requireNonNull(who, "who");
+      if (amount <= 0) {
+        throw new IllegalArgumentException("amount must be positive: " + amount);
+      }
+    }
+  }
+
+  /**
+   * 金貨獲得通知 (§15-2 / §15-9 Shop の前提)。敵撃破時に {@link SoulGained} と並列に発火する。
+   * HUD ログでは「{プレイヤー} は {N} 金貨を獲得」のように表示。
+   */
+  record GoldGained(ActorId who, int amount) implements BattleEvent {
+    public GoldGained {
       Objects.requireNonNull(who, "who");
       if (amount <= 0) {
         throw new IllegalArgumentException("amount must be positive: " + amount);

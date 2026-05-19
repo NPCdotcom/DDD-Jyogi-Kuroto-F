@@ -26,6 +26,7 @@ import core.domain.equipment.EquipmentId;
 import core.domain.equipment.EquipmentSlot;
 import core.domain.equipment.StatsBonus;
 import core.domain.layer.Layer;
+import core.domain.meta.Gold;
 import core.domain.meta.Soul;
 import core.domain.skill.Skill;
 import core.domain.skill.SkillEffect;
@@ -346,6 +347,7 @@ public final class InitialStateFactory {
         ActorId.of("player"),
         spawn,
         Soul.zero(),
+        Gold.zero(),
         new PlayerStatuses(
             new Stats(30, 30, 3, 1, 2, 1, 1),
             ActionPoints.full(5),

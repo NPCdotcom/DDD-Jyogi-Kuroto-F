@@ -82,6 +82,10 @@ public final class Strings {
     public static final String BUFF_KIND_MAGICAL_DEFENSE = "魔防";
     public static final String BUFF_KIND_SPEED = "速度";
 
+    // §15-2 / §15-9 金貨 (ラン内通貨)
+    public static final String HUD_GOLD = "金貨";
+    public static final String EV_GOLD_GAINED_FORMAT = "%s は %d 金貨を獲得";
+
     // §15-7 / E-2 ソウルツリー画面 / タイトル画面動線
     public static final String SOUL_COST_FORMAT = "ソウル %d";
     public static final String SOUL_TREE_TITLE = "ソウルツリー";
@@ -162,6 +166,10 @@ public final class Strings {
     public static final String BUFF_KIND_PHYSICAL_DEFENSE = "PhyDef";
     public static final String BUFF_KIND_MAGICAL_DEFENSE = "MagDef";
     public static final String BUFF_KIND_SPEED = "Speed";
+
+    // §15-2 / §15-9 Gold (run-local currency)
+    public static final String HUD_GOLD = "Gold";
+    public static final String EV_GOLD_GAINED_FORMAT = "%s gained %d gold";
 
     // §15-7 / E-2 Soul Tree screen / title screen entry
     public static final String SOUL_COST_FORMAT = "Soul %d";
