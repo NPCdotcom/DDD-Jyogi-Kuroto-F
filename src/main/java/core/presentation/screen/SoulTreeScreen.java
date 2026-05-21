@@ -25,7 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * ソウルツリー画面 (§15-7 / E-2)。タイトル画面 (2 周目以降) またはラン終了後に遷移し、17 ノードを 円樹形配置で描画。マウスクリックでノード解放、WASD /
+ * ソウルツリー画面 (§15-7 / E-2)。タイトル画面 (2 周目以降) またはラン終了後に遷移し、23 ノードを 円樹形配置で描画。マウスクリックでノード解放、WASD /
  * 矢印キー・マウスドラッグでパン、Z / X で ズーム、R キーでツリーリセット、ESC でタイトルに戻る。
  *
  * <p>カメラは 2 系統: ツリー本体 (枝線 + ノード + ノード文字) は {@link #camera} (パン / ズーム可能) で 描画し、画面下部の HUD (タイトル /
@@ -74,7 +74,7 @@ public final class SoulTreeScreen extends ScreenAdapter {
   /** クリックとドラッグを区別するスクリーン移動量しきい値 (px)。 */
   private static final float CLICK_DRAG_THRESHOLD = 8f;
 
-  /** 17 ノードの画面座標 (放射状配置、§15-7 円樹形 UI)。 */
+  /** 23 ノードの画面座標 (放射状配置、§15-7 円樹形 UI)。 */
   private static final Map<NodeId, Vector2> POSITIONS = positions();
 
   private final DddGame game;
@@ -127,6 +127,13 @@ public final class SoulTreeScreen extends ScreenAdapter {
     m.put(NodeId.of("slot_expand_3"), polar(190, 540));
     m.put(NodeId.of("slot_expand_4"), polar(240, 540));
     m.put(NodeId.of("slot_expand_5"), polar(300, 540));
+    // ステ軸 Lv2 (各スポークの最外周、§15-7 充実化)
+    m.put(NodeId.of("hp_up_2"), polar(0, 700));
+    m.put(NodeId.of("speed_up_2"), polar(60, 700));
+    m.put(NodeId.of("phys_atk_up_2"), polar(120, 700));
+    m.put(NodeId.of("mag_atk_up_2"), polar(180, 700));
+    m.put(NodeId.of("phys_def_up_2"), polar(240, 700));
+    m.put(NodeId.of("mag_def_up_2"), polar(300, 700));
     return Map.copyOf(m);
   }
 
@@ -192,6 +199,9 @@ public final class SoulTreeScreen extends ScreenAdapter {
       if (to == null) {
         continue;
       }
+      if (!tree.isVisible(node.id()) && !allPrereqsVisible(node, tree)) {
+        continue; // 段階的開示: 子ノードが未開示なら枝も描かない
+      }
       for (NodeId prereq : node.prerequisites()) {
         Vector2 from = POSITIONS.get(prereq);
         if (from == null) {
@@ -222,6 +232,24 @@ public final class SoulTreeScreen extends ScreenAdapter {
       TreeNode node = entry.getValue();
       Vector2 pos = POSITIONS.get(id);
       if (pos == null) {
+        continue;
+      }
+      // 段階的開示: 可視 = 前提全解放 / シルエット = 前提が全て可視 (1 段先の予告) / それ以外は非表示。
+      boolean visible = tree.isVisible(id);
+      boolean silhouette = !visible && allPrereqsVisible(node, tree);
+      if (!visible && !silhouette) {
+        continue;
+      }
+      if (silhouette) {
+        batch.setColor(0.3f, 0.3f, 0.36f, 0.75f);
+        batch.draw(
+            nodeTexture,
+            pos.x - NODE_TEX_SIZE / 2,
+            pos.y - NODE_TEX_SIZE / 2,
+            NODE_TEX_SIZE,
+            NODE_TEX_SIZE);
+        large.setColor(0.55f, 0.55f, 0.6f, 1f);
+        large.draw(batch, "?", pos.x - 10, pos.y + 12);
         continue;
       }
       boolean unlocked = tree.unlockedNodes().contains(id);
@@ -359,6 +387,7 @@ public final class SoulTreeScreen extends ScreenAdapter {
       }
     }
     if (Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
+      dispose(); // setScreen は旧 Screen を dispose しないため明示的に解放 (LibGDX 規約)
       game.setScreen(new TitleScreen(game));
       return;
     }
@@ -376,6 +405,14 @@ public final class SoulTreeScreen extends ScreenAdapter {
       float dy = worldY - pos.y;
       if (dx * dx + dy * dy <= NODE_RADIUS * NODE_RADIUS) {
         NodeId clicked = entry.getKey();
+        if (!game.soulTree().isVisible(clicked)) {
+          // 未開示ノード (シルエット) のクリック: 無反応だと混乱するため、前提解放を促す。
+          showFlash(
+              game.fonts().isJapaneseAvailable()
+                  ? Strings.Ja.SOUL_TREE_LOCKED_FLASH
+                  : Strings.En.SOUL_TREE_LOCKED_FLASH);
+          return;
+        }
         try {
           game.unlockTreeNode(clicked);
           showFlash("解放: " + SoulTree.allNodes().get(clicked).displayName());
@@ -392,6 +429,16 @@ public final class SoulTreeScreen extends ScreenAdapter {
   private static boolean allPrereqsUnlocked(TreeNode node, SoulTree tree) {
     for (NodeId prereq : node.prerequisites()) {
       if (!tree.unlockedNodes().contains(prereq)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** ノードの全前提が「可視」か (段階的開示: 1 段先のシルエット表示判定に使う)。 */
+  private static boolean allPrereqsVisible(TreeNode node, SoulTree tree) {
+    for (NodeId prereq : node.prerequisites()) {
+      if (!tree.isVisible(prereq)) {
         return false;
       }
     }

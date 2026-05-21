@@ -13,8 +13,8 @@ import java.util.Optional;
  * <p>3 ステートモデル (ADR-21 §15-5):
  *
  * <ul>
- *   <li>状態0 (通常): 数字キー 1〜9 でカード選択 (状態1へ)、WASD/矢印で移動、SPACE/ENTER は待機/ターン終了
- *   <li>状態1 (カード選択中): 方向キーで {@link BattleAction.UseCard} 発行しリセット、ESC でキャンセル
+ *   <li>状態0 (通常): 数字キーで手札のカード選択 (状態1へ、空スロットは選べない)、WASD/矢印で移動、SPACE/ENTER は待機/ターン終了
+ *   <li>状態1 (カード選択中): 方向キーで {@link BattleAction.UseCard} 発行しリセット、ESC でキャンセル、ENTER でターン終了
  *   <li>状態2 (移動権保持中): {@code DungeonState.player().pendingMoveCount() > 0} のとき自動遷移。 WASD/方向キーで
  *       {@link BattleAction.Move} 発行 (TurnEngine が AP 0 で処理)、ENTER で残り移動権を放棄してターン終了
  *       (四方を塞がれた際のソフトロック回避)。数字キー・SPACE は無視。
@@ -65,22 +65,7 @@ public final class PlayerInputs {
       return pollCardDirectionMode();
     }
     // 状態0: 通常
-    return pollNormalMode();
-  }
-
-  /**
-   * 後方互換オーバーロード。移動権を持たない状態で呼ぶ場合に使用。
-   *
-   * <p>移動権判定が不要な箇所 (テスト等) 向け。本番の DungeonScreen では {@link #poll(DungeonState)} を使うこと。
-   *
-   * @deprecated DungeonScreen は {@link #poll(DungeonState)} に移行済み。残存する呼び出しは移行すること。
-   */
-  @Deprecated
-  public Optional<BattleAction> poll() {
-    if (pendingCardIndex >= 0) {
-      return pollCardDirectionMode();
-    }
-    return pollNormalMode();
+    return pollNormalMode(state.player().cardPileState().hand().size());
   }
 
   /**
@@ -103,12 +88,17 @@ public final class PlayerInputs {
     return Optional.empty();
   }
 
-  /** 状態1 (カード選択中): 方向キーで UseCard 発行、ESC でキャンセル。 */
+  /** 状態1 (カード選択中): 方向キーで UseCard 発行、ESC でキャンセル、ENTER でターン終了。 */
   private Optional<BattleAction> pollCardDirectionMode() {
-    // ESC でキャンセル
+    // ESC でカード選択をキャンセル
     if (Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
       pendingCardIndex = NONE;
       return Optional.empty();
+    }
+    // ENTER でカード選択を解除してターン終了 (どの入力状態からも詰まないための脱出路)
+    if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
+      pendingCardIndex = NONE;
+      return Optional.of(new BattleAction.EndTurn());
     }
     // 方向キーで UseCard 発行
     Direction dir = readDirection();
@@ -121,14 +111,15 @@ public final class PlayerInputs {
   }
 
   /** 状態0 (通常): 移動 / 数字キーによるカード選択 / 待機 / ターン終了。 */
-  private Optional<BattleAction> pollNormalMode() {
+  private Optional<BattleAction> pollNormalMode(int handSize) {
     // WASD / 矢印キーは移動
     Direction dir = readDirection();
     if (dir != null) {
       return Optional.of(new BattleAction.Move(dir));
     }
-    // 数字キー 1〜9 でカード選択モードへ (UseCard: 0-indexed)
-    for (int i = 0; i < 9; i++) {
+    // 数字キーでカード選択モードへ (UseCard: 0-indexed)。手札に実在するカードのみ選択可
+    // (空スロットを選んでカード選択状態に入り、操作不能に陥るのを防ぐ)。
+    for (int i = 0; i < handSize && i < 9; i++) {
       if (Gdx.input.isKeyJustPressed(numKey(i))) {
         pendingCardIndex = i;
         return Optional.empty(); // 方向待ち (まだアクション未確定)

@@ -15,7 +15,8 @@ import java.util.function.Function;
 /**
  * ソウルツリー (§15-7 / E-2)。永続強化のメタ進行を表現する不変 record。
  *
- * <p>構成: 17 ノード (中央 root + 6 ステ軸 + 派生軸 1 カード獲得 5 ノード + 派生軸 2 枠拡張 5 ノード)。
+ * <p>構成: 23 ノード (中央 root + 6 ステ軸 Lv1 + 6 ステ軸 Lv2 + 派生軸 1 カード獲得 5 ノード + 派生軸 2 枠拡張 5 ノード)。 段階的開示
+ * ({@link #isVisible}): 前提ノードを解放すると次のノードが画面に現れる。
  *
  * <p>ノードコスト (§15-7 仕様):
  *
@@ -53,13 +54,20 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
     return new SoulTree(Set.of(ROOT), 0);
   }
 
+  /** 全 23 ノードのマスタ定義 (登録順保持・不変)。起動時に 1 度だけ構築しキャッシュする。 */
+  private static final Map<NodeId, TreeNode> ALL_NODES = buildAllNodes();
+
   /**
-   * 全 17 ノードのマスタ定義を返す (id → TreeNode、挿入順保持の LinkedHashMap)。
+   * 全 23 ノードのマスタ定義を返す (id → TreeNode、登録順保持の不変マップ)。
    *
-   * <p>UI 側 (SoulTreeScreen) もここから配置情報を引く。本セッションでは座標は presentation 層で static
-   * に定義し、ドメインは純粋に「どのノードがあるか + 前提 + 効果」だけを表現する。
+   * <p>UI 側 (SoulTreeScreen) もここから配置情報を引く。{@link #isVisible} 経由で毎フレーム多数回呼ばれるため {@link #ALL_NODES}
+   * にキャッシュ済み (呼出のたびに再構築しない)。座標は presentation 層で static に定義する。
    */
   public static Map<NodeId, TreeNode> allNodes() {
+    return ALL_NODES;
+  }
+
+  private static Map<NodeId, TreeNode> buildAllNodes() {
     Map<NodeId, TreeNode> nodes = new LinkedHashMap<>();
     // 中央 (入口、効果なし、コスト 0)
     nodes.put(ROOT, new TreeNode(ROOT, "中央", 0, NodeEffect.None.INSTANCE, Set.of()));
@@ -201,7 +209,76 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
             new NodeEffect.SlotExpandEffect(1),
             Set.of(NodeId.of("card_grant_arcane_veil"))));
 
-    return nodes;
+    // 派生軸 3: 各ステ軸の Lv2 強化 (Lv1 の先、§15-7 充実化)。Lv1 より強い補正・高コスト。
+    nodes.put(
+        NodeId.of("hp_up_2"),
+        new TreeNode(
+            NodeId.of("hp_up_2"),
+            "HP +10",
+            14,
+            new NodeEffect.StatsBonusEffect(new StatsBonus(10, 0, 0, 0, 0, 0)),
+            Set.of(NodeId.of("hp_up_1"))));
+    nodes.put(
+        NodeId.of("speed_up_2"),
+        new TreeNode(
+            NodeId.of("speed_up_2"),
+            "速度 +1",
+            60,
+            new NodeEffect.StatsBonusEffect(new StatsBonus(0, 1, 0, 0, 0, 0)),
+            Set.of(NodeId.of("speed_up_1"))));
+    nodes.put(
+        NodeId.of("phys_atk_up_2"),
+        new TreeNode(
+            NodeId.of("phys_atk_up_2"),
+            "物攻 +2",
+            12,
+            new NodeEffect.StatsBonusEffect(new StatsBonus(0, 0, 2, 0, 0, 0)),
+            Set.of(NodeId.of("phys_atk_up_1"))));
+    nodes.put(
+        NodeId.of("mag_atk_up_2"),
+        new TreeNode(
+            NodeId.of("mag_atk_up_2"),
+            "魔攻 +2",
+            12,
+            new NodeEffect.StatsBonusEffect(new StatsBonus(0, 0, 0, 2, 0, 0)),
+            Set.of(NodeId.of("mag_atk_up_1"))));
+    nodes.put(
+        NodeId.of("phys_def_up_2"),
+        new TreeNode(
+            NodeId.of("phys_def_up_2"),
+            "物防 +2",
+            10,
+            new NodeEffect.StatsBonusEffect(new StatsBonus(0, 0, 0, 0, 2, 0)),
+            Set.of(NodeId.of("phys_def_up_1"))));
+    nodes.put(
+        NodeId.of("mag_def_up_2"),
+        new TreeNode(
+            NodeId.of("mag_def_up_2"),
+            "魔防 +2",
+            10,
+            new NodeEffect.StatsBonusEffect(new StatsBonus(0, 0, 0, 0, 0, 2)),
+            Set.of(NodeId.of("mag_def_up_1"))));
+
+    return java.util.Collections.unmodifiableMap(nodes);
+  }
+
+  /**
+   * ノードを画面に表示してよいか (段階的開示、§15-7)。前提ノードがすべて解放済みなら可視。 ROOT は前提なしのため常に可視。未定義の NodeId は不可視。
+   *
+   * <p>「根元を取ると奥のノードが現れる」挙動を表現する: 前提を解放するまで子ノードは隠れる。 SoulTreeScreen はこの判定で描画を出し分ける。
+   */
+  public boolean isVisible(NodeId nodeId) {
+    Objects.requireNonNull(nodeId, "nodeId");
+    TreeNode node = allNodes().get(nodeId);
+    if (node == null) {
+      return false;
+    }
+    for (NodeId prereq : node.prerequisites()) {
+      if (!unlockedNodes.contains(prereq)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**

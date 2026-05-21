@@ -94,6 +94,14 @@ public final class Strings {
     public static final String STATUS_PHYSICAL_DEFENSE = "物防";
     public static final String STATUS_MAGICAL_DEFENSE = "魔防";
     public static final String STATUS_HINT = "[Tab] 閉じる";
+    public static final String STATUS_EQUIPMENT_HEADER = "── 装備 ──";
+    public static final String STATUS_EQUIP_NONE = "(なし)";
+    public static final String EQUIP_SLOT_FEET = "足";
+    public static final String EQUIP_SLOT_HAND = "手";
+    public static final String EQUIP_SLOT_MAIN = "主武器";
+    public static final String EQUIP_SLOT_HEAD = "頭";
+    public static final String EQUIP_SLOT_BODY = "胴";
+    public static final String EQUIP_SLOT_ACCESSORY = "装飾";
 
     // §15-2 / §15-9 金貨 (ラン内通貨)
     public static final String HUD_GOLD = "金貨";
@@ -109,6 +117,7 @@ public final class Strings {
     public static final String SOUL_TREE_CONTROLS_HINT =
         "[クリック] 解放  [WASD/矢印] 移動  [Z/X] ズーム  [R] リセット  [ESC] 戻る";
     public static final String SOUL_TREE_FLASH_RESET = "ツリーをリセットしました";
+    public static final String SOUL_TREE_LOCKED_FLASH = "前提ノードを先に解放してください";
     public static final String TITLE_OPEN_TREE_HINT_FORMAT = "[T] ソウルツリーを開く (所持ソウル: %d)";
 
     // §15-3 カード図鑑
@@ -116,6 +125,13 @@ public final class Strings {
     public static final String COLLECTION_LOCKED = "？？？ (未入手)";
     public static final String COLLECTION_HINT = "[↑↓ / WS] スクロール   [ESC] タイトルへ戻る";
     public static final String TITLE_OPEN_COLLECTION_HINT = "[C] カード図鑑を開く";
+
+    // §15-9 装備変更画面
+    public static final String EQUIP_SCREEN_TITLE = "装備の変更";
+    public static final String EQUIP_SCREEN_HINT =
+        "[↑↓ / WS] スクロール   [クリック] 装備 / 解除   [ESC] タイトルへ戻る";
+    public static final String EQUIP_EQUIPPED_MARK = "★装備中";
+    public static final String TITLE_OPEN_EQUIP_HINT = "[E] 装備を変更する";
 
     // §15-10 / E-10 チュートリアル
     public static final String TUTORIAL_TITLE = "操作説明";
@@ -218,6 +234,14 @@ public final class Strings {
     public static final String STATUS_PHYSICAL_DEFENSE = "Phys Def";
     public static final String STATUS_MAGICAL_DEFENSE = "Mag Def";
     public static final String STATUS_HINT = "[Tab] Close";
+    public static final String STATUS_EQUIPMENT_HEADER = "-- Equipment --";
+    public static final String STATUS_EQUIP_NONE = "(none)";
+    public static final String EQUIP_SLOT_FEET = "Feet";
+    public static final String EQUIP_SLOT_HAND = "Hand";
+    public static final String EQUIP_SLOT_MAIN = "Main";
+    public static final String EQUIP_SLOT_HEAD = "Head";
+    public static final String EQUIP_SLOT_BODY = "Body";
+    public static final String EQUIP_SLOT_ACCESSORY = "Accessory";
 
     // §15-2 / §15-9 Gold (run-local currency)
     public static final String HUD_GOLD = "Gold";
@@ -234,6 +258,7 @@ public final class Strings {
     public static final String SOUL_TREE_CONTROLS_HINT =
         "[Click] Unlock  [WASD/Arrows] Pan  [Z/X] Zoom  [R] Reset  [ESC] Back";
     public static final String SOUL_TREE_FLASH_RESET = "Tree reset";
+    public static final String SOUL_TREE_LOCKED_FLASH = "Unlock the prerequisite node first";
     public static final String TITLE_OPEN_TREE_HINT_FORMAT = "[T] Open Soul Tree (Soul: %d)";
 
     // §15-3 Card collection
@@ -241,6 +266,13 @@ public final class Strings {
     public static final String COLLECTION_LOCKED = "??? (locked)";
     public static final String COLLECTION_HINT = "[Up/Down / WS] Scroll   [ESC] Back to title";
     public static final String TITLE_OPEN_COLLECTION_HINT = "[C] Open Card Collection";
+
+    // §15-9 Equipment screen
+    public static final String EQUIP_SCREEN_TITLE = "Change Equipment";
+    public static final String EQUIP_SCREEN_HINT =
+        "[Up/Down / WS] Scroll   [Click] Equip / Unequip   [ESC] Back to title";
+    public static final String EQUIP_EQUIPPED_MARK = "[equipped]";
+    public static final String TITLE_OPEN_EQUIP_HINT = "[E] Change Equipment";
 
     // §15-10 / E-10 Tutorial
     public static final String TUTORIAL_TITLE = "How to Play";

@@ -15,6 +15,9 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import core.domain.entity.Player;
 import core.domain.entity.Stats;
+import core.domain.equipment.Equipment;
+import core.domain.equipment.EquipmentSlot;
+import core.domain.equipment.StatsBonus;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
 import java.util.Objects;
@@ -37,6 +40,12 @@ public final class StatusPopup implements Disposable {
   /** 各ステの値ラベル。index: 0=HP 1=速度 2=物攻 3=魔攻 4=物防 5=魔防。 */
   private final Label[] valueLabels = new Label[ROW_COUNT];
 
+  /** 各装備スロットの装着品ラベル。index は {@link EquipmentSlot#ordinal()}。 */
+  private final Label[] equipLabels = new Label[EquipmentSlot.values().length];
+
+  /** 日本語フォント利用可否 ({@link #updateValues} での文言切替に使う)。 */
+  private final boolean japanese;
+
   /**
    * Stage / Window を構築する。
    *
@@ -46,6 +55,7 @@ public final class StatusPopup implements Disposable {
    */
   public StatusPopup(BitmapFont font, boolean japanese) {
     Objects.requireNonNull(font, "font");
+    this.japanese = japanese;
 
     Viewport viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT);
     this.stage = new Stage(viewport);
@@ -75,6 +85,23 @@ public final class StatusPopup implements Disposable {
       Label value = new Label("-", labelStyle);
       value.setColor(Color.WHITE);
       valueLabels[i] = value;
+      window.add(name).left().padRight(64f).padBottom(14f);
+      window.add(value).left().minWidth(220f).padBottom(14f).row();
+    }
+
+    // §15-9: 装備セクション。各スロットの装着品を表示 (空きは「(なし)」)。
+    Label equipHeader =
+        new Label(
+            japanese ? Strings.Ja.STATUS_EQUIPMENT_HEADER : Strings.En.STATUS_EQUIPMENT_HEADER,
+            labelStyle);
+    equipHeader.setColor(new Color(0.95f, 0.85f, 0.3f, 1f));
+    window.add(equipHeader).left().colspan(2).padTop(10f).padBottom(14f).row();
+    EquipmentSlot[] slots = EquipmentSlot.values();
+    for (int i = 0; i < slots.length; i++) {
+      Label name = new Label(slotLabel(slots[i], japanese), labelStyle);
+      name.setColor(new Color(0.7f, 0.75f, 0.85f, 1f));
+      Label value = new Label("-", labelStyle);
+      equipLabels[i] = value;
       window.add(name).left().padRight(64f).padBottom(14f);
       window.add(value).left().minWidth(220f).padBottom(14f).row();
     }
@@ -128,6 +155,62 @@ public final class StatusPopup implements Disposable {
     valueLabels[3].setText(statText(base.magicalAttack(), eff.magicalAttack()));
     valueLabels[4].setText(statText(base.physicalDefense(), eff.physicalDefense()));
     valueLabels[5].setText(statText(base.magicalDefense(), eff.magicalDefense()));
+
+    var equipment = player.statuses().equipment();
+    EquipmentSlot[] slots = EquipmentSlot.values();
+    for (int i = 0; i < slots.length; i++) {
+      Equipment eq = equipment.get(slots[i]);
+      equipLabels[i].setText(
+          eq == null
+              ? (japanese ? Strings.Ja.STATUS_EQUIP_NONE : Strings.En.STATUS_EQUIP_NONE)
+              : eq.displayName() + statsBonusSummary(eq.statsBonus(), japanese));
+    }
+  }
+
+  /** 装備スロットの表示名 (日英)。 */
+  private static String slotLabel(EquipmentSlot slot, boolean jp) {
+    return switch (slot) {
+      case FEET -> jp ? Strings.Ja.EQUIP_SLOT_FEET : Strings.En.EQUIP_SLOT_FEET;
+      case HAND -> jp ? Strings.Ja.EQUIP_SLOT_HAND : Strings.En.EQUIP_SLOT_HAND;
+      case MAIN -> jp ? Strings.Ja.EQUIP_SLOT_MAIN : Strings.En.EQUIP_SLOT_MAIN;
+      case HEAD -> jp ? Strings.Ja.EQUIP_SLOT_HEAD : Strings.En.EQUIP_SLOT_HEAD;
+      case BODY -> jp ? Strings.Ja.EQUIP_SLOT_BODY : Strings.En.EQUIP_SLOT_BODY;
+      case ACCESSORY -> jp ? Strings.Ja.EQUIP_SLOT_ACCESSORY : Strings.En.EQUIP_SLOT_ACCESSORY;
+    };
+  }
+
+  /** 装備のステ補正を " (物攻 +1, 速度 +2)" 形式に整形する。全て 0 なら空文字。 */
+  private static String statsBonusSummary(StatsBonus b, boolean jp) {
+    StringBuilder sb = new StringBuilder();
+    appendBonus(sb, jp ? Strings.Ja.HUD_HP : Strings.En.HUD_HP, b.maxHp());
+    appendBonus(sb, jp ? Strings.Ja.HUD_SPEED : Strings.En.HUD_SPEED, b.speed());
+    appendBonus(
+        sb,
+        jp ? Strings.Ja.STATUS_PHYSICAL_ATTACK : Strings.En.STATUS_PHYSICAL_ATTACK,
+        b.physicalAttack());
+    appendBonus(
+        sb,
+        jp ? Strings.Ja.STATUS_MAGICAL_ATTACK : Strings.En.STATUS_MAGICAL_ATTACK,
+        b.magicalAttack());
+    appendBonus(
+        sb,
+        jp ? Strings.Ja.STATUS_PHYSICAL_DEFENSE : Strings.En.STATUS_PHYSICAL_DEFENSE,
+        b.physicalDefense());
+    appendBonus(
+        sb,
+        jp ? Strings.Ja.STATUS_MAGICAL_DEFENSE : Strings.En.STATUS_MAGICAL_DEFENSE,
+        b.magicalDefense());
+    return sb.isEmpty() ? "" : " (" + sb + ")";
+  }
+
+  private static void appendBonus(StringBuilder sb, String label, int value) {
+    if (value == 0) {
+      return;
+    }
+    if (!sb.isEmpty()) {
+      sb.append(", ");
+    }
+    sb.append(label).append(' ').append(value > 0 ? "+" : "").append(value);
   }
 
   /** 補正なしなら素値のみ、補正ありなら "素値 (+N)" / "素値 (-N)"。 */

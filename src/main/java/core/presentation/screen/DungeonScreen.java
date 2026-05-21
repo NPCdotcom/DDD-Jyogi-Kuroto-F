@@ -64,6 +64,9 @@ public final class DungeonScreen extends ScreenAdapter {
   /** ダメージポップアップの最大同時表示数 (古いものから破棄、§15-5 描画コスト上限)。 */
   private static final int MAX_POPUPS = 16;
 
+  /** 敵 1 アクションごとの表示間隔 (秒)。敵ターンをこの間隔で 1 体ずつ進め、行動を視認できるようにする (§15-5)。 */
+  private static final float ENEMY_STEP_INTERVAL = 0.10f;
+
   private final DddGame game;
 
   /** ダメージポップアップ群 (§15-5 / E-8)。BattleEvent.DamageDealt 発火で push、isExpired で除去。 */
@@ -77,6 +80,9 @@ public final class DungeonScreen extends ScreenAdapter {
 
   /** 画面シェイクの振幅 (px、被弾 / 与ダメで切替)。 */
   private float shakeAmplitude = 0f;
+
+  /** 敵ターンの 1 アクション刻みタイマー (§15-5、ENEMY_STEP_INTERVAL ごとに 1 アクション進める)。 */
+  private float enemyStepTimer = 0f;
 
   /** マップ描画用カメラ (プレイヤー追従)。 */
   private OrthographicCamera camera;
@@ -125,7 +131,7 @@ public final class DungeonScreen extends ScreenAdapter {
     handleStatusPanelToggle(); // §15-4: Tab でステータスポップアップ開閉
     if (!statusPanelOpen) {
       // ステータスポップアップ表示中はゲーム進行を凍結する (モーダル)。
-      updateState();
+      updateState(delta);
       processNewEvents(); // §15-5 / E-8: 新規 DamageDealt → popup + shake / EliteDefeated → カード追加 UI
       advanceEffects(delta); // popup の age 加算 + 期限切れ除去 + shake デクリメント + flash デクリメント
       handleEliteCardChoice(); // §15-3 / §15-6: Elite 撃破 popup の入力処理
@@ -166,15 +172,21 @@ public final class DungeonScreen extends ScreenAdapter {
     }
   }
 
-  private void updateState() {
+  private void updateState(float delta) {
     TurnDirector director = game.director();
     TurnPhase phase = game.context().state().phase();
     if (phase == TurnPhase.PLAYER_TURN) {
+      enemyStepTimer = 0f;
       // poll(state) に移行: 状態2 (移動権保持中) の判定にドメインの pendingMoveCount を使う (ADR-21)
       Optional<BattleAction> action = playerInputs.poll(game.context().state());
       action.ifPresent(director::applyPlayerAction);
     } else if (phase == TurnPhase.ENEMY_TURN) {
-      director.runEnemyTurn();
+      // §15-5: 敵ターンを ENEMY_STEP_INTERVAL ごとに 1 アクションずつ進め、敵が 1 体ずつ動くのを見せる。
+      enemyStepTimer += delta;
+      if (enemyStepTimer >= ENEMY_STEP_INTERVAL) {
+        enemyStepTimer = 0f;
+        director.stepEnemyTurnOnce();
+      }
     } else if (phase == TurnPhase.CLEARED) {
       // 階段踏破直後の層末ノード選択フロー (§15-8 / E-6)。
       // この間 ENEMY_TURN への遷移は起きず、敵は静止する (CLEARED は層遷移の前段で全行動凍結)。
@@ -463,21 +475,24 @@ public final class DungeonScreen extends ScreenAdapter {
     return new Color(1f, 1f, 1f, 1f);
   }
 
-  /** マップカメラをプレイヤーへ追従させ、画面シェイク (§15-5) を加え、マップ端でクランプする。残り時間でシェイク振幅を線形減衰させランダム角度で揺らす。 */
+  /**
+   * マップカメラをプレイヤーへ追従させ、マップ端でクランプし、最後に画面シェイク (§15-5) を加える。
+   *
+   * <p>順序が重要: 追従位置を {@link #clampCamera} でマップ内に収めた<b>後</b>にシェイク offset を加算する。 逆順 (シェイク込み座標をクランプ)
+   * だと、マップが視界より小さい層 (層 1 等) で clamp が毎フレーム カメラを中央へ固定し直し、シェイクが完全に打ち消される。
+   */
   private void updateMapCamera() {
     DungeonState s = game.context().state();
     float px = s.player().position().x() * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f;
     float py = s.player().position().y() * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f;
-    float dx = 0f;
-    float dy = 0f;
+    camera.position.set(px, py, 0f);
+    clampCamera(s.map());
     if (shakeRemaining > 0f) {
       float intensity = shakeAmplitude * (shakeRemaining / SHAKE_DURATION);
       float angle = (float) (Math.random() * Math.PI * 2.0);
-      dx = (float) (Math.cos(angle) * intensity);
-      dy = (float) (Math.sin(angle) * intensity);
+      camera.position.x += (float) (Math.cos(angle) * intensity);
+      camera.position.y += (float) (Math.sin(angle) * intensity);
     }
-    camera.position.set(px + dx, py + dy, 0f);
-    clampCamera(s.map());
     camera.update();
   }
 

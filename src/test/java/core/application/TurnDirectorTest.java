@@ -16,7 +16,9 @@ import core.domain.card.DrawPile;
 import core.domain.card.Hand;
 import core.domain.common.Direction;
 import core.domain.common.Position;
+import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
+import core.domain.entity.Enemy;
 import core.domain.entity.Player;
 import core.domain.support.DomainFixtures;
 import core.infrastructure.bootstrap.InitialStateFactory;
@@ -100,6 +102,49 @@ class TurnDirectorTest {
     director.applyPlayerAction(new BattleAction.EndTurn());
 
     assertEquals(TurnPhase.ENEMY_TURN, ctx.state().phase(), "移動権が残っていても EndTurn でターンを終えられる");
+  }
+
+  @Test
+  void enemyWithTwoApActsTwiceInOneTurn() {
+    // ADR-06: 敵 AP = 層番号。AP 2 の敵は 1 ターンに 2 回行動する (ここではプレイヤーへ 2 マス前進)。
+    DungeonMap room = DungeonMap.of(List.of("######", "#....#", "######"));
+    Player player = DomainFixtures.playerAt(new Position(1, 1));
+    Enemy slime = InitialStateFactory.newSlimeForLayer("e", new Position(4, 1), 2); // AP 2
+    DungeonState state =
+        DomainFixtures.newStateWith(room, player, List.of(slime), TurnPhase.ENEMY_TURN);
+    GameContext ctx = GameContext.startNewRun(state);
+    TurnDirector director = new TurnDirector(ctx, new Random(SEED));
+
+    director.runEnemyTurn();
+
+    assertEquals(
+        new Position(2, 1),
+        ctx.state().findEnemy(slime.id()).orElseThrow().position(),
+        "AP 2 の敵はプレイヤーへ 2 マス前進する (1 マスで止まらない)");
+  }
+
+  @Test
+  void allEnemiesActWithFullApInOneTurn() {
+    // バグ 2 回帰: 敵が複数いても各自 AP ぶん行動する (1 体目で敵ターンが止まらない)。
+    DungeonMap room = DungeonMap.of(List.of("#########", "#.......#", "#########"));
+    Player player = DomainFixtures.playerAt(new Position(4, 1));
+    Enemy left = InitialStateFactory.newSlimeForLayer("left", new Position(1, 1), 2); // AP 2
+    Enemy right = InitialStateFactory.newSlimeForLayer("right", new Position(7, 1), 2); // AP 2
+    DungeonState state =
+        DomainFixtures.newStateWith(room, player, List.of(left, right), TurnPhase.ENEMY_TURN);
+    GameContext ctx = GameContext.startNewRun(state);
+    TurnDirector director = new TurnDirector(ctx, new Random(SEED));
+
+    director.runEnemyTurn();
+
+    assertEquals(
+        new Position(3, 1),
+        ctx.state().findEnemy(left.id()).orElseThrow().position(),
+        "左の敵は AP 2 ぶん 2 マス前進");
+    assertEquals(
+        new Position(5, 1),
+        ctx.state().findEnemy(right.id()).orElseThrow().position(),
+        "右の敵も AP 2 ぶん 2 マス前進 (1 体目で止まらない)");
   }
 
   @Test

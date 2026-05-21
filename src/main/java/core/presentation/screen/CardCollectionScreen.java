@@ -64,6 +64,7 @@ public final class CardCollectionScreen extends ScreenAdapter {
   @Override
   public void render(float delta) {
     if (Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
+      dispose(); // setScreen は旧 Screen を dispose しないため明示的に解放 (LibGDX 規約)
       game.setScreen(new TitleScreen(game));
       return;
     }

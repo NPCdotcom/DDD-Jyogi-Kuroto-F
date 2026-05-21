@@ -64,8 +64,8 @@ class SoulTreeTest {
 
   @Test
   void allNodesContainsRequiredCount() {
-    // §15-7 仕様: 中央 1 + 6 ステ軸 + 派生軸 1 (5) + 派生軸 2 (5) = 17
-    assertEquals(17, SoulTree.allNodes().size());
+    // §15-7: 中央 1 + ステ軸 Lv1 (6) + 派生軸 1 カード (5) + 派生軸 2 枠拡張 (5) + ステ軸 Lv2 (6) = 23
+    assertEquals(23, SoulTree.allNodes().size());
     assertTrue(SoulTree.allNodes().containsKey(SoulTree.ROOT));
   }
 
@@ -248,5 +248,38 @@ class SoulTreeTest {
   void rootConstantIsConsistent() {
     assertSame(SoulTree.ROOT, SoulTree.ROOT);
     assertEquals("root", SoulTree.ROOT.value());
+  }
+
+  // ---------------- 段階的開示 (isVisible) ----------------
+
+  @Test
+  void isVisibleTrueForRootAndFirstTierFromStart() {
+    // 初期状態 (root のみ解放): root と、root を前提とする 6 ステ軸 Lv1 が可視。
+    SoulTree tree = SoulTree.empty();
+    assertTrue(tree.isVisible(SoulTree.ROOT), "root は常に可視");
+    assertTrue(tree.isVisible(NodeId.of("phys_atk_up_1")), "前提 root が解放済 → ステ軸 Lv1 は可視");
+  }
+
+  @Test
+  void isVisibleFalseForDeepNodeUntilPrerequisiteUnlocked() {
+    // card_grant_strong_strike は前提 phys_atk_up_1。未解放なら不可視、解放すると可視になる。
+    SoulTree tree = SoulTree.empty();
+    assertFalse(tree.isVisible(NodeId.of("card_grant_strong_strike")), "前提未解放 → 不可視");
+    SoulTree afterUnlock = tree.unlock(NodeId.of("phys_atk_up_1"), new Soul(100)).newTree();
+    assertTrue(afterUnlock.isVisible(NodeId.of("card_grant_strong_strike")), "前提解放 → 可視化");
+  }
+
+  @Test
+  void lv2NodeBecomesVisibleAfterLv1Unlocked() {
+    // §15-7 充実化: ステ軸 Lv2 は Lv1 解放で開示される。
+    SoulTree tree = SoulTree.empty();
+    assertFalse(tree.isVisible(NodeId.of("hp_up_2")), "hp_up_1 未解放 → hp_up_2 不可視");
+    SoulTree afterUnlock = tree.unlock(NodeId.of("hp_up_1"), new Soul(100)).newTree();
+    assertTrue(afterUnlock.isVisible(NodeId.of("hp_up_2")), "hp_up_1 解放 → hp_up_2 可視化");
+  }
+
+  @Test
+  void isVisibleFalseForUnknownNode() {
+    assertFalse(SoulTree.empty().isVisible(NodeId.of("no_such_node")), "未定義 ID は不可視");
   }
 }

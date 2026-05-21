@@ -212,7 +212,10 @@ public final class Fonts implements Disposable {
     for (var card : InitialStateFactory.cardCatalog().all()) {
       addAllChars(set, card.displayName());
     }
-    // InitialStateFactory の装備マスタ (2 種)
+    // 装備マスタ: equipment.json 全装備 + 初期装備 2 種の displayName グリフを網羅 (§15-9)。
+    for (var equipment : InitialStateFactory.equipmentCatalog().all()) {
+      addAllChars(set, equipment.displayName());
+    }
     addAllChars(set, InitialStateFactory.tatteredBoots().displayName());
     addAllChars(set, InitialStateFactory.tatteredDagger().displayName());
   }

@@ -8,13 +8,17 @@ import core.domain.card.CardId;
 import core.domain.card.CardPileState;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.Player;
+import core.domain.equipment.Equipment;
+import core.domain.equipment.EquipmentSlot;
 import core.domain.layer.LayerEndNode;
 import core.domain.meta.Soul;
 import core.domain.tree.NodeId;
 import core.domain.tree.SoulTree;
 import core.infrastructure.bootstrap.InitialStateFactory;
 import core.presentation.render.Fonts;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
@@ -62,8 +66,45 @@ public final class DddGame extends Game {
    */
   private final Set<CardId> obtainedCards = new HashSet<>();
 
+  /**
+   * 装備ロードアウト (§15-9)。装備スロット → 装備。EquipmentScreen で編集し、{@link #startNewRun()} で Player に
+   * 反映する。デフォルトはぼろい短剣のみ。E-9 セーブ未実装のため JVM 終了でリセット。
+   */
+  private final Map<EquipmentSlot, Equipment> loadout = defaultLoadout();
+
+  private static Map<EquipmentSlot, Equipment> defaultLoadout() {
+    Equipment dagger = InitialStateFactory.tatteredDagger();
+    Map<EquipmentSlot, Equipment> m = new HashMap<>();
+    m.put(dagger.slot(), dagger);
+    return m;
+  }
+
   public GameContext context() {
     return context;
+  }
+
+  /** 現在の装備ロードアウト (装備画面表示用、防御コピー)。 */
+  public Map<EquipmentSlot, Equipment> loadout() {
+    return Map.copyOf(loadout);
+  }
+
+  /** 装備をそのスロットに装着する (同スロットの既存装備は置き換え、§15-9、次ラン開始時に反映)。 */
+  public void equipInLoadout(Equipment equipment) {
+    Objects.requireNonNull(equipment, "equipment");
+    loadout.put(equipment.slot(), equipment);
+  }
+
+  /**
+   * 指定スロットの装備を外す (§15-9、次ラン開始時に反映)。
+   *
+   * <p>ロードアウトを空にはできない (最後の 1 個は外せない)。空ロードアウト → 空デッキでラン開始すると 攻撃手段ゼロで詰むため。
+   */
+  public void unequipSlot(EquipmentSlot slot) {
+    Objects.requireNonNull(slot, "slot");
+    if (loadout.size() <= 1) {
+      return; // 最後の装備は外さない (空デッキ防止)
+    }
+    loadout.remove(slot);
   }
 
   /** これまでに入手したカード ID の集合 (カード図鑑の解放判定用、防御コピー)。 */
@@ -152,7 +193,7 @@ public final class DddGame extends Game {
   public void startNewRun() {
     // ADR-19: Random は引数注入で再現性を呼出元に委ねる (初期手札シャッフル + 毎ターンドロー)。
     // ラン毎に new Random() で異なるシード = 本番プレイは非再現的 (テストでは固定シードを渡す)。
-    DungeonState state = InitialStateFactory.firstFloor(new Random());
+    DungeonState state = InitialStateFactory.firstFloor(new Random(), loadout);
     // §15-7: ソウルツリーの解放済み効果を Player に適用 (素ステ補正 / カード追加 / 枠拡張)
     Player applied = soulTree.applyTo(state.player(), InitialStateFactory::resolveCard);
     // §15-2 / §15-7: ラン外のソウル保持を Player に注入 (前回ランからの持ち越し)

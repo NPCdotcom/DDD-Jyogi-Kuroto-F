@@ -16,5 +16,7 @@ public enum EquipmentSlot {
   /** 頭装備 (魔導師の額冠など)。 */
   HEAD,
   /** 体装備 (見習いローブ・影のマントなど)。 */
-  BODY
+  BODY,
+  /** 装飾品 (指輪・護符・腕輪など)。 */
+  ACCESSORY
 }

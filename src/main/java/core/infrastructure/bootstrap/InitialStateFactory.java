@@ -80,6 +80,14 @@ public final class InitialStateFactory {
     return CARD_CATALOG;
   }
 
+  /** 装備マスタ。クラスパスの {@code equipment.json} から起動時に 1 度ロードする (§15-9)。 */
+  private static final EquipmentCatalog EQUIPMENT_CATALOG = EquipmentCatalog.load();
+
+  /** 装備マスタを返す (装備画面が全装備を参照するのに使う)。 */
+  public static EquipmentCatalog equipmentCatalog() {
+    return EQUIPMENT_CATALOG;
+  }
+
   // ----------------------------- 装備マスタ (§15-9 / ADR-26) -----------------------------
 
   /**
@@ -143,6 +151,14 @@ public final class InitialStateFactory {
     return generateLayerState(Layer.first(), player, rng);
   }
 
+  /** 指定ロードアウト (装備スロット → 装備) で 1 層目を組み立てる (§15-9、DddGame が選択ロードアウトを注入)。 */
+  public static DungeonState firstFloor(Random rng, Map<EquipmentSlot, Equipment> loadout) {
+    Objects.requireNonNull(rng, "rng");
+    Objects.requireNonNull(loadout, "loadout");
+    Player player = newPlayer(DungeonGenerator.SPAWN, rng, loadout);
+    return generateLayerState(Layer.first(), player, rng);
+  }
+
   /**
    * 初期 Player を組み立てる (§15-9 完全実装 / ADR-25 / ADR-26 / ADR-19: Random は引数注入)。
    *
@@ -153,27 +169,39 @@ public final class InitialStateFactory {
    * <p>{@code rng} は初期手札シャッフルと初期ドローで共有される。同一インスタンスを渡せばシャッフル後の 山札順 → 初期ドロー結果が一意に定まる。
    */
   public static Player newPlayer(Position spawn, Random rng) {
+    // デフォルトロードアウト: ぼろい短剣のみ (§15-9 1 部位スタート、ADR-30)。
+    Equipment dagger = tatteredDagger();
+    return newPlayer(spawn, rng, Map.of(dagger.slot(), dagger));
+  }
+
+  /**
+   * 指定ロードアウトで初期 Player を組み立てる (§15-9 / ADR-25 / ADR-26)。装備の {@code statsBonus} が {@link
+   * Player#effectiveStats()} に乗り、全装備の {@code grantedCards} を集めて初期デッキを構築する。
+   *
+   * <p>ロードアウトが空 (全スロット未装備) ならデッキも空になり、初期ドローを行わない (空デッキでの {@code initialDrawCount}
+   * 例外を回避)。装備変更時のデッキ再生成 (ADR-26) は呼出側が本メソッドで新 Player を作り直すことで表現する。
+   */
+  public static Player newPlayer(
+      Position spawn, Random rng, Map<EquipmentSlot, Equipment> loadout) {
     Objects.requireNonNull(spawn, "spawn");
     Objects.requireNonNull(rng, "rng");
+    Objects.requireNonNull(loadout, "loadout");
 
-    // §15-9 仕様 (1 部位スタート、ADR-30 修正): ぼろい短剣のみ装着。
-    // GAME_DESIGN.md:705 「装備 1 部位スタート」準拠。
-    // ぼろ靴 (dash カード付き) は Shop / Event で獲得可能、初期デッキには含めない。
-    Equipment dagger = tatteredDagger();
-    Map<EquipmentSlot, Equipment> equipmentMap = new HashMap<>();
-    equipmentMap.put(dagger.slot(), dagger);
-
+    Map<EquipmentSlot, Equipment> equipmentMap = new HashMap<>(loadout);
     List<Card> deckCards = new java.util.ArrayList<>();
-    for (CardId cid : dagger.grantedCards()) {
-      deckCards.add(resolveCard(cid));
+    for (Equipment e : equipmentMap.values()) {
+      for (CardId cid : e.grantedCards()) {
+        deckCards.add(resolveCard(cid));
+      }
     }
 
     DrawPile drawPile = DrawPile.shuffledFrom(deckCards, rng);
     CardPileState pileBase = new CardPileState(drawPile, Hand.empty(), DiscardPile.empty());
-    // 初期ドロー枚数は §15-3 仕様の CardPileState.initialDrawCount でデッキ枚数から自動決定
-    // (deck 1-2→deck サイズ、3-5→3、6 以上→5)。デッキ枚数を変えても仕様準拠を構造的に保証。
-    int initialDraw = CardPileState.initialDrawCount(deckCards.size());
-    CardPileState initialPile = pileBase.drawN(initialDraw, rng);
+    // 初期ドロー枚数は §15-3 仕様の CardPileState.initialDrawCount で自動決定。空デッキならドローしない。
+    CardPileState initialPile =
+        deckCards.isEmpty()
+            ? pileBase
+            : pileBase.drawN(CardPileState.initialDrawCount(deckCards.size()), rng);
 
     return new Player(
         ActorId.of("player"),
