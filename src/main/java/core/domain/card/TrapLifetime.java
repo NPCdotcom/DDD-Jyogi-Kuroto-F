@@ -13,7 +13,8 @@ public sealed interface TrapLifetime permits TrapLifetime.UntilStepped, TrapLife
   /**
    * 物理罠の残存ルール: 踏まれるまで永続。
    *
-   * <p>追加状態を持たないため、 {@link #INSTANCE} を再利用する (record の identity は意味を持たず、参照同一性に依存しないためシングルトン的扱いで問題ない)。
+   * <p>追加状態を持たないため、 {@link #INSTANCE} を再利用する (record の identity
+   * は意味を持たず、参照同一性に依存しないためシングルトン的扱いで問題ない)。
    */
   record UntilStepped() implements TrapLifetime {
     /** 共有インスタンス。生成コスト削減のため使用側はこちらを参照する。 */

@@ -9,9 +9,7 @@ import core.domain.meta.Gold;
 import core.domain.support.DomainFixtures;
 import org.junit.jupiter.api.Test;
 
-/**
- * {@link Player} の Gold 操作 (§15-2 / §15-9) の単体テスト。Soul と同型の動作を確認する。
- */
+/** {@link Player} の Gold 操作 (§15-2 / §15-9) の単体テスト。Soul と同型の動作を確認する。 */
 class PlayerGoldTest {
 
   @Test

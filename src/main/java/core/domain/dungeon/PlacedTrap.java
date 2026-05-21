@@ -37,15 +37,13 @@ public record PlacedTrap(
   public PlacedTrap decrementedLifetime() {
     return switch (lifetime) {
       case TrapLifetime.UntilStepped ignored -> this;
-      case TrapLifetime.Turns turns -> new PlacedTrap(
-          position, baseValue, new TrapLifetime.Turns(turns.remaining() - 1), element);
+      case TrapLifetime.Turns turns ->
+          new PlacedTrap(
+              position, baseValue, new TrapLifetime.Turns(turns.remaining() - 1), element);
     };
   }
 
-  /**
-   * 罠が有効か (残ターンが 1 以上、または UntilStepped)。{@link #decrementedLifetime()} 後にこれを使って expired
-   * を除去する。
-   */
+  /** 罠が有効か (残ターンが 1 以上、または UntilStepped)。{@link #decrementedLifetime()} 後にこれを使って expired を除去する。 */
   public boolean isAlive() {
     return switch (lifetime) {
       case TrapLifetime.UntilStepped ignored -> true;

@@ -22,12 +22,12 @@ import java.util.Optional;
 /**
  * 層末ノード選択ポップアップ (§15-8 / E-6)。
  *
- * <p>Scene2D の {@link Stage} + {@link Window} を最小構成で利用する初の UI ポップアップ。Skin は JSON 経由ではなく Java コードから直接組み立てる
- * (`uiskin.json` をリポジトリに置かないハッカソンスコープ)。背景の単色 Drawable は 1x1 Pixmap から Texture を作り {@link Skin} に管理させる
- * (skin.dispose() で破棄される)。
+ * <p>Scene2D の {@link Stage} + {@link Window} を最小構成で利用する初の UI ポップアップ。Skin は JSON 経由ではなく Java
+ * コードから直接組み立てる (`uiskin.json` をリポジトリに置かないハッカソンスコープ)。背景の単色 Drawable は 1x1 Pixmap から Texture を作り
+ * {@link Skin} に管理させる (skin.dispose() で破棄される)。
  *
- * <p>入力ハンドリングは Scene2D の Actor input 機構を使わず、外部 (DungeonScreen) が {@code Gdx.input.isKeyJustPressed} を読み取り
- * {@link #select(int)} を呼ぶ方針。マウスクリックは YAGNI (M2 で本格 Scene2D 化する時に追加)。
+ * <p>入力ハンドリングは Scene2D の Actor input 機構を使わず、外部 (DungeonScreen) が {@code Gdx.input.isKeyJustPressed}
+ * を読み取り {@link #select(int)} を呼ぶ方針。マウスクリックは YAGNI (M2 で本格 Scene2D 化する時に追加)。
  *
  * <p>選択結果は {@link #consume()} 経由で取得され、取得時点で内部状態がリセットされる (同じ選択が二重発火しない)。
  */
@@ -44,7 +44,9 @@ public final class NodeChoicePopup implements Disposable {
   /**
    * 3 種の {@link LayerEndNode} を受け取り、Stage / Window を構築する。
    *
-   * @param font HUD と同じ {@link BitmapFont} (Fonts.hud()) を使い回す想定
+   * @param font プロジェクタ視認性確保のため {@link core.presentation.render.Fonts#large()} (32px) を渡す想定。 旧実装は
+   *     hud(16px) + {@code setFontScale(2f)} だったが、Scene2D Label の倍率描画 + multi-page atlas で漢字が黒四角化する
+   *     LibGDX バグに遭遇したため、 等倍 32px で運用する。
    * @param title Window タイトル (Strings.Ja/En.LAYER_END_TITLE を呼出側で日英解決して渡す)
    * @param choices サイズ 3 必須、それ以外は IAE
    */
@@ -75,23 +77,21 @@ public final class NodeChoicePopup implements Disposable {
     Window window = new Window(title, windowStyle);
     window.setMovable(false);
     window.setResizable(false);
-    window.padTop(96f); // タイトルラベルも拡大するため上余白を増加
+    // 32px 直接フォント前提でタイトル上余白は 64px に縮小 (旧 96px は scale=2 + 16px ベースの遷移コスト)
+    window.padTop(64f);
     window.padLeft(32f).padRight(32f).padBottom(32f);
-    // §UI 拡大方針: タイトルラベルを setFontScale(2f) で 16px → 32px 相当に拡大
-    window.getTitleLabel().setFontScale(2f);
+    // setFontScale は使わない: pixel フォントを Scene2D Label で倍率描画すると multi-page atlas
+    // 参照がずれて漢字が黒四角化する (LibGDX 1.14 既知挙動)。large(32px) を等倍で運用する。
 
     for (int i = 0; i < CHOICE_COUNT; i++) {
       Label line =
           new Label("  [%d]  %s".formatted(i + 1, choices.get(i).displayName()), labelStyle);
       line.setColor(Color.WHITE);
-      // §UI 拡大方針: 選択肢ラベルを setFontScale(2f) で大きく
-      line.setFontScale(2f);
       window.add(line).left().padBottom(16f).row();
     }
 
     Label hint = new Label("数字キー 1 〜 3 で選択", labelStyle);
     hint.setColor(new Color(0.65f, 0.65f, 0.7f, 1f));
-    hint.setFontScale(2f);
     window.add(hint).left().padTop(20f).row();
 
     window.pack();

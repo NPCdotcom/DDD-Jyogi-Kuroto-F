@@ -68,11 +68,7 @@ class EquipmentTest {
         IllegalArgumentException.class,
         () ->
             new Equipment(
-                EquipmentId.of("x"),
-                "",
-                EquipmentSlot.HAND,
-                StatsBonus.zero(),
-                List.of()));
+                EquipmentId.of("x"), "", EquipmentSlot.HAND, StatsBonus.zero(), List.of()));
   }
 
   @Test
@@ -82,7 +78,9 @@ class EquipmentTest {
         () -> new Equipment(null, "x", EquipmentSlot.HAND, StatsBonus.zero(), List.of()));
     assertThrows(
         NullPointerException.class,
-        () -> new Equipment(EquipmentId.of("x"), null, EquipmentSlot.HAND, StatsBonus.zero(), List.of()));
+        () ->
+            new Equipment(
+                EquipmentId.of("x"), null, EquipmentSlot.HAND, StatsBonus.zero(), List.of()));
     assertThrows(
         NullPointerException.class,
         () -> new Equipment(EquipmentId.of("x"), "x", null, StatsBonus.zero(), List.of()));

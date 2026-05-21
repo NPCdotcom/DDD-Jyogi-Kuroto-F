@@ -15,7 +15,8 @@ import org.junit.jupiter.api.Test;
 /**
  * {@link LayerEndNode} の単体テスト (§15-8 / E-6)。
  *
- * <p>fixture は infrastructure 層の {@link InitialStateFactory#firstFloor} の player を流用 (テスト便宜上の依存、production 依存方向ルールには違反しない)。
+ * <p>fixture は infrastructure 層の {@link InitialStateFactory#firstFloor} の player を流用
+ * (テスト便宜上の依存、production 依存方向ルールには違反しない)。
  */
 class LayerEndNodeTest {
 
@@ -170,8 +171,7 @@ class LayerEndNodeTest {
 
   @Test
   void shopConsumesGoldAndAddsCardWhenSufficient() {
-    Player p =
-        initialPlayer().addGold(new core.domain.meta.Gold(10));
+    Player p = initialPlayer().addGold(new core.domain.meta.Gold(10));
     int deckSizeBefore =
         p.cardPileState().drawPile().size()
             + p.cardPileState().hand().size()
@@ -239,15 +239,12 @@ class LayerEndNodeTest {
 
   @Test
   void eventRejectsNegativeSoulOrGoldDelta() {
-    assertThrows(
-        IllegalArgumentException.class, () -> new LayerEndNode.Event(-1, 0, 0, "x"));
-    assertThrows(
-        IllegalArgumentException.class, () -> new LayerEndNode.Event(0, 0, -1, "x"));
+    assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.Event(-1, 0, 0, "x"));
+    assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.Event(0, 0, -1, "x"));
   }
 
   @Test
   void eventRejectsBlankDisplayLabel() {
-    assertThrows(
-        IllegalArgumentException.class, () -> new LayerEndNode.Event(0, 0, 0, ""));
+    assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.Event(0, 0, 0, ""));
   }
 }

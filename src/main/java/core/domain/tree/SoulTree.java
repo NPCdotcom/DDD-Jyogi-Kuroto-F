@@ -26,12 +26,12 @@ import java.util.function.Function;
  *   <li>枠拡張: 40
  * </ul>
  *
- * <p>{@code unlockedNodes} に root が常に含まれる (新規 {@link #empty()} で root のみ解放済み)。
- * {@link #unlock(NodeId, Soul, Function)} で前提ノード解放済み + Soul 残量を検証して新インスタンスを返す
- * (純関数)。{@link #reset()} で root だけに戻し、{@link #totalSpentSoul()} を呼出側で全額返却する想定 (ADR-09)。
+ * <p>{@code unlockedNodes} に root が常に含まれる (新規 {@link #empty()} で root のみ解放済み)。 {@link
+ * #unlock(NodeId, Soul, Function)} で前提ノード解放済み + Soul 残量を検証して新インスタンスを返す (純関数)。{@link #reset()} で
+ * root だけに戻し、{@link #totalSpentSoul()} を呼出側で全額返却する想定 (ADR-09)。
  *
- * <p>{@link #applyTo(Player, Function)} はラン開始時に呼ぶ: 解放済みノードの効果を順番に Player に適用し、
- * 装備や Buff と並んで Player の能力値に反映する (ADR-25 / §15-9 と整合)。
+ * <p>{@link #applyTo(Player, Function)} はラン開始時に呼ぶ: 解放済みノードの効果を順番に Player に適用し、 装備や Buff と並んで Player
+ * の能力値に反映する (ADR-25 / §15-9 と整合)。
  */
 public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
 
@@ -56,8 +56,8 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
   /**
    * 全 17 ノードのマスタ定義を返す (id → TreeNode、挿入順保持の LinkedHashMap)。
    *
-   * <p>UI 側 (SoulTreeScreen) もここから配置情報を引く。本セッションでは座標は presentation 層で
-   * static に定義し、ドメインは純粋に「どのノードがあるか + 前提 + 効果」だけを表現する。
+   * <p>UI 側 (SoulTreeScreen) もここから配置情報を引く。本セッションでは座標は presentation 層で static
+   * に定義し、ドメインは純粋に「どのノードがあるか + 前提 + 効果」だけを表現する。
    */
   public static Map<NodeId, TreeNode> allNodes() {
     Map<NodeId, TreeNode> nodes = new LinkedHashMap<>();
@@ -214,8 +214,8 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
    *   <li>Soul 残量不足 → {@link IllegalStateException}
    * </ul>
    *
-   * @return 新 SoulTree (unlockedNodes に nodeId を追加、totalSpentSoul に soulCost を加算)
-   *         + 新 Soul (引数 currentSoul - 消費分)
+   * @return 新 SoulTree (unlockedNodes に nodeId を追加、totalSpentSoul に soulCost を加算) + 新 Soul (引数
+   *     currentSoul - 消費分)
    */
   public UnlockResult unlock(NodeId nodeId, Soul currentSoul) {
     Objects.requireNonNull(nodeId, "nodeId");
@@ -231,7 +231,11 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
     for (NodeId prereq : target.prerequisites()) {
       if (!unlockedNodes.contains(prereq)) {
         throw new IllegalStateException(
-            "Prerequisite not unlocked: " + prereq.value() + " (required for " + nodeId.value() + ")");
+            "Prerequisite not unlocked: "
+                + prereq.value()
+                + " (required for "
+                + nodeId.value()
+                + ")");
       }
     }
     if (currentSoul.amount() < target.soulCost()) {
@@ -246,8 +250,7 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
   }
 
   /**
-   * ツリーをリセットして root だけ解放済みの状態に戻す純関数 (ADR-09)。
-   * 累計消費ソウルを Soul として返す (呼出側がプレイヤーに加算する責務)。
+   * ツリーをリセットして root だけ解放済みの状態に戻す純関数 (ADR-09)。 累計消費ソウルを Soul として返す (呼出側がプレイヤーに加算する責務)。
    *
    * @return 新 SoulTree (root のみ、totalSpentSoul=0) + 返却 Soul (返却額)
    */
@@ -258,8 +261,8 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
   /**
    * ラン開始時にツリーの解放済み効果を Player に適用する純関数 (§15-7)。
    *
-   * <p>root 以外の解放済みノードを {@link TreeNode#effect()} 経由で順次 apply する。順序は
-   * {@link #allNodes()} の挿入順 (ステ軸 → カード軸 → 枠拡張) に従う (順序による結果の一貫性確保)。
+   * <p>root 以外の解放済みノードを {@link TreeNode#effect()} 経由で順次 apply する。順序は {@link #allNodes()} の挿入順 (ステ軸
+   * → カード軸 → 枠拡張) に従う (順序による結果の一貫性確保)。
    *
    * @param player ラン開始時の素 Player (Equipment は装備済みで OK)
    * @param cardResolver CardId から Card への解決関数 (CardGrantEffect で使用)

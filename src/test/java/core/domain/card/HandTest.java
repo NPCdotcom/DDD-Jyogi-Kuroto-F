@@ -12,8 +12,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Hand の不変条件とサイズ境界テスト。
  *
- * <p>ADR-16 検証ポイント 2: MAX_SIZE=9 の境界。
- * GAME_DESIGN §15-3: 手札の最大枚数は 9。
+ * <p>ADR-16 検証ポイント 2: MAX_SIZE=9 の境界。 GAME_DESIGN §15-3: 手札の最大枚数は 9。
  */
 class HandTest {
 
@@ -50,8 +49,7 @@ class HandTest {
     // GAME_DESIGN §15-3: 手札上限超過は上位レイヤが制御するが、Hand 自体が例外で守る
     Hand full = DomainFixtures.handOfSize(Hand.MAX_SIZE);
     assertThrows(
-        IllegalStateException.class,
-        () -> full.add(DomainFixtures.attackCard("overflow-001")));
+        IllegalStateException.class, () -> full.add(DomainFixtures.attackCard("overflow-001")));
   }
 
   @Test

@@ -27,8 +27,7 @@ class ActiveBuffTest {
   @Test
   void compactConstructorRejectsNegativeRemainingTurns() {
     assertThrows(
-        IllegalArgumentException.class,
-        () -> new ActiveBuff(CardEffect.BuffKind.SPEED_UP, 1, -1));
+        IllegalArgumentException.class, () -> new ActiveBuff(CardEffect.BuffKind.SPEED_UP, 1, -1));
   }
 
   @Test

@@ -20,10 +20,10 @@ public final class GameContext {
 
   private DungeonState state;
   private final Deque<BattleEvent> recentEvents = new ArrayDeque<>();
+
   /**
-   * 累積イベント発火数 (§15-5 / E-8)。循環バッファ ({@link #recentEvents} = MAX_LOG_LINES) で古いイベントが
-   * 破棄されても、本値は減らず monotonic に増加する。DungeonScreen が「未処理 DamageDealt」を検知して
-   * popup / shake を発火するためのカーソルとして使う。
+   * 累積イベント発火数 (§15-5 / E-8)。循環バッファ ({@link #recentEvents} = MAX_LOG_LINES) で古いイベントが 破棄されても、本値は減らず
+   * monotonic に増加する。DungeonScreen が「未処理 DamageDealt」を検知して popup / shake を発火するためのカーソルとして使う。
    */
   private long totalEventsEmitted = 0;
 
@@ -54,8 +54,8 @@ public final class GameContext {
   }
 
   /**
-   * 累積イベント発火数 (§15-5 / E-8 用カーソル)。{@link #recentEvents} の循環で古いイベントが破棄されても
-   * 減らない。新規 DamageDealt 検知に使う。
+   * 累積イベント発火数 (§15-5 / E-8 用カーソル)。{@link #recentEvents} の循環で古いイベントが破棄されても 減らない。新規 DamageDealt
+   * 検知に使う。
    */
   public long totalEventsEmitted() {
     return totalEventsEmitted;

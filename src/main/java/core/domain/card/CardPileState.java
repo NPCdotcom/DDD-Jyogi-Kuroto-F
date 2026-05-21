@@ -41,8 +41,8 @@ public record CardPileState(DrawPile drawPile, Hand hand, DiscardPile discardPil
    *
    * <p>仕様 (§15-3): deck=1→1, deck=2→2, deck=3→3, deck=4→3, deck=5→3, deck=6→5, deck>=10→5。
    *
-   * <p>境界は「デッキ <= 5 なら min(deck, 3)、デッキ >= 6 なら min(deck, 5)」で表現できる。 deck >= 6 で 5 を上回るカードを引かない理由は「初期 5
-   * 枚で安定」させるため (§15-3)。
+   * <p>境界は「デッキ <= 5 なら min(deck, 3)、デッキ >= 6 なら min(deck, 5)」で表現できる。 deck >= 6 で 5
+   * を上回るカードを引かない理由は「初期 5 枚で安定」させるため (§15-3)。
    */
   public static int initialDrawCount(int totalDeckSize) {
     if (totalDeckSize < 1) {
@@ -57,8 +57,8 @@ public record CardPileState(DrawPile drawPile, Hand hand, DiscardPile discardPil
   /**
    * N 枚ドローする。
    *
-   * <p>山札が途中で空になったら、 捨て札を {@code rng} でシャッフルして山札に積み直す (§15-3 「山札切れ → 捨て札再シャッフル」)。 それでも引ききれない場合
-   * (山札 + 捨て札の合計 < n) は引ける分だけ引いて停止する。
+   * <p>山札が途中で空になったら、 捨て札を {@code rng} でシャッフルして山札に積み直す (§15-3 「山札切れ → 捨て札再シャッフル」)。 それでも引ききれない場合 (山札
+   * + 捨て札の合計 < n) は引ける分だけ引いて停止する。
    *
    * <p>また手札が {@link #MAX_HAND_SIZE} に達した時点でもドロー停止する (上限に従って静かに止まる、例外は投げない)。
    */

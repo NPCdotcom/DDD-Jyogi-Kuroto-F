@@ -11,8 +11,7 @@ import org.junit.jupiter.api.Test;
 /**
  * DrawPile の drawOne / shuffledFrom テスト。
  *
- * <p>ADR-16 検証ポイント 10: 空 DrawPile.drawOne() → Optional.empty()。
- * GAME_DESIGN §15-3: 山札先頭から 1 枚引く。
+ * <p>ADR-16 検証ポイント 10: 空 DrawPile.drawOne() → Optional.empty()。 GAME_DESIGN §15-3: 山札先頭から 1 枚引く。
  */
 class DrawPileTest {
 
@@ -54,10 +53,11 @@ class DrawPileTest {
   @Test
   void shuffledFromProducesShuffledCopyNotSameReference() {
     // 不変性: shuffledFrom は新インスタンスを返し、元リストに影響しない
-    java.util.List<Card> source = java.util.List.of(
-        DomainFixtures.attackCard("s1"),
-        DomainFixtures.attackCard("s2"),
-        DomainFixtures.attackCard("s3"));
+    java.util.List<Card> source =
+        java.util.List.of(
+            DomainFixtures.attackCard("s1"),
+            DomainFixtures.attackCard("s2"),
+            DomainFixtures.attackCard("s3"));
     DrawPile shuffled = DrawPile.shuffledFrom(source, new Random(0));
 
     assertNotSame(source, shuffled.cards());
@@ -67,10 +67,11 @@ class DrawPileTest {
   @Test
   void shuffledFromWithFixedSeedIsDeterministic() {
     // 固定シードで同じ順序が再現されること
-    java.util.List<Card> source = java.util.List.of(
-        DomainFixtures.attackCard("a"),
-        DomainFixtures.attackCard("b"),
-        DomainFixtures.attackCard("c"));
+    java.util.List<Card> source =
+        java.util.List.of(
+            DomainFixtures.attackCard("a"),
+            DomainFixtures.attackCard("b"),
+            DomainFixtures.attackCard("c"));
 
     DrawPile r1 = DrawPile.shuffledFrom(source, new Random(42));
     DrawPile r2 = DrawPile.shuffledFrom(source, new Random(42));

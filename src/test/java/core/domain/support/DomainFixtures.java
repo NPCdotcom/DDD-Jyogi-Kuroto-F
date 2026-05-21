@@ -120,34 +120,19 @@ public final class DomainFixtures {
   /** AP コスト 1 の最小限の物理攻撃カード。 */
   public static Card attackCard(String id) {
     return new Card(
-        CardId.of(id),
-        "斬撃",
-        1,
-        CardTag.ATTACK,
-        CardElement.PHYSICAL,
-        new CardEffect.Damage(5));
+        CardId.of(id), "斬撃", 1, CardTag.ATTACK, CardElement.PHYSICAL, new CardEffect.Damage(5));
   }
 
   /** AP コスト 2 の魔法攻撃カード。 */
   public static Card magicCard(String id) {
     return new Card(
-        CardId.of(id),
-        "魔法弾",
-        2,
-        CardTag.ATTACK,
-        CardElement.MAGICAL,
-        new CardEffect.Damage(8));
+        CardId.of(id), "魔法弾", 2, CardTag.ATTACK, CardElement.MAGICAL, new CardEffect.Damage(8));
   }
 
   /** 移動カード (distance=2)。 */
   public static Card moveCard(String id) {
     return new Card(
-        CardId.of(id),
-        "ダッシュ",
-        1,
-        CardTag.MOVEMENT,
-        CardElement.PHYSICAL,
-        new CardEffect.Move(2));
+        CardId.of(id), "ダッシュ", 1, CardTag.MOVEMENT, CardElement.PHYSICAL, new CardEffect.Move(2));
   }
 
   /** 物理罠カード。 */

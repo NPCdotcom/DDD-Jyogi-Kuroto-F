@@ -11,10 +11,9 @@ import org.junit.jupiter.api.Test;
 /**
  * CardPileState の初期ドロー枚数テーブルと drawN / playFromHand テスト。
  *
- * <p>ADR-16 検証ポイント 3: initialDrawCount テーブル。
- * ADR-16 検証ポイント 4: drawN で山札切れ時の再シャッフル (固定シード)。
- * ADR-16 検証ポイント 13: playFromHand でカードが Hand→DiscardPile に移動。
- * GAME_DESIGN §15-3: 山札切れ → 捨て札を再シャッフルして山札に積み直す。
+ * <p>ADR-16 検証ポイント 3: initialDrawCount テーブル。 ADR-16 検証ポイント 4: drawN で山札切れ時の再シャッフル (固定シード)。 ADR-16
+ * 検証ポイント 13: playFromHand でカードが Hand→DiscardPile に移動。 GAME_DESIGN §15-3: 山札切れ →
+ * 捨て札を再シャッフルして山札に積み直す。
  */
 class CardPileStateTest {
 
@@ -83,8 +82,7 @@ class CardPileStateTest {
   /**
    * シナリオ: 山札 3 枚 / 捨て札 5 枚の状態で drawN(5, seed=42) を呼ぶ。
    *
-   * <p>期待: Hand に 5 枚、DiscardPile は空、DrawPile に残り 3 枚。
-   * 同じシードで 2 回呼んで同じ結果が得られることも確認 (再現性テスト)。
+   * <p>期待: Hand に 5 枚、DiscardPile は空、DrawPile に残り 3 枚。 同じシードで 2 回呼んで同じ結果が得られることも確認 (再現性テスト)。
    *
    * <p>ADR-16: Random は引数注入でテスト時は決定的シードで検証 (ドメイン副作用ゼロ)。
    */
@@ -138,14 +136,12 @@ class CardPileStateTest {
 
     CardPileState result = state.drawN(20, new Random(0));
 
-    assertEquals(CardPileState.MAX_HAND_SIZE, result.hand().size(),
-        "手札は MAX_HAND_SIZE を超えない");
+    assertEquals(CardPileState.MAX_HAND_SIZE, result.hand().size(), "手札は MAX_HAND_SIZE を超えない");
   }
 
   @Test
   void drawNNegativeThrowsIllegalArgumentException() {
-    CardPileState state =
-        new CardPileState(DrawPile.empty(), Hand.empty(), DiscardPile.empty());
+    CardPileState state = new CardPileState(DrawPile.empty(), Hand.empty(), DiscardPile.empty());
     assertThrows(IllegalArgumentException.class, () -> state.drawN(-1, new Random(0)));
   }
 
@@ -157,8 +153,7 @@ class CardPileStateTest {
   void playFromHandMovesCardFromHandToDiscardPile() {
     // 検証ポイント 13: GAME_DESIGN §15-3 カードを使うと捨て札に送られる
     Hand hand = Hand.empty().add(DomainFixtures.attackCard("strike-001"));
-    CardPileState state =
-        new CardPileState(DrawPile.empty(), hand, DiscardPile.empty());
+    CardPileState state = new CardPileState(DrawPile.empty(), hand, DiscardPile.empty());
 
     CardPileState after = state.playFromHand(0);
 
@@ -169,8 +164,7 @@ class CardPileStateTest {
 
   @Test
   void playFromHandOutOfRangeThrowsIndexOutOfBoundsException() {
-    CardPileState state =
-        new CardPileState(DrawPile.empty(), Hand.empty(), DiscardPile.empty());
+    CardPileState state = new CardPileState(DrawPile.empty(), Hand.empty(), DiscardPile.empty());
     assertThrows(IndexOutOfBoundsException.class, () -> state.playFromHand(0));
   }
 
@@ -178,8 +172,7 @@ class CardPileStateTest {
   void playFromHandLeavesOriginalStateIntact() {
     // 不変性: 元の CardPileState は変化しない
     Hand hand = Hand.empty().add(DomainFixtures.attackCard("move-001"));
-    CardPileState state =
-        new CardPileState(DrawPile.empty(), hand, DiscardPile.empty());
+    CardPileState state = new CardPileState(DrawPile.empty(), hand, DiscardPile.empty());
 
     state.playFromHand(0);
 

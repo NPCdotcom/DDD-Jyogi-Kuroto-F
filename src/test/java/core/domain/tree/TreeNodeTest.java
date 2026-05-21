@@ -54,8 +54,7 @@ class TreeNodeTest {
         NullPointerException.class,
         () -> new TreeNode(NodeId.of("x"), null, 5, NodeEffect.None.INSTANCE, Set.of()));
     assertThrows(
-        NullPointerException.class,
-        () -> new TreeNode(NodeId.of("x"), "x", 5, null, Set.of()));
+        NullPointerException.class, () -> new TreeNode(NodeId.of("x"), "x", 5, null, Set.of()));
     assertThrows(
         NullPointerException.class,
         () -> new TreeNode(NodeId.of("x"), "x", 5, NodeEffect.None.INSTANCE, null));
@@ -65,8 +64,7 @@ class TreeNodeTest {
   void prerequisitesAreDefensivelyCopied() {
     Set<NodeId> mutable = new HashSet<>();
     mutable.add(SoulTree.ROOT);
-    TreeNode node =
-        new TreeNode(NodeId.of("x"), "x", 5, NodeEffect.None.INSTANCE, mutable);
+    TreeNode node = new TreeNode(NodeId.of("x"), "x", 5, NodeEffect.None.INSTANCE, mutable);
 
     mutable.add(NodeId.of("intruder"));
     assertEquals(1, node.prerequisites().size(), "外部 Set 変更は防御コピーで遮断される");

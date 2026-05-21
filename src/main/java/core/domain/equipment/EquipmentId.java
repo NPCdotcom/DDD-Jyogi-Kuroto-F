@@ -5,8 +5,8 @@ import java.util.Objects;
 /**
  * 装備の識別子 (§15-9 / ADR-25)。値オブジェクト。
  *
- * <p>{@link Equipment} と分離することで、装備マスタの参照やショップでの「同じ装備か」判定を {@code .equals()} 1 回で済ませる
- * (record の構造的等価)。
+ * <p>{@link Equipment} と分離することで、装備マスタの参照やショップでの「同じ装備か」判定を {@code .equals()} 1 回で済ませる (record
+ * の構造的等価)。
  */
 public record EquipmentId(String value) {
   public EquipmentId {

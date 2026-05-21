@@ -47,17 +47,14 @@ class PlayerStatusesTest {
     ActionPoints ap = ActionPoints.full(5);
     SkillSlot slot = emptySlot();
     assertThrows(
-        NullPointerException.class,
-        () -> new PlayerStatuses(null, ap, slot, Map.of(), List.of()));
+        NullPointerException.class, () -> new PlayerStatuses(null, ap, slot, Map.of(), List.of()));
     assertThrows(
-        NullPointerException.class,
-        () -> new PlayerStatuses(s, null, slot, Map.of(), List.of()));
+        NullPointerException.class, () -> new PlayerStatuses(s, null, slot, Map.of(), List.of()));
     assertThrows(
-        NullPointerException.class,
-        () -> new PlayerStatuses(s, ap, null, Map.of(), List.of()));
-    assertThrows(NullPointerException.class, () -> new PlayerStatuses(s, ap, slot, null, List.of()));
+        NullPointerException.class, () -> new PlayerStatuses(s, ap, null, Map.of(), List.of()));
     assertThrows(
-        NullPointerException.class, () -> new PlayerStatuses(s, ap, slot, Map.of(), null));
+        NullPointerException.class, () -> new PlayerStatuses(s, ap, slot, null, List.of()));
+    assertThrows(NullPointerException.class, () -> new PlayerStatuses(s, ap, slot, Map.of(), null));
   }
 
   @Test
@@ -216,7 +213,8 @@ class PlayerStatusesTest {
             List.of(atkBuff, spdBuff));
 
     Stats eff = ps.effectiveStats();
-    assertEquals(baseStats().physicalAttack() + 1 + 2, eff.physicalAttack(), "装備 +1 + Buff +2 = +3");
+    assertEquals(
+        baseStats().physicalAttack() + 1 + 2, eff.physicalAttack(), "装備 +1 + Buff +2 = +3");
     assertEquals(baseStats().speed() + 1, eff.speed(), "Buff speed +1");
   }
 

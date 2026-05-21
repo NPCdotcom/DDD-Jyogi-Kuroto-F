@@ -11,8 +11,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Deck の不変条件テスト。
  *
- * <p>ADR-16 検証ポイント 8: 空デッキで例外、1 枚以上で成功。
- * GAME_DESIGN §15-3: 空デッキは禁止 (初期デッキは装備固有カードで最低 1 枚保証)。
+ * <p>ADR-16 検証ポイント 8: 空デッキで例外、1 枚以上で成功。 GAME_DESIGN §15-3: 空デッキは禁止 (初期デッキは装備固有カードで最低 1 枚保証)。
  */
 class DeckTest {
 
@@ -27,10 +26,11 @@ class DeckTest {
 
   @Test
   void deckWithMultipleCardsIsAccepted() {
-    List<Card> cards = List.of(
-        DomainFixtures.attackCard("c1"),
-        DomainFixtures.magicCard("c2"),
-        DomainFixtures.moveCard("c3"));
+    List<Card> cards =
+        List.of(
+            DomainFixtures.attackCard("c1"),
+            DomainFixtures.magicCard("c2"),
+            DomainFixtures.moveCard("c3"));
     Deck deck = new Deck(cards);
     assertEquals(3, deck.size());
   }

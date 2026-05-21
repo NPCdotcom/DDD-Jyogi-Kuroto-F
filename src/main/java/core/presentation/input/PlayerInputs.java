@@ -15,9 +15,9 @@ import java.util.Optional;
  * <ul>
  *   <li>状態0 (通常): 数字キー 1〜9 でカード選択 (状態1へ)、WASD/矢印で移動、SPACE/ENTER は待機/ターン終了
  *   <li>状態1 (カード選択中): 方向キーで {@link BattleAction.UseCard} 発行しリセット、ESC でキャンセル
- *   <li>状態2 (移動権保持中): {@code DungeonState.player().pendingMoveCount() > 0} のとき自動遷移。
- *       WASD/方向キーで {@link BattleAction.Move} 発行 (TurnEngine が AP 0 で処理)、数字キーは無視。
- *       ESC による移動権破棄は YAGNI (ADR-21 §Decision-6)、本実装では実装しない。
+ *   <li>状態2 (移動権保持中): {@code DungeonState.player().pendingMoveCount() > 0} のとき自動遷移。 WASD/方向キーで
+ *       {@link BattleAction.Move} 発行 (TurnEngine が AP 0 で処理)、数字キーは無視。 ESC による移動権破棄は YAGNI (ADR-21
+ *       §Decision-6)、本実装では実装しない。
  * </ul>
  *
  * <p>{@code pendingCardIndex()} で現在選択中のカード番号を参照できる (HudRenderer からハイライト用に利用)。 -1 は「未選択」を意味する。
@@ -50,8 +50,8 @@ public final class PlayerInputs {
    *
    * <p>優先度: 状態2 (移動権保持中) > 状態1 (カード選択中) > 状態0 (通常)。
    *
-   * <p>状態2 は {@code state.player().pendingMoveCount() > 0} で判定する。
-   * この条件が成立している間は状態1 への遷移 (数字キー) をブロックする。
+   * <p>状態2 は {@code state.player().pendingMoveCount() > 0} で判定する。 この条件が成立している間は状態1 への遷移 (数字キー)
+   * をブロックする。
    *
    * @param state 現在のダンジョン状態 (pendingMoveCount 参照のため必要)
    */

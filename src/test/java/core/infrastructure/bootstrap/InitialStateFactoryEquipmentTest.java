@@ -14,10 +14,7 @@ import core.domain.equipment.EquipmentSlot;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 
-/**
- * §15-9 / ADR-26 完全実装の証跡テスト: ぼろ靴 + ぼろい短剣を初期装備として装着し、{@code grantedCards} から
- * 初期デッキを動的生成する事を確認する。
- */
+/** §15-9 / ADR-26 完全実装の証跡テスト: ぼろ靴 + ぼろい短剣を初期装備として装着し、{@code grantedCards} から 初期デッキを動的生成する事を確認する。 */
 class InitialStateFactoryEquipmentTest {
 
   // ---------------- 装備マスタ ----------------
@@ -141,10 +138,8 @@ class InitialStateFactoryEquipmentTest {
     p.cardPileState().discardPile().cards().forEach(c -> deckIds.add(c.id().value()));
 
     for (String deckId : deckIds) {
-      boolean inEquipmentCards =
-          equipmentCards.stream().anyMatch(eq -> eq.value().equals(deckId));
-      assertTrue(
-          inEquipmentCards, "デッキの全カードは装備固有カードに含まれる: " + deckId);
+      boolean inEquipmentCards = equipmentCards.stream().anyMatch(eq -> eq.value().equals(deckId));
+      assertTrue(inEquipmentCards, "デッキの全カードは装備固有カードに含まれる: " + deckId);
     }
   }
 }

@@ -9,8 +9,8 @@ import java.util.Objects;
  * <p>sealed で型を限定し、switch 式の網羅性チェックを利用する。新カードタイプ追加時は permits 一覧を更新するためコンパイラが全 switch 箇所を強制的に書き換えさせる
  * (驚き最小)。
  *
- * <p>仕様: §15-3 / §15-4。ダメージ計算式 (`max(1, baseValue + 物攻 - 物防)`) は {@link
- * Damage#resolve(Stats, Stats, CardElement)} に集約する (ADR-17)。`CardEffect.Damage` 自身が「自分の最終ダメージを確定する」責務を持ち、TurnEngine
+ * <p>仕様: §15-3 / §15-4。ダメージ計算式 (`max(1, baseValue + 物攻 - 物防)`) は {@link Damage#resolve(Stats,
+ * Stats, CardElement)} に集約する (ADR-17)。`CardEffect.Damage` 自身が「自分の最終ダメージを確定する」責務を持ち、TurnEngine
  * 等の上位層は結果の整数を Stats へ反映するだけ。
  */
 public sealed interface CardEffect

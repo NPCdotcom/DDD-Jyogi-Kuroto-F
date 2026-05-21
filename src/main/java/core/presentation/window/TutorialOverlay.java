@@ -17,9 +17,9 @@ import core.presentation.render.RenderLayout;
 import java.util.Objects;
 
 /**
- * 初回起動チュートリアル (§15-10 / E-10)。{@link NodeChoicePopup} と同じ Scene2D Window 構成で、
- * タイトル / 本文 (複数行) / 閉じるヒント を 1 枚にまとめて表示。閉じる入力 (ENTER/ESC) の検知は
- * 親 (TitleScreen) が担当する (Scene2D Actor input を使わず外部キー入力主体、NodeChoicePopup と同型)。
+ * 初回起動チュートリアル (§15-10 / E-10)。{@link NodeChoicePopup} と同じ Scene2D Window 構成で、 タイトル / 本文 (複数行) /
+ * 閉じるヒント を 1 枚にまとめて表示。閉じる入力 (ENTER/ESC) の検知は 親 (TitleScreen) が担当する (Scene2D Actor input
+ * を使わず外部キー入力主体、NodeChoicePopup と同型)。
  */
 public final class TutorialOverlay implements Disposable {
 

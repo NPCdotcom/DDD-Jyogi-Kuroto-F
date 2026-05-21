@@ -9,7 +9,8 @@ import java.util.Objects;
  * <p>AP に関する状態は ActionPoints で別途管理する (責務分離)。Stats が持つのは恒常的なスペック (HP 上限・速度・4 攻防ステ) と現在 HP のみ。
  *
  * <p>4 攻防ステ (物攻/魔攻/物防/魔防) は §15-4 のカード使用時ダメージ計算で参照される (実計算は {@link
- * core.domain.card.CardEffect.Damage#resolve} に委譲)。スキル (`SkillEffect`) は固定ダメージで、これらのステの影響を受けない (ADR-17)。
+ * core.domain.card.CardEffect.Damage#resolve} に委譲)。スキル (`SkillEffect`) は固定ダメージで、これらのステの影響を受けない
+ * (ADR-17)。
  *
  * <p>本 PR では `with*` メソッド (バフ用) は YAGNI のため追加しない。バフ適用 Issue で必要時に追加する。
  */
@@ -34,8 +35,7 @@ public record Stats(
       throw new IllegalArgumentException("speed must be non-negative: " + speed);
     }
     if (physicalAttack < 0) {
-      throw new IllegalArgumentException(
-          "physicalAttack must be non-negative: " + physicalAttack);
+      throw new IllegalArgumentException("physicalAttack must be non-negative: " + physicalAttack);
     }
     if (magicalAttack < 0) {
       throw new IllegalArgumentException("magicalAttack must be non-negative: " + magicalAttack);
@@ -45,8 +45,7 @@ public record Stats(
           "physicalDefense must be non-negative: " + physicalDefense);
     }
     if (magicalDefense < 0) {
-      throw new IllegalArgumentException(
-          "magicalDefense must be non-negative: " + magicalDefense);
+      throw new IllegalArgumentException("magicalDefense must be non-negative: " + magicalDefense);
     }
   }
 
@@ -85,8 +84,8 @@ public record Stats(
   /**
    * 装備 / Buff の {@link StatsBonus} を加算した新 Stats を返す純関数 (§15-4 / ADR-25)。
    *
-   * <p>{@code maxHp} は最低 1 を保証 (装備の負補正で 0 以下にならない)。{@code currentHp} は新 maxHp でクランプ
-   * (max が下がった時に張り付かない)。speed / 4 攻防ステは 0 でクランプ (負値を弾く、コンストラクタの非負制約を満たす)。
+   * <p>{@code maxHp} は最低 1 を保証 (装備の負補正で 0 以下にならない)。{@code currentHp} は新 maxHp でクランプ (max
+   * が下がった時に張り付かない)。speed / 4 攻防ステは 0 でクランプ (負値を弾く、コンストラクタの非負制約を満たす)。
    */
   public Stats plus(StatsBonus bonus) {
     Objects.requireNonNull(bonus, "bonus");

@@ -375,8 +375,7 @@ class TurnEngineTest {
     Player p = DomainFixtures.playerAt(new Position(1, 1));
     Enemy slime = DomainFixtures.slimeAt(new Position(2, 1));
     DungeonState s =
-        new DungeonState(
-            DomainFixtures.squareRoom(), p, List.of(slime), TurnPhase.ENEMY_TURN);
+        new DungeonState(DomainFixtures.squareRoom(), p, List.of(slime), TurnPhase.ENEMY_TURN);
 
     TurnEngine.StepResult result =
         TurnEngine.resolveEnemyAction(s, slime.id(), new BattleAction.UseCard(0, Direction.RIGHT));
@@ -394,9 +393,7 @@ class TurnEngineTest {
     Card dash = DomainFixtures.moveCard("dash"); // distance=2, apCost=1
     CardPileState piles =
         new CardPileState(DrawPile.empty(), Hand.empty().add(dash), DiscardPile.empty());
-    Player p =
-        DomainFixtures.playerAt(new Position(2, 2))
-            .withCardPileState(piles); // AP=5 (full)
+    Player p = DomainFixtures.playerAt(new Position(2, 2)).withCardPileState(piles); // AP=5 (full)
     DungeonState s = newState(p, List.of());
 
     // Move カードは direction 不要だが UseCard 型は direction 必須 → RIGHT を渡す
@@ -423,9 +420,7 @@ class TurnEngineTest {
   @Test
   void movingWhilePendingCountPositiveConsumesNoApAndDecrementsCount() {
     // §15-5 / ADR-21 「pendingMoveCount > 0 のとき AWSD 移動は AP 0 消費、pendingMoveCount--」
-    Player p =
-        DomainFixtures.playerAt(new Position(2, 2))
-            .withPendingMoveCount(2); // 移動権 2 残
+    Player p = DomainFixtures.playerAt(new Position(2, 2)).withPendingMoveCount(2); // 移動権 2 残
     int apBefore = p.actionPoints().current();
     DungeonState s = newState(p, List.of());
 
@@ -471,9 +466,7 @@ class TurnEngineTest {
     // §15-5 / ADR-21 「移動権中の壁ブロックは reject、pendingMoveCount は減らない」
     // (2,2) から DOWN は (2,1)=床、UP は (2,3)=床、LEFT は (1,2)=床、DOWN は (2,1)
     // 外壁に接する (1,1) から DOWN → (1,0) は壁
-    Player p =
-        DomainFixtures.playerAt(new Position(1, 1))
-            .withPendingMoveCount(2);
+    Player p = DomainFixtures.playerAt(new Position(1, 1)).withPendingMoveCount(2);
     DungeonState s = newState(p, List.of());
 
     TurnEngine.StepResult result =
@@ -512,7 +505,8 @@ class TurnEngineTest {
 
   @Test
   void trapCardUsePlacesTrapAtAdjacentTileAndConsumesApAndHand() {
-    // §15-3 / ADR-22 「Trap カード使用 → 隣接マスに PlacedTrap 追加、AP 消費、Hand→Discard、SkillUsed + TrapPlaced 発火」
+    // §15-3 / ADR-22 「Trap カード使用 → 隣接マスに PlacedTrap 追加、AP 消費、Hand→Discard、SkillUsed + TrapPlaced
+    // 発火」
     Card spikeTrap =
         new Card(
             CardId.of("spike_trap"),
@@ -523,9 +517,7 @@ class TurnEngineTest {
             new CardEffect.Trap(4, TrapLifetime.UntilStepped.INSTANCE));
     CardPileState piles =
         new CardPileState(DrawPile.empty(), Hand.empty().add(spikeTrap), DiscardPile.empty());
-    Player p =
-        DomainFixtures.playerAt(new Position(1, 1))
-            .withCardPileState(piles); // AP=5 (full)
+    Player p = DomainFixtures.playerAt(new Position(1, 1)).withCardPileState(piles); // AP=5 (full)
     DungeonState s = newState(p, List.of());
 
     TurnEngine.StepResult result =
@@ -557,9 +549,7 @@ class TurnEngineTest {
     CardPileState piles =
         new CardPileState(DrawPile.empty(), Hand.empty().add(trapCard), DiscardPile.empty());
     // (1,1) から DOWN → (1,0) は壁
-    Player p =
-        DomainFixtures.playerAt(new Position(1, 1))
-            .withCardPileState(piles);
+    Player p = DomainFixtures.playerAt(new Position(1, 1)).withCardPileState(piles);
     DungeonState s = newState(p, List.of());
 
     TurnEngine.StepResult result =
@@ -582,9 +572,7 @@ class TurnEngineTest {
     Card newTrap = DomainFixtures.trapCard("pit2"); // baseValue=3
     CardPileState piles =
         new CardPileState(DrawPile.empty(), Hand.empty().add(newTrap), DiscardPile.empty());
-    Player p =
-        DomainFixtures.playerAt(new Position(1, 1))
-            .withCardPileState(piles);
+    Player p = DomainFixtures.playerAt(new Position(1, 1)).withCardPileState(piles);
     DungeonState s =
         new DungeonState(
             DomainFixtures.squareRoom(),
@@ -615,11 +603,7 @@ class TurnEngineTest {
     Player p = DomainFixtures.playerAt(new Position(2, 1));
     DungeonState s =
         new DungeonState(
-            DomainFixtures.squareRoom(),
-            p,
-            List.of(),
-            TurnPhase.PLAYER_TURN,
-            List.of(trap));
+            DomainFixtures.squareRoom(), p, List.of(), TurnPhase.PLAYER_TURN, List.of(trap));
 
     TurnEngine.StepResult result =
         TurnEngine.resolvePlayerAction(s, new BattleAction.Move(Direction.RIGHT));
@@ -649,16 +633,11 @@ class TurnEngineTest {
     // §15-3 / ADR-22 「移動で Turns 罠踏み → ダメージは入るが罠は残る、TrapTriggered 発火」
     // Turns(3): 残 3 ターン。踏まれても除去されない。
     PlacedTrap turnsTrap =
-        new PlacedTrap(
-            new Position(3, 1), 3, new TrapLifetime.Turns(3), CardElement.PHYSICAL);
+        new PlacedTrap(new Position(3, 1), 3, new TrapLifetime.Turns(3), CardElement.PHYSICAL);
     Player p = DomainFixtures.playerAt(new Position(2, 1));
     DungeonState s =
         new DungeonState(
-            DomainFixtures.squareRoom(),
-            p,
-            List.of(),
-            TurnPhase.PLAYER_TURN,
-            List.of(turnsTrap));
+            DomainFixtures.squareRoom(), p, List.of(), TurnPhase.PLAYER_TURN, List.of(turnsTrap));
 
     TurnEngine.StepResult result =
         TurnEngine.resolvePlayerAction(s, new BattleAction.Move(Direction.RIGHT));
@@ -675,16 +654,13 @@ class TurnEngineTest {
 
   @Test
   void startPlayerTurnDecrementsOneTurnsTrapAndRemovesExpiredTrap() {
-    // §15-3 / ADR-22 「startPlayerTurn で Turns(1) 罠 → remaining-- → 0 で除去、Turns(2) は Turns(1) に減って残る」
+    // §15-3 / ADR-22 「startPlayerTurn で Turns(1) 罠 → remaining-- → 0 で除去、Turns(2) は Turns(1)
+    // に減って残る」
     PlacedTrap expiringTrap =
-        new PlacedTrap(
-            new Position(3, 1), 3, new TrapLifetime.Turns(1), CardElement.PHYSICAL);
+        new PlacedTrap(new Position(3, 1), 3, new TrapLifetime.Turns(1), CardElement.PHYSICAL);
     PlacedTrap survivingTrap =
-        new PlacedTrap(
-            new Position(3, 3), 3, new TrapLifetime.Turns(2), CardElement.PHYSICAL);
-    Player p =
-        DomainFixtures.playerAt(new Position(1, 1))
-            .withActionPoints(new ActionPoints(0, 5));
+        new PlacedTrap(new Position(3, 3), 3, new TrapLifetime.Turns(2), CardElement.PHYSICAL);
+    Player p = DomainFixtures.playerAt(new Position(1, 1)).withActionPoints(new ActionPoints(0, 5));
     DungeonState s =
         new DungeonState(
             DomainFixtures.squareRoom(),
@@ -717,11 +693,7 @@ class TurnEngineTest {
     Enemy slime = DomainFixtures.slimeAt("slime1", new Position(2, 1), ActionPoints.full(3));
     DungeonState s =
         new DungeonState(
-            DomainFixtures.squareRoom(),
-            p,
-            List.of(slime),
-            TurnPhase.ENEMY_TURN,
-            List.of(trap));
+            DomainFixtures.squareRoom(), p, List.of(slime), TurnPhase.ENEMY_TURN, List.of(trap));
 
     TurnEngine.StepResult result =
         TurnEngine.resolveEnemyAction(s, slime.id(), new BattleAction.Move(Direction.RIGHT));

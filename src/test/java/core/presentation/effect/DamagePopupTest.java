@@ -21,8 +21,7 @@ class DamagePopupTest {
   @Test
   void compactConstructorRejectsNegativeAge() {
     assertThrows(
-        IllegalArgumentException.class,
-        () -> new DamagePopup(0f, 0f, 1, -0.01f, Color.WHITE));
+        IllegalArgumentException.class, () -> new DamagePopup(0f, 0f, 1, -0.01f, Color.WHITE));
   }
 
   @Test
@@ -122,6 +121,7 @@ class DamagePopupTest {
   void currentYAtFullDurationEqualsFullRise() {
     DamagePopup p = new DamagePopup(0f, 200f, 1, 0f, Color.WHITE);
     DamagePopup atEnd = p.advanced(DamagePopup.DURATION);
-    assertEquals(200f + DamagePopup.RISE_VELOCITY * DamagePopup.DURATION, atEnd.currentY(), 0.0001f);
+    assertEquals(
+        200f + DamagePopup.RISE_VELOCITY * DamagePopup.DURATION, atEnd.currentY(), 0.0001f);
   }
 }

@@ -9,7 +9,8 @@ import java.util.Objects;
  *
  * <p>不変。 追加 ({@link #add}) と山札への再シャッフル ({@link #reshuffleInto}) は新インスタンスを返す。
  *
- * <p>山札切れ時に {@link CardPileState#drawN} から再シャッフル要求が走り、 自身を {@link DrawPile} に変換しつつ自分は空になる (これも純関数として表現)。
+ * <p>山札切れ時に {@link CardPileState#drawN} から再シャッフル要求が走り、 自身を {@link DrawPile} に変換しつつ自分は空になる
+ * (これも純関数として表現)。
  */
 public record DiscardPile(List<Card> cards) {
 

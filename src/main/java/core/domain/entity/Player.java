@@ -13,15 +13,16 @@ import java.util.Objects;
  *
  * <p>共通インターフェース (Actor) は MVP で実利用が無いため設けない (YAGNI)。共通処理が必要になった段階で sealed interface として復活させる。
  *
- * <p>ADR-25 で record を 6 引数に縮退 (旧 8 引数)。能力値関連 (Stats / ActionPoints / SkillSlot / Optional&lt;Equipment&gt; /
- * List&lt;ActiveBuff&gt;) は {@link PlayerStatuses} に集約し、Buff (§15-3) + E-5 装備 (§15-9) を 1 つのレイヤーで扱う。
- * 既存呼出箇所互換のため {@link #stats()} / {@link #actionPoints()} / {@link #skillSlot()} は {@link PlayerStatuses} への
- * 委譲アクセサとして残す (ADR-25 Decision #5)。
+ * <p>ADR-25 で record を 6 引数に縮退 (旧 8 引数)。能力値関連 (Stats / ActionPoints / SkillSlot /
+ * Optional&lt;Equipment&gt; / List&lt;ActiveBuff&gt;) は {@link PlayerStatuses} に集約し、Buff (§15-3) +
+ * E-5 装備 (§15-9) を 1 つのレイヤーで扱う。 既存呼出箇所互換のため {@link #stats()} / {@link #actionPoints()} / {@link
+ * #skillSlot()} は {@link PlayerStatuses} への 委譲アクセサとして残す (ADR-25 Decision #5)。
  *
- * <p>§15-3 のカードシステム導入に伴い {@link CardPileState} を保持する (ADR-18)。戦闘中の山札・手札・捨て札の動的状態を Player record 内に持つ。
+ * <p>§15-3 のカードシステム導入に伴い {@link CardPileState} を保持する (ADR-18)。戦闘中の山札・手札・捨て札の動的状態を Player record
+ * 内に持つ。
  *
- * <p>{@code pendingMoveCount} は移動カード (§15-5 / ADR-21) を切ったあとに残る「無料移動権の残量」。移動カードの {@code distance} ぶんが付与され、
- * WASD/方向キーで 1 マス移動するごとに -1 される。0 になれば通常モード復帰。
+ * <p>{@code pendingMoveCount} は移動カード (§15-5 / ADR-21) を切ったあとに残る「無料移動権の残量」。移動カードの {@code distance}
+ * ぶんが付与され、 WASD/方向キーで 1 マス移動するごとに -1 される。0 になれば通常モード復帰。
  */
 public record Player(
     ActorId id,

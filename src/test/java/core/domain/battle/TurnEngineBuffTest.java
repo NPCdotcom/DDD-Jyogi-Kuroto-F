@@ -23,8 +23,8 @@ import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 /**
- * §15-3 / ADR-27 完全実装の証跡テスト: Buff カードが TurnEngine で resolveCardBuff 経由で適用され、
- * effectiveStats への合算、startPlayerTurn での remainingTurns 減算、重複 BuffKind 上書きが動作する。
+ * §15-3 / ADR-27 完全実装の証跡テスト: Buff カードが TurnEngine で resolveCardBuff 経由で適用され、 effectiveStats
+ * への合算、startPlayerTurn での remainingTurns 減算、重複 BuffKind 上書きが動作する。
  */
 class TurnEngineBuffTest {
 
@@ -54,7 +54,8 @@ class TurnEngineBuffTest {
     Player player =
         DomainFixtures.playerAt(new Position(1, 1))
             .withCardPileState(
-                new CardPileState(DrawPile.empty(), Hand.empty().add(buffCard), DiscardPile.empty()));
+                new CardPileState(
+                    DrawPile.empty(), Hand.empty().add(buffCard), DiscardPile.empty()));
     return DomainFixtures.newStateWith(
         DomainFixtures.squareRoom(), player, List.of(), TurnPhase.PLAYER_TURN);
   }
@@ -135,12 +136,10 @@ class TurnEngineBuffTest {
                     DiscardPile.empty()));
     DungeonState stateAfterFirst = first.state().withPlayer(playerAfterFirst);
     TurnEngine.StepResult second =
-        TurnEngine.resolvePlayerAction(
-            stateAfterFirst, new BattleAction.UseCard(0, Direction.UP));
+        TurnEngine.resolvePlayerAction(stateAfterFirst, new BattleAction.UseCard(0, Direction.UP));
 
     Player finalPlayer = second.state().player();
-    assertEquals(
-        1, finalPlayer.statuses().activeBuffs().size(), "重複 BuffKind は上書き (1 件のまま)");
+    assertEquals(1, finalPlayer.statuses().activeBuffs().size(), "重複 BuffKind は上書き (1 件のまま)");
     ActiveBuff overridden = finalPlayer.statuses().activeBuffs().get(0);
     assertEquals(5, overridden.amount(), "新しい amount で上書き");
     assertEquals(1, overridden.remainingTurns(), "新しい残ターンで上書き");
@@ -162,8 +161,7 @@ class TurnEngineBuffTest {
                     DrawPile.empty(), Hand.empty().add(speedUpCard()), DiscardPile.empty()));
     DungeonState stateAfterFirst = first.state().withPlayer(playerAfterFirst);
     TurnEngine.StepResult second =
-        TurnEngine.resolvePlayerAction(
-            stateAfterFirst, new BattleAction.UseCard(0, Direction.UP));
+        TurnEngine.resolvePlayerAction(stateAfterFirst, new BattleAction.UseCard(0, Direction.UP));
 
     Player finalPlayer = second.state().player();
     assertEquals(2, finalPlayer.statuses().activeBuffs().size(), "異種 BuffKind 2 件");
@@ -175,8 +173,7 @@ class TurnEngineBuffTest {
   void startPlayerTurnDecrementsActiveBuffRemainingTurns() {
     DungeonState state = stateWithBuffInHand(physicalAttackUpCard(2, 3, 1));
     DungeonState afterUse =
-        TurnEngine.resolvePlayerAction(state, new BattleAction.UseCard(0, Direction.UP))
-            .state();
+        TurnEngine.resolvePlayerAction(state, new BattleAction.UseCard(0, Direction.UP)).state();
     // ENEMY_TURN 経由をスキップして、直接 startPlayerTurn を呼ぶ (テストの簡略化)
     DungeonState enemyPhase = afterUse.withPhase(TurnPhase.ENEMY_TURN);
 
@@ -192,8 +189,7 @@ class TurnEngineBuffTest {
     // remainingTurns=1 の Buff が startPlayerTurn 後に 0 → 除去される
     DungeonState state = stateWithBuffInHand(physicalAttackUpCard(2, 1, 1));
     DungeonState afterUse =
-        TurnEngine.resolvePlayerAction(state, new BattleAction.UseCard(0, Direction.UP))
-            .state();
+        TurnEngine.resolvePlayerAction(state, new BattleAction.UseCard(0, Direction.UP)).state();
     DungeonState enemyPhase = afterUse.withPhase(TurnPhase.ENEMY_TURN);
 
     TurnEngine.StepResult result = TurnEngine.startPlayerTurn(enemyPhase, new Random(42));
@@ -215,8 +211,7 @@ class TurnEngineBuffTest {
             new CardEffect.Buff(CardEffect.BuffKind.SPEED_UP, 2, 3));
     DungeonState state = stateWithBuffInHand(spdUpStrong);
     DungeonState afterUse =
-        TurnEngine.resolvePlayerAction(state, new BattleAction.UseCard(0, Direction.UP))
-            .state();
+        TurnEngine.resolvePlayerAction(state, new BattleAction.UseCard(0, Direction.UP)).state();
     DungeonState enemyPhase = afterUse.withPhase(TurnPhase.ENEMY_TURN);
 
     TurnEngine.StepResult result = TurnEngine.startPlayerTurn(enemyPhase, new Random(42));
@@ -245,9 +240,7 @@ class TurnEngineBuffTest {
         DomainFixtures.playerAt(new Position(1, 1))
             .withCardPileState(
                 new CardPileState(
-                    DrawPile.empty(),
-                    Hand.empty().add(buff).add(dmgCard),
-                    DiscardPile.empty()));
+                    DrawPile.empty(), Hand.empty().add(buff).add(dmgCard), DiscardPile.empty()));
     // 隣接 (1, 2) に敵を配置 (Direction.UP = y+1 で当たる)
     DungeonState state =
         DomainFixtures.newStateWith(
@@ -258,20 +251,15 @@ class TurnEngineBuffTest {
 
     // 1) Buff を使う
     DungeonState afterBuff =
-        TurnEngine.resolvePlayerAction(state, new BattleAction.UseCard(0, Direction.UP))
-            .state();
+        TurnEngine.resolvePlayerAction(state, new BattleAction.UseCard(0, Direction.UP)).state();
     // 2) Damage カード (handIndex=0、Buff が消費されたので残り 1 枚) を SOUTH 方向に
     TurnEngine.StepResult dmgResult =
-        TurnEngine.resolvePlayerAction(
-            afterBuff, new BattleAction.UseCard(0, Direction.UP));
+        TurnEngine.resolvePlayerAction(afterBuff, new BattleAction.UseCard(0, Direction.UP));
 
     // baseValue 3 + (素ステ物攻 0 + Buff +2) - (敵 物防 0) = 5 のはず
     boolean hit5Damage =
         dmgResult.events().stream()
-            .anyMatch(
-                e ->
-                    e instanceof BattleEvent.DamageDealt d
-                        && d.damage() == 5);
+            .anyMatch(e -> e instanceof BattleEvent.DamageDealt d && d.damage() == 5);
     assertTrue(hit5Damage, "Buff +2 が物攻に乗ったダメージ 5 が発火される");
   }
 }

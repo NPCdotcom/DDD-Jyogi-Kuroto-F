@@ -9,8 +9,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Card の不変条件テスト。
  *
- * <p>ADR-16 検証ポイント 1: apCost の境界検証。
- * GAME_DESIGN §15-3: AP コストは 1 以上 (0 コストカードはターン終了条件と相性が悪いため禁止)。
+ * <p>ADR-16 検証ポイント 1: apCost の境界検証。 GAME_DESIGN §15-3: AP コストは 1 以上 (0 コストカードはターン終了条件と相性が悪いため禁止)。
  */
 class CardTest {
 
@@ -25,13 +24,14 @@ class CardTest {
 
   @Test
   void apCostAboveOneIsAccepted() {
-    Card card = new Card(
-        CardId.of("heavy-001"),
-        "強斬撃",
-        3,
-        CardTag.ATTACK,
-        CardElement.PHYSICAL,
-        new CardEffect.Damage(10));
+    Card card =
+        new Card(
+            CardId.of("heavy-001"),
+            "強斬撃",
+            3,
+            CardTag.ATTACK,
+            CardElement.PHYSICAL,
+            new CardEffect.Damage(10));
     assertEquals(3, card.apCost());
   }
 
@@ -43,26 +43,28 @@ class CardTest {
     // GAME_DESIGN §15-3: AP コスト 0 は禁止
     assertThrows(
         IllegalArgumentException.class,
-        () -> new Card(
-            CardId.of("zero-cost"),
-            "ゼロコスト",
-            0,
-            CardTag.ATTACK,
-            CardElement.PHYSICAL,
-            new CardEffect.Damage(1)));
+        () ->
+            new Card(
+                CardId.of("zero-cost"),
+                "ゼロコスト",
+                0,
+                CardTag.ATTACK,
+                CardElement.PHYSICAL,
+                new CardEffect.Damage(1)));
   }
 
   @Test
   void apCostNegativeThrowsIllegalArgumentException() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> new Card(
-            CardId.of("negative-cost"),
-            "マイナスコスト",
-            -1,
-            CardTag.ATTACK,
-            CardElement.PHYSICAL,
-            new CardEffect.Damage(1)));
+        () ->
+            new Card(
+                CardId.of("negative-cost"),
+                "マイナスコスト",
+                -1,
+                CardTag.ATTACK,
+                CardElement.PHYSICAL,
+                new CardEffect.Damage(1)));
   }
 
   // null / blank 検証
@@ -71,28 +73,31 @@ class CardTest {
   void nullIdThrowsNullPointerException() {
     assertThrows(
         NullPointerException.class,
-        () -> new Card(
-            null, "有効名", 1, CardTag.ATTACK, CardElement.PHYSICAL, new CardEffect.Damage(1)));
+        () ->
+            new Card(
+                null, "有効名", 1, CardTag.ATTACK, CardElement.PHYSICAL, new CardEffect.Damage(1)));
   }
 
   @Test
   void blankDisplayNameThrowsIllegalArgumentException() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> new Card(
-            CardId.of("blank-name"),
-            "   ",
-            1,
-            CardTag.ATTACK,
-            CardElement.PHYSICAL,
-            new CardEffect.Damage(1)));
+        () ->
+            new Card(
+                CardId.of("blank-name"),
+                "   ",
+                1,
+                CardTag.ATTACK,
+                CardElement.PHYSICAL,
+                new CardEffect.Damage(1)));
   }
 
   @Test
   void nullEffectThrowsNullPointerException() {
     assertThrows(
         NullPointerException.class,
-        () -> new Card(
-            CardId.of("null-effect"), "有効名", 1, CardTag.ATTACK, CardElement.PHYSICAL, null));
+        () ->
+            new Card(
+                CardId.of("null-effect"), "有効名", 1, CardTag.ATTACK, CardElement.PHYSICAL, null));
   }
 }

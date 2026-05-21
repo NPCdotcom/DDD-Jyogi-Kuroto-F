@@ -45,16 +45,14 @@ class SoulTreeTest {
 
   @Test
   void compactConstructorRejectsNegativeSpent() {
-    assertThrows(
-        IllegalArgumentException.class, () -> new SoulTree(Set.of(SoulTree.ROOT), -1));
+    assertThrows(IllegalArgumentException.class, () -> new SoulTree(Set.of(SoulTree.ROOT), -1));
   }
 
   @Test
   void compactConstructorRequiresRoot() {
     assertThrows(IllegalArgumentException.class, () -> new SoulTree(Set.of(), 0));
     assertThrows(
-        IllegalArgumentException.class,
-        () -> new SoulTree(Set.of(NodeId.of("hp_up_1")), 20));
+        IllegalArgumentException.class, () -> new SoulTree(Set.of(NodeId.of("hp_up_1")), 20));
   }
 
   @Test
@@ -94,8 +92,7 @@ class SoulTreeTest {
   void unlockChainStatThenDerivedSucceeds() {
     // 物攻 +1 → 強打 +1 枚 の連鎖解放 (ADR-30 で物攻+1 = 5 ソウル)
     SoulTree tree = SoulTree.empty();
-    SoulTree afterStat =
-        tree.unlock(NodeId.of("phys_atk_up_1"), new Soul(100)).newTree();
+    SoulTree afterStat = tree.unlock(NodeId.of("phys_atk_up_1"), new Soul(100)).newTree();
     SoulTree.UnlockResult afterCard =
         afterStat.unlock(NodeId.of("card_grant_strong_strike"), new Soul(100));
 
@@ -133,9 +130,7 @@ class SoulTreeTest {
   void unlockWithInsufficientSoulRejected() {
     SoulTree tree = SoulTree.empty();
     // §15-7 / ADR-30: HP+5 のコスト 6、5 ソウルでは足りない
-    assertThrows(
-        IllegalStateException.class,
-        () -> tree.unlock(NodeId.of("hp_up_1"), new Soul(5)));
+    assertThrows(IllegalStateException.class, () -> tree.unlock(NodeId.of("hp_up_1"), new Soul(5)));
   }
 
   // ---------------- reset ----------------
@@ -224,10 +219,8 @@ class SoulTreeTest {
   @Test
   void applyToRejectsNullArguments() {
     Player base = DomainFixtures.playerAt(new Position(1, 1));
-    assertThrows(
-        NullPointerException.class, () -> SoulTree.empty().applyTo(null, DUMMY_RESOLVER));
-    assertThrows(
-        NullPointerException.class, () -> SoulTree.empty().applyTo(base, null));
+    assertThrows(NullPointerException.class, () -> SoulTree.empty().applyTo(null, DUMMY_RESOLVER));
+    assertThrows(NullPointerException.class, () -> SoulTree.empty().applyTo(base, null));
   }
 
   // ---------------- 防御コピー ----------------

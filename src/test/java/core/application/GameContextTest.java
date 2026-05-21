@@ -17,9 +17,9 @@ import org.junit.jupiter.api.Test;
 /**
  * {@link GameContext} の単体テスト。
  *
- * <p>§15-5 / E-8 で追加した {@link GameContext#totalEventsEmitted()} カーソルの挙動を確認する。
- * DungeonScreen がこの値で「未処理 DamageDealt」を検知して popup / shake を発火するため、
- * イベント発火のたびに monotonic に増加し、循環バッファで古いイベントが破棄されても減らないことが要件。
+ * <p>§15-5 / E-8 で追加した {@link GameContext#totalEventsEmitted()} カーソルの挙動を確認する。 DungeonScreen
+ * がこの値で「未処理 DamageDealt」を検知して popup / shake を発火するため、 イベント発火のたびに monotonic
+ * に増加し、循環バッファで古いイベントが破棄されても減らないことが要件。
  */
 class GameContextTest {
 
@@ -83,9 +83,7 @@ class GameContextTest {
     ctx.applyResult(new TurnEngine.StepResult(ctx.state(), manyEvents));
 
     assertEquals(100L, ctx.totalEventsEmitted(), "発火件数すべてカウントされる");
-    assertTrue(
-        ctx.latestEvents(200).size() <= 64,
-        "latestEvents は MAX_LOG_LINES (64) で打ち切り");
+    assertTrue(ctx.latestEvents(200).size() <= 64, "latestEvents は MAX_LOG_LINES (64) で打ち切り");
   }
 
   @Test

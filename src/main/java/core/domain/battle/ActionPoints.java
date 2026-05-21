@@ -35,8 +35,8 @@ public record ActionPoints(int current, int max) {
   /**
    * 新しい max を指定し、current も新 max まで全充填する (§15-3 使い切り型のターン頭再充填)。
    *
-   * <p>使い切り型では「前ターンの残 AP を蓄積しない」「max が変化したら即追従する」必要があり、本メソッドが両方を 1 呼び出しで扱う。通常は
-   * {@code Stats#speed()} を引数に渡す。
+   * <p>使い切り型では「前ターンの残 AP を蓄積しない」「max が変化したら即追従する」必要があり、本メソッドが両方を 1 呼び出しで扱う。通常は {@code
+   * Stats#speed()} を引数に渡す。
    *
    * @param newMax 新しい max ({@code >= 0})、通常はターン頭の速度ステ値
    * @return current = newMax, max = newMax の新 ActionPoints

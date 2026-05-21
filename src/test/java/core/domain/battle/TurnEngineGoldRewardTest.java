@@ -26,8 +26,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * §15-2 / §15-9: 敵撃破時に Player.gold が EnemyKind.goldReward() ぶん加算され、
- * BattleEvent.GoldGained が発火することの検証。
+ * §15-2 / §15-9: 敵撃破時に Player.gold が EnemyKind.goldReward() ぶん加算され、 BattleEvent.GoldGained
+ * が発火することの検証。
  */
 class TurnEngineGoldRewardTest {
 
@@ -47,9 +47,7 @@ class TurnEngineGoldRewardTest {
         DomainFixtures.playerAt(new Position(1, 1))
             .withCardPileState(
                 new CardPileState(
-                    DrawPile.empty(),
-                    Hand.empty().add(overkillDamageCard()),
-                    DiscardPile.empty()));
+                    DrawPile.empty(), Hand.empty().add(overkillDamageCard()), DiscardPile.empty()));
     Enemy slime =
         new Enemy(
             ActorId.of("slime#test"),
@@ -115,9 +113,7 @@ class TurnEngineGoldRewardTest {
         DomainFixtures.playerAt(new Position(1, 1))
             .withCardPileState(
                 new CardPileState(
-                    DrawPile.empty(),
-                    Hand.empty().add(weakCard),
-                    DiscardPile.empty()));
+                    DrawPile.empty(), Hand.empty().add(weakCard), DiscardPile.empty()));
     Enemy slime =
         new Enemy(
             ActorId.of("slime#tough"),

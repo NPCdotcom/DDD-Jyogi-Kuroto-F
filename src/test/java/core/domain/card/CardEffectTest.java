@@ -9,8 +9,7 @@ import org.junit.jupiter.api.Test;
 /**
  * CardEffect sealed 型の各バリアント境界検証と switch 網羅性テスト。
  *
- * <p>ADR-16 検証ポイント 5: sealed switch の全分岐網羅。
- * ADR-16 検証ポイント 9: Damage / Move / Buff / Trap の各 0 値境界。
+ * <p>ADR-16 検証ポイント 5: sealed switch の全分岐網羅。 ADR-16 検証ポイント 9: Damage / Move / Buff / Trap の各 0 値境界。
  * GAME_DESIGN §15-3: CardEffect は sealed で網羅性保証。
  */
 class CardEffectTest {
@@ -20,8 +19,8 @@ class CardEffectTest {
   // =========================================================
 
   /**
-   * Damage / Move / Buff / Trap の 4 パターンを switch pattern matching で受け、
-   * default なしでコンパイルが通ること (= sealed が網羅性を保証していること) の確認。
+   * Damage / Move / Buff / Trap の 4 パターンを switch pattern matching で受け、 default なしでコンパイルが通ること (=
+   * sealed が網羅性を保証していること) の確認。
    *
    * <p>各 case が到達可能であることをアサーションで確認し、トートロジーを回避する。
    */
@@ -29,26 +28,25 @@ class CardEffectTest {
   void sealedSwitchCoversAllFourVariants() {
     // 検証ポイント 5: 4 種類すべての case を実際に通す
     CardEffect damage = new CardEffect.Damage(5);
-    CardEffect move   = new CardEffect.Move(2);
-    CardEffect buff   = new CardEffect.Buff(CardEffect.BuffKind.SPEED_UP, 2, 1);
-    CardEffect trap   = new CardEffect.Trap(3, TrapLifetime.UntilStepped.INSTANCE);
+    CardEffect move = new CardEffect.Move(2);
+    CardEffect buff = new CardEffect.Buff(CardEffect.BuffKind.SPEED_UP, 2, 1);
+    CardEffect trap = new CardEffect.Trap(3, TrapLifetime.UntilStepped.INSTANCE);
 
-    assertEquals("damage:5",  describe(damage));
-    assertEquals("move:2",    describe(move));
+    assertEquals("damage:5", describe(damage));
+    assertEquals("move:2", describe(move));
     assertEquals("buff:SPEED_UP:2:1", describe(buff));
-    assertEquals("trap:3",    describe(trap));
+    assertEquals("trap:3", describe(trap));
   }
 
   /**
-   * default なしの switch で全分岐を記述 (コンパイル時に sealed 網羅チェックが走る)。
-   * 新バリアントが追加されれば、ここがコンパイルエラーになってすぐ検知できる。
+   * default なしの switch で全分岐を記述 (コンパイル時に sealed 網羅チェックが走る)。 新バリアントが追加されれば、ここがコンパイルエラーになってすぐ検知できる。
    */
   private String describe(CardEffect effect) {
     return switch (effect) {
       case CardEffect.Damage d -> "damage:" + d.baseValue();
-      case CardEffect.Move   m -> "move:"   + m.distance();
-      case CardEffect.Buff   b -> "buff:"   + b.kind() + ":" + b.amount() + ":" + b.durationTurns();
-      case CardEffect.Trap   t -> "trap:"   + t.baseValue();
+      case CardEffect.Move m -> "move:" + m.distance();
+      case CardEffect.Buff b -> "buff:" + b.kind() + ":" + b.amount() + ":" + b.durationTurns();
+      case CardEffect.Trap t -> "trap:" + t.baseValue();
     };
   }
 
@@ -129,9 +127,7 @@ class CardEffectTest {
 
   @Test
   void buffNullKindThrowsNullPointerException() {
-    assertThrows(
-        NullPointerException.class,
-        () -> new CardEffect.Buff(null, 1, 1));
+    assertThrows(NullPointerException.class, () -> new CardEffect.Buff(null, 1, 1));
   }
 
   // --- Trap ---

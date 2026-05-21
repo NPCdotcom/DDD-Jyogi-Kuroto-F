@@ -70,8 +70,8 @@ public sealed interface BattleEvent
   }
 
   /**
-   * 金貨獲得通知 (§15-2 / §15-9 Shop の前提)。敵撃破時に {@link SoulGained} と並列に発火する。
-   * HUD ログでは「{プレイヤー} は {N} 金貨を獲得」のように表示。
+   * 金貨獲得通知 (§15-2 / §15-9 Shop の前提)。敵撃破時に {@link SoulGained} と並列に発火する。 HUD ログでは「{プレイヤー} は {N}
+   * 金貨を獲得」のように表示。
    */
   record GoldGained(ActorId who, int amount) implements BattleEvent {
     public GoldGained {
@@ -96,17 +96,17 @@ public sealed interface BattleEvent
   }
 
   /**
-   * 移動権付与 (§15-5 / ADR-21)。移動カードを切ったときに発火し、distance 分の連続移動権を付与する。プレゼン層はこれを拾って HUD に「移動権 残 N 歩」を表示する。
+   * 移動権付与 (§15-5 / ADR-21)。移動カードを切ったときに発火し、distance 分の連続移動権を付与する。プレゼン層はこれを拾って HUD に「移動権 残 N
+   * 歩」を表示する。
    *
-   * <p>残りステップ数 (remainingSteps) は付与直後の値、つまりカード使用時点では distance と同じ。AWSD で 1 マス移動するごとに Player.pendingMoveCount
-   * がデクリメントされる (本イベントは再発火しない、状態は Player record 側から読む)。
+   * <p>残りステップ数 (remainingSteps) は付与直後の値、つまりカード使用時点では distance と同じ。AWSD で 1 マス移動するごとに
+   * Player.pendingMoveCount がデクリメントされる (本イベントは再発火しない、状態は Player record 側から読む)。
    */
   record MovementGranted(ActorId who, int remainingSteps) implements BattleEvent {
     public MovementGranted {
       Objects.requireNonNull(who, "who");
       if (remainingSteps <= 0) {
-        throw new IllegalArgumentException(
-            "remainingSteps must be positive: " + remainingSteps);
+        throw new IllegalArgumentException("remainingSteps must be positive: " + remainingSteps);
       }
     }
   }
@@ -114,8 +114,8 @@ public sealed interface BattleEvent
   /**
    * 罠設置通知 (§15-3 / ADR-22)。プレイヤーが Trap カードを使った瞬間に発火、HUD で「{プレイヤー} が ({x},{y}) に罠を設置」を表示する。
    *
-   * <p>position は設置先タイル、baseValue は最終ダメ計算の基礎値。element 情報は PlacedTrap (DungeonState.placedTraps) で保持しており、
-   * 本イベントには含めない (HUD ログでは設置を通知するだけで、属性はマップ上の罠アイコンや描画で表現する想定)。
+   * <p>position は設置先タイル、baseValue は最終ダメ計算の基礎値。element 情報は PlacedTrap (DungeonState.placedTraps)
+   * で保持しており、 本イベントには含めない (HUD ログでは設置を通知するだけで、属性はマップ上の罠アイコンや描画で表現する想定)。
    */
   record TrapPlaced(ActorId placer, Position position, int baseValue) implements BattleEvent {
     public TrapPlaced {
@@ -161,11 +161,11 @@ public sealed interface BattleEvent
   }
 
   /**
-   * Buff カード適用通知 (§15-3 / ADR-27)。プレイヤーが Buff カードを使った瞬間に発火し、
-   * {@code PlayerStatuses.activeBuffs} に新規追加された {@link core.domain.card.ActiveBuff} を伝える。
+   * Buff カード適用通知 (§15-3 / ADR-27)。プレイヤーが Buff カードを使った瞬間に発火し、 {@code PlayerStatuses.activeBuffs}
+   * に新規追加された {@link core.domain.card.ActiveBuff} を伝える。
    *
-   * <p>{@code who} = 適用先 (現状 Player のみ、Enemy Buff は M2 送り)、{@code kind} = どのステを増減するか、
-   * {@code amount} = 増減量 (負値はデバフ)、{@code remainingTurns} = 適用直後の残ターン数。
+   * <p>{@code who} = 適用先 (現状 Player のみ、Enemy Buff は M2 送り)、{@code kind} = どのステを増減するか、 {@code
+   * amount} = 増減量 (負値はデバフ)、{@code remainingTurns} = 適用直後の残ターン数。
    *
    * <p>HUD ログでは「{プレイヤー} が {物攻 +2} (残 3 ターン)」のように表示する。
    */
@@ -185,8 +185,8 @@ public sealed interface BattleEvent
   }
 
   /**
-   * 強化個体 (ELITE) 撃破通知 (§15-3 / §15-6)。雑魚と区別して、プレゼン層でカード追加 UI
-   * (3 提示から 1 選択) を発火するトリガとして使う。{@link ActorDied} と並列に発火される。
+   * 強化個体 (ELITE) 撃破通知 (§15-3 / §15-6)。雑魚と区別して、プレゼン層でカード追加 UI (3 提示から 1 選択) を発火するトリガとして使う。{@link
+   * ActorDied} と並列に発火される。
    */
   record EliteDefeated(ActorId who) implements BattleEvent {
     public EliteDefeated {

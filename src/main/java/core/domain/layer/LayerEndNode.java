@@ -14,14 +14,14 @@ import java.util.Objects;
 /**
  * 層末ノードの効果 (§15-8 / E-6)。階段踏破後にプレイヤーが 3 択から 1 つ選ぶノードを表現する。
  *
- * <p>本 PR では「最終層クリア」概念がない段階の最小スコープとして、固定 3 提示 (HP 上限 +5 / 速度 +1 / HP 全回復) のみ実装する。 §15-8 仕様の「4 種 (ステ強化
- * / 休憩 / イベント / ショップ) から 3 提示 → 1 選択」のフル抽選ロジックは M2 送り (Event / Shop は未実装)。
+ * <p>本 PR では「最終層クリア」概念がない段階の最小スコープとして、固定 3 提示 (HP 上限 +5 / 速度 +1 / HP 全回復) のみ実装する。 §15-8 仕様の「4 種
+ * (ステ強化 / 休憩 / イベント / ショップ) から 3 提示 → 1 選択」のフル抽選ロジックは M2 送り (Event / Shop は未実装)。
  *
- * <p>各実装は純関数 {@link #apply(Player)} で新 Player を返す (副作用分離)。{@link Stats} 自体は with* メソッドを持たないため (YAGNI)、 本 record
- * 内で {@code new Stats(...)} を組み立てて up cast する。
+ * <p>各実装は純関数 {@link #apply(Player)} で新 Player を返す (副作用分離)。{@link Stats} 自体は with* メソッドを持たないため
+ * (YAGNI)、 本 record 内で {@code new Stats(...)} を組み立てて up cast する。
  *
- * <p>{@link #displayName()} はノード選択 UI (NodeChoicePopup) で表示する短い和文。i18n 対応は Plan Part 2 C-3 を反映する形で M2 に持ち越す
- * (ドメイン層に表示文字列を置く負債は意図的)。
+ * <p>{@link #displayName()} はノード選択 UI (NodeChoicePopup) で表示する短い和文。i18n 対応は Plan Part 2 C-3 を反映する形で
+ * M2 に持ち越す (ドメイン層に表示文字列を置く負債は意図的)。
  */
 public sealed interface LayerEndNode
     permits LayerEndNode.HpMaxUp,
@@ -103,7 +103,8 @@ public sealed interface LayerEndNode
   }
 
   /**
-   * 休憩ノード。現在 HP を最大 HP まで全回復する (§15-8)。Stats.healed(maxHp) で {@code min(maxHp, current + maxHp)} = maxHp。
+   * 休憩ノード。現在 HP を最大 HP まで全回復する (§15-8)。Stats.healed(maxHp) で {@code min(maxHp, current + maxHp)} =
+   * maxHp。
    *
    * <p>パラメータなしの marker record (Slay the Spire の Rest と同型、量は固定)。
    */
@@ -122,9 +123,8 @@ public sealed interface LayerEndNode
   }
 
   /**
-   * ショップノード (§15-8 / §15-9 縮退実装)。{@code goldCost} 分の金貨を消費して {@code grantedCard} を
-   * DrawPile に 1 枚追加する。完成仕様の「装備変更 UI + デッキ再生成」(ADR-26) は M2 送り、本セッションでは
-   * 単発カード追加に縮退。
+   * ショップノード (§15-8 / §15-9 縮退実装)。{@code goldCost} 分の金貨を消費して {@code grantedCard} を DrawPile に 1
+   * 枚追加する。完成仕様の「装備変更 UI + デッキ再生成」(ADR-26) は M2 送り、本セッションでは 単発カード追加に縮退。
    *
    * <p>Gold 不足時は silent fail (apply が引数の Player をそのまま返す、ActionRejected はドメイン層で発火しない)。
    */

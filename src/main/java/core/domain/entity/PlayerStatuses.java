@@ -15,15 +15,15 @@ import java.util.Objects;
 /**
  * Player の能力値関連の集約 (§15-4 / ADR-25 / ADR-26)。素ステ / AP / スキル枠 / 装備 / アクティブ Buff を 1 単位で扱う。
  *
- * <p>ADR-25 で Player の引数増加問題 (8 → 10 引数) を解消するために導入。Buff (§15-3) + E-5 装備 (§15-9) を
- * 1 つのレイヤーに統合し、{@link #effectiveStats()} で「素ステ + 装備補正 + Buff 合算」を 1 箇所表現する (DRY)。
+ * <p>ADR-25 で Player の引数増加問題 (8 → 10 引数) を解消するために導入。Buff (§15-3) + E-5 装備 (§15-9) を 1
+ * つのレイヤーに統合し、{@link #effectiveStats()} で「素ステ + 装備補正 + Buff 合算」を 1 箇所表現する (DRY)。
  *
- * <p>装備は {@code Map<EquipmentSlot, Equipment>} で複数部位を保持 (§15-9 ぼろ靴 + ぼろい短剣の 2 部位スタートに対応)。
- * 各 entry の {@code key} と {@code value.slot()} は一致しなければならない (compact constructor で検証)。装備変更は
- * 層末ショップノードのみ (ADR-26)、戦闘中の装備変更は禁止。
+ * <p>装備は {@code Map<EquipmentSlot, Equipment>} で複数部位を保持 (§15-9 ぼろ靴 + ぼろい短剣の 2 部位スタートに対応)。 各 entry の
+ * {@code key} と {@code value.slot()} は一致しなければならない (compact constructor で検証)。装備変更は 層末ショップノードのみ
+ * (ADR-26)、戦闘中の装備変更は禁止。
  *
- * <p>Player 側は本 record の各フィールドへの委譲アクセサ ({@code player.stats()} 等) を維持するため、戦闘ロジックは
- * 大量改修不要 (ADR-25 Decision #5)。
+ * <p>Player 側は本 record の各フィールドへの委譲アクセサ ({@code player.stats()} 等) を維持するため、戦闘ロジックは 大量改修不要 (ADR-25
+ * Decision #5)。
  */
 public record PlayerStatuses(
     Stats stats,
@@ -55,8 +55,7 @@ public record PlayerStatuses(
   }
 
   /**
-   * 素ステ + 全装備の {@code statsBonus} 合算 + アクティブ Buff の合算後の {@link Stats} を返す純関数
-   * (§15-4 / ADR-25)。
+   * 素ステ + 全装備の {@code statsBonus} 合算 + アクティブ Buff の合算後の {@link Stats} を返す純関数 (§15-4 / ADR-25)。
    *
    * <p>currentHp は素ステの値を維持しつつ、新 maxHp でクランプ ({@link Stats#plus(StatsBonus)} 側で処理)。
    */
@@ -70,8 +69,8 @@ public record PlayerStatuses(
   /**
    * 全装備の {@code grantedCards} を連結したリストを返す (§15-9 / ADR-26)。
    *
-   * <p>装備固有デッキ生成 ({@code InitialStateFactory.newPlayer} のデッキ動的化) や装備変更時の
-   * {@link core.domain.card.CardPileState} 再生成で使用。装備が無い slot はスキップ。
+   * <p>装備固有デッキ生成 ({@code InitialStateFactory.newPlayer} のデッキ動的化) や装備変更時の {@link
+   * core.domain.card.CardPileState} 再生成で使用。装備が無い slot はスキップ。
    */
   public List<CardId> equipmentCards() {
     List<CardId> all = new ArrayList<>();
@@ -90,8 +89,8 @@ public record PlayerStatuses(
   }
 
   /**
-   * アクティブ Buff の合算を {@link StatsBonus} 形式で返す (内部使用)。{@code maxHp} は §15-3 のスコープ外 (CardEffect.BuffKind が
-   * HP バフを含まない) のため 0 固定。
+   * アクティブ Buff の合算を {@link StatsBonus} 形式で返す (内部使用)。{@code maxHp} は §15-3 のスコープ外
+   * (CardEffect.BuffKind が HP バフを含まない) のため 0 固定。
    */
   private StatsBonus buffSum() {
     int phyAtk = 0;

@@ -18,17 +18,16 @@ public final class RenderLayout {
   /**
    * タイルサイズ (ピクセル)。48px を採用。
    *
-   * <p>根拠: 10×10 マップ = 480px、余白 (1920-480)/2 = 720px → マップを水平中央配置できる。
-   * 32 より大きく視認性が上がり、64 より小さくマップが画面を圧迫しない。
-   * DotGothic16 (16px 倍数フォント) に対して 3 倍で整合する。
+   * <p>根拠: 10×10 マップ = 480px、余白 (1920-480)/2 = 720px → マップを水平中央配置できる。 32 より大きく視認性が上がり、64
+   * より小さくマップが画面を圧迫しない。 DotGothic16 (16px 倍数フォント) に対して 3 倍で整合する。
    */
   public static final int TILE_SIZE = 48;
 
   /**
    * ダンジョン描画開始位置 (仮想座標系の左下基準)。
    *
-   * <p>MAP_ORIGIN_X: (1920 - 10 * 48) / 2 = 720 で水平中央。
-   * MAP_ORIGIN_Y: 1080 の中央付近 (300) に配置し、上部にログ・右にHUDを展開。
+   * <p>MAP_ORIGIN_X: (1920 - 10 * 48) / 2 = 720 で水平中央。 MAP_ORIGIN_Y: 1080 の中央付近 (300)
+   * に配置し、上部にログ・右にHUDを展開。
    */
   public static final int MAP_ORIGIN_X = 720;
 
@@ -37,8 +36,8 @@ public final class RenderLayout {
   /**
    * HUD (HP/AP/Soul/Phase) 描画位置。画面右側に配置。
    *
-   * <p>マップ右端: 720 + 10*48 = 1200。HUD_X=1380 で large (32px) フォントの長い文字列
-   * (例「AP: 5 / 5 (速度 3 (+1))」≈ 520px) を画面右端まで収める。
+   * <p>マップ右端: 720 + 10*48 = 1200。HUD_X=1380 で large (32px) フォントの長い文字列 (例「AP: 5 / 5 (速度 3 (+1))」≈
+   * 520px) を画面右端まで収める。
    */
   public static final int HUD_X = 1380;
 
@@ -61,17 +60,16 @@ public final class RenderLayout {
   /**
    * 操作ヒント (WASD/矢印: 移動 等) の Y 座標。
    *
-   * <p>large (32px) で画面左下に左寄せで配置。ログ最下 (Y=222) と HAND_LABEL (Y=112) の間に置く。
-   * pendingCardIndex / movementToken / cleared モード時はここで HAND_HINT 等に切り替えるため、
-   * drawHand 側のヒント描画は削除して二重表示を防ぐ。
+   * <p>large (32px) で画面左下に左寄せで配置。ログ最下 (Y=222) と HAND_LABEL (Y=112) の間に置く。 pendingCardIndex /
+   * movementToken / cleared モード時はここで HAND_HINT 等に切り替えるため、 drawHand 側のヒント描画は削除して二重表示を防ぐ。
    */
   public static final int HUD_Y_HINT = 170;
 
   /**
    * メッセージログ表示開始位置 (下方向に展開)。
    *
-   * <p>画面下部、操作ヒントの上に配置。large (32px) で行間 LARGE_LINE_HEIGHT=48 を取り、2 行表示する
-   * (大型化により情報視認性を上げる。3 行以上はヒント / 手札との衝突を起こす)。
+   * <p>画面下部、操作ヒントの上に配置。large (32px) で行間 LARGE_LINE_HEIGHT=48 を取り、2 行表示する (大型化により情報視認性を上げる。3 行以上はヒント
+   * / 手札との衝突を起こす)。
    */
   public static final int LOG_X = 40;
 
@@ -82,16 +80,15 @@ public final class RenderLayout {
   /**
    * 手札表示の Y 座標。ログ領域より上、画面下部に配置する。
    *
-   * <p>large (32px) フォント前提。HAND_Y=64 でラベル (Y=112) が HUD_Y_HINT (170) と十分離れる。
-   * 手札選択中のヒントは drawControlsHint 側に統合したため、HAND_Y 直下の余白は不要。
+   * <p>large (32px) フォント前提。HAND_Y=64 でラベル (Y=112) が HUD_Y_HINT (170) と十分離れる。 手札選択中のヒントは
+   * drawControlsHint 側に統合したため、HAND_Y 直下の余白は不要。
    */
   public static final int HAND_Y = 64;
 
   /**
    * 手札カード 1 文字あたりの概算ピクセル幅 (large 32px フォント基準)。
    *
-   * <p>初期手札は数枚なので画面幅に収まる前提。9 枚揃うシナリオでは右側がはみ出る可能性があるが、
-   * §15-3 の MAX_HAND_SIZE 想定でも実用上問題ないレベル。
+   * <p>初期手札は数枚なので画面幅に収まる前提。9 枚揃うシナリオでは右側がはみ出る可能性があるが、 §15-3 の MAX_HAND_SIZE 想定でも実用上問題ないレベル。
    */
   public static final int HAND_CARD_GLYPH_WIDTH = 20;
 

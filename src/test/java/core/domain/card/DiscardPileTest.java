@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test;
 /**
  * DiscardPile の不変性と reshuffleInto テスト。
  *
- * <p>ADR-16 検証ポイント 11: add が新インスタンスを返し元インスタンスに変化なし。
- * GAME_DESIGN §15-3: 捨て札は再シャッフルで DrawPile に変換され、自身は空になる。
+ * <p>ADR-16 検証ポイント 11: add が新インスタンスを返し元インスタンスに変化なし。 GAME_DESIGN §15-3: 捨て札は再シャッフルで DrawPile
+ * に変換され、自身は空になる。
  */
 class DiscardPileTest {
 
