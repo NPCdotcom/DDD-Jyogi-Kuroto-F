@@ -61,9 +61,13 @@ public final class InitialStateFactory {
     return new Skill(SkillId.of("slime_bite"), "Bite", 1, new SkillEffect.Damage(4));
   }
 
-  /** ボス専用スキル (§15-6)。固定 8 ダメージ / AP 3。ボスが 1 ターン 1 回撃つ前提のバランス値。 */
+  /**
+   * ボス専用スキル (§15-6)。8 ダメージ (魔法属性) / AP 3。最終層ボス戦で魔防が意味を持つよう 魔法属性とする (物理スキルだけだと魔防が常に無効になるため)。実ダメージは
+   * {@code max(1, 8 − 魔防)}。
+   */
   public static Skill bossSlam() {
-    return new Skill(SkillId.of("boss_slam"), "Boss Slam", 3, new SkillEffect.Damage(8));
+    return new Skill(
+        SkillId.of("boss_slam"), "Boss Slam", 3, new SkillEffect.Damage(8, CardElement.MAGICAL));
   }
 
   // ----------------------------- カードマスタ -----------------------------
@@ -462,10 +466,11 @@ public final class InitialStateFactory {
 
   /**
    * 最終層のボスを生成する (§15-6 / §15-2)。雑魚 (HP 10) ・強化個体 (HP 20) を凌ぐ HP 45、速度 / AP = 層番号 +1、専用スキル {@link
-   * #bossSlam} (固定 8 ダメージ / AP 3) を持つ。撃破で {@code RUN_CLEARED} (ラン勝利)。
+   * #bossSlam} (魔法 8 ダメージ / AP 3、プレイヤー魔防で軽減) を持つ。撃破で {@code RUN_CLEARED} (ラン勝利)。
    *
-   * <p>バランス根拠: プレイヤー (HP 30 前後・heavySlash で 15/ターン相当) が約 3 ターンで HP 45 を 削り切る一方、ボスは 8/ターンで 4〜5
-   * ターンかけてプレイヤーを削る — プレイヤー先制で勝ち筋が 残る値。HP 60 / 15 ダメージ案は隣接戦が数学的に成立しなかったため下方修正 (devils-advocate 指摘)。
+   * <p>バランス根拠: プレイヤー (HP 30 前後・heavySlash で 15/ターン相当) が約 3 ターンで HP 45 を 削り切る一方、ボスは魔法 8 (プレイヤー魔防 1
+   * なら実 7) /ターンで 4〜6 ターンかけて削る — プレイヤー先制で勝ち筋が残る値。{@code bossSlam} を魔法属性にしたため、ソウルツリー等で 魔防を上げると被ダメが減る
+   * (ADR-17 改訂)。HP 60 / 15 ダメージ案は隣接戦が数学的に成立しなかったため下方修正。
    *
    * @param layerNumber 1 以上の階層番号 (速度 / AP の算出に使う)
    */

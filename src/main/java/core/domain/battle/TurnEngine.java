@@ -3,6 +3,7 @@ package core.domain.battle;
 import core.domain.card.ActiveBuff;
 import core.domain.card.Card;
 import core.domain.card.CardEffect;
+import core.domain.card.CardElement;
 import core.domain.card.CardPileState;
 import core.domain.card.TrapLifetime;
 import core.domain.common.Direction;
@@ -38,9 +39,9 @@ import java.util.Random;
  *   <li>switch 式の網羅性で全アクションを処理する (sealed の意義)
  * </ul>
  *
- * <p>§15-3 / ADR-18 で `BattleAction.UseCard` を追加、プレイヤーがカードを使って敵を殴れる。本 PR では Damage カードのみ実装し、 Move /
- * Buff / Trap は `ActionRejected` で「未実装のカード効果」を明示 (sealed 網羅性は維持)。ダメージ計算は ADR-17 通り
- * `CardEffect.Damage.resolve(Stats, Stats, CardElement)` に委譲、本クラスは結果の int を Stats に反映するだけ。
+ * <p>§15-3 / ADR-18 で `BattleAction.UseCard` を追加、プレイヤーがカードを使って敵を殴れる。カードダメージ計算は
+ * `CardEffect.Damage.resolve(Stats, Stats, CardElement)` に委譲する。スキルダメージは ADR-17 改訂で固定値をやめ、 {@link
+ * #resolveSkillDamage} で被弾側の防御 (物防/魔防) を通す。
  */
 public final class TurnEngine {
 
@@ -149,11 +150,18 @@ public final class TurnEngine {
     };
   }
 
-  /** プレイヤーターン終了時に、全敵の AP を回復させて ENEMY_TURN に遷移させる。 */
+  /**
+   * プレイヤーターン終了時に、全敵の AP を回復させて ENEMY_TURN に遷移させる。
+   *
+   * <p>敵 AP は {@link ActionPoints#refilled()} で「自分の max まで」回復する。max は spawn 時 ({@code
+   * InitialStateFactory}) に層番号 (強化個体 +2 / ボス +α、ADR-06「敵 AP = 層番号」) で設定済みのため、 これを保ったまま満タンに戻る。{@code
+   * refilledTo(stats().speed())} を使うと max が速度ステ値で上書きされ、 層が深くても敵 AP が固定化される (旧バグ)。プレイヤー側は速度が装備/Buff
+   * で動くため {@code startPlayerTurn} では {@code refilledTo(effectiveStats().speed())} を使う (意図的な非対称)。
+   */
   private static StepResult endPlayerTurn(DungeonState state) {
     List<Enemy> regenerated = new ArrayList<>(state.enemies().size());
     for (Enemy e : state.enemies()) {
-      regenerated.add(e.withActionPoints(e.actionPoints().refilledTo(e.stats().speed())));
+      regenerated.add(e.withActionPoints(e.actionPoints().refilled()));
     }
     DungeonState ns = state.withEnemies(regenerated).withPhase(TurnPhase.ENEMY_TURN);
     return new StepResult(ns, List.of(new BattleEvent.TurnPhaseChanged(TurnPhase.ENEMY_TURN)));
@@ -449,8 +457,13 @@ public final class TurnEngine {
     List<BattleEvent> events = new ArrayList<>();
     events.add(new BattleEvent.SkillUsed(state.player().id(), skill.displayName()));
     return switch (skill.effect()) {
-      // Skill 経路: 固定ダメ (§15-3 設計、ADR-18 で意味論分離確認)。
-      case SkillEffect.Damage dmg -> resolveDamageToEnemy(state, dmg.amount(), target, events);
+      // ADR-17 改訂: スキルダメージも被弾側 (敵) の防御を通す。
+      case SkillEffect.Damage dmg ->
+          resolveDamageToEnemy(
+              state,
+              resolveSkillDamage(dmg.amount(), target.stats(), dmg.element()),
+              target,
+              events);
     };
   }
 
@@ -459,14 +472,36 @@ public final class TurnEngine {
     List<BattleEvent> events = new ArrayList<>();
     events.add(new BattleEvent.SkillUsed(attackerId, skill.displayName()));
     return switch (skill.effect()) {
-      case SkillEffect.Damage dmg -> resolveDamageToPlayer(state, dmg.amount(), attackerId, events);
+      // ADR-17 改訂: 敵スキルもプレイヤーの実効防御 (装備/Buff 込み) を通す。
+      case SkillEffect.Damage dmg ->
+          resolveDamageToPlayer(
+              state,
+              resolveSkillDamage(dmg.amount(), state.player().effectiveStats(), dmg.element()),
+              attackerId,
+              events);
     };
+  }
+
+  /**
+   * スキルダメージに被弾側の防御を適用する (ADR-17 改訂)。
+   *
+   * <p>{@code max(1, amount − 防御)}。属性 (PHYSICAL → 物防 / MAGICAL → 魔防) で参照する防御ステを切り替える。 カードダメージの
+   * {@link CardEffect.Damage#resolve} と同じ式型だが、スキルは攻撃側ステを加算せず 固定 {@code amount} を基準値とする点が異なる。
+   */
+  private static int resolveSkillDamage(int amount, Stats victim, CardElement element) {
+    int defense =
+        switch (element) {
+          case PHYSICAL -> victim.physicalDefense();
+          case MAGICAL -> victim.magicalDefense();
+        };
+    return Math.max(1, amount - defense);
   }
 
   /**
    * 敵にダメージを適用する共通ヘルパ (ADR-18 で int finalDamage 受け取りに統一)。
    *
-   * <p>Skill 経路 (固定ダメ) と Card 経路 (CardEffect.Damage.resolve 計算結果) のどちらからも呼ばれる。
+   * <p>Skill 経路 ({@link #resolveSkillDamage} 計算結果) と Card 経路 ({@code CardEffect.Damage.resolve}
+   * 計算結果) のどちらからも、防御適用済みの確定 int を受け取る。本メソッドは二重減算しない。
    */
   private static StepResult resolveDamageToEnemy(
       DungeonState state, int finalDamage, Enemy target, List<BattleEvent> events) {
@@ -553,10 +588,16 @@ public final class TurnEngine {
       return state;
     }
     PlacedTrap trap = trapOpt.get();
-    Stats victimStats =
+    // 防御計算はプレイヤーなら実効ステ (装備/Buff 込み)、敵は素ステを使う。
+    Stats defenseStats =
+        isPlayer
+            ? state.player().effectiveStats()
+            : state.findEnemy(victimId).orElseThrow().stats();
+    int damage = trap.resolveDamage(defenseStats);
+    // HP 減算は素ステに対して行う (effectiveStats を damaged → withStats すると実効値が素ステに焼き付くため)。
+    Stats victimBaseStats =
         isPlayer ? state.player().stats() : state.findEnemy(victimId).orElseThrow().stats();
-    int damage = trap.resolveDamage(victimStats);
-    Stats damagedStats = victimStats.damaged(damage);
+    Stats damagedStats = victimBaseStats.damaged(damage);
     events.add(new BattleEvent.TrapTriggered(victimId, at, damage, damagedStats.currentHp()));
 
     // UntilStepped なら除去、Turns なら維持 (3 並列レビュー結論、物理/魔法の対比)。

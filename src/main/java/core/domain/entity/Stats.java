@@ -8,9 +8,9 @@ import java.util.Objects;
  *
  * <p>AP に関する状態は ActionPoints で別途管理する (責務分離)。Stats が持つのは恒常的なスペック (HP 上限・速度・4 攻防ステ) と現在 HP のみ。
  *
- * <p>4 攻防ステ (物攻/魔攻/物防/魔防) は §15-4 のカード使用時ダメージ計算で参照される (実計算は {@link
- * core.domain.card.CardEffect.Damage#resolve} に委譲)。スキル (`SkillEffect`) は固定ダメージで、これらのステの影響を受けない
- * (ADR-17)。
+ * <p>4 攻防ステ (物攻/魔攻/物防/魔防) はダメージ計算で参照される。カード使用時は {@link core.domain.card.CardEffect.Damage#resolve}
+ * が、スキル使用時は {@code TurnEngine.resolveSkillDamage} が 被弾側の防御 (物防/魔防) を差し引く (ADR-17 改訂:
+ * スキルも固定ダメージをやめ防御を通す)。
  *
  * <p>本 PR では `with*` メソッド (バフ用) は YAGNI のため追加しない。バフ適用 Issue で必要時に追加する。
  */

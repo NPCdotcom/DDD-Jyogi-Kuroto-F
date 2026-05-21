@@ -48,6 +48,26 @@ class ActionPointsTest {
   }
 
   // =========================================================
+  // refilled — max を保ったまま current を満タンに (敵ターン頭リフィル、ADR-06)
+  // =========================================================
+
+  @Test
+  void refilledRestoresCurrentToMaxWithoutChangingMax() {
+    // 残 AP 1 / max 5 → current だけ 5 に回復、max は据置 (refilledTo と違い max を上書きしない)
+    ActionPoints ap = new ActionPoints(1, 5);
+    ActionPoints refilled = ap.refilled();
+    assertEquals(5, refilled.current());
+    assertEquals(5, refilled.max());
+  }
+
+  @Test
+  void refilledOnEmptyApRestoresToMax() {
+    ActionPoints refilled = ActionPoints.empty(3).refilled();
+    assertEquals(3, refilled.current());
+    assertEquals(3, refilled.max());
+  }
+
+  // =========================================================
   // spend / canSpend / isEmpty — 既存意味論据置の確認
   // =========================================================
 

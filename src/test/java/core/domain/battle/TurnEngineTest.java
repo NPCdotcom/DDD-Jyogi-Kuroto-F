@@ -166,7 +166,9 @@ class TurnEngineTest {
   }
 
   @Test
-  void endTurnTransitionsToEnemyTurnAndRegeneratesEnemies() {
+  void endTurnTransitionsToEnemyTurnAndRefillsEnemyApToOwnMax() {
+    // 敵 AP は「自分の max まで」回復する。max は spawn 時に層番号で設定済み (ADR-06「敵 AP = 層番号」)
+    // のため、リフィルでは変えない。speed ステで上書きしない (旧バグの回帰防止)。
     Player p = DomainFixtures.playerAt(new Position(1, 1));
     Enemy e = DomainFixtures.slimeAt(new Position(3, 3)).withActionPoints(new ActionPoints(0, 3));
     DungeonState s = newState(p, List.of(e));
@@ -175,7 +177,23 @@ class TurnEngineTest {
 
     assertEquals(TurnPhase.ENEMY_TURN, result.state().phase());
     Enemy refreshed = result.state().enemies().get(0);
-    assertEquals(2, refreshed.actionPoints().current()); // speed=2 ぶん回復
+    assertEquals(3, refreshed.actionPoints().current(), "current は max まで回復");
+    assertEquals(3, refreshed.actionPoints().max(), "max は据置 (speed で上書きしない)");
+  }
+
+  @Test
+  void endPlayerTurnPreservesHighApMaxForEliteLikeEnemy() {
+    // 強化個体 (層 3 で AP max 5 相当) を想定。AP を使い切った状態でもターン頭で max まで戻り、
+    // max 自体は劣化しない。旧バグでは speed=2 に上書きされ、層が深くても敵が弱体化していた。
+    Player p = DomainFixtures.playerAt(new Position(1, 1));
+    Enemy elite = DomainFixtures.slimeAt("elite#1", new Position(3, 3), new ActionPoints(0, 5));
+    DungeonState s = newState(p, List.of(elite));
+
+    TurnEngine.StepResult result = TurnEngine.resolvePlayerAction(s, new BattleAction.EndTurn());
+
+    Enemy refreshed = result.state().enemies().get(0);
+    assertEquals(5, refreshed.actionPoints().current(), "AP は max 5 まで回復");
+    assertEquals(5, refreshed.actionPoints().max(), "AP max 5 は据置 (speed で劣化しない)");
   }
 
   @Test

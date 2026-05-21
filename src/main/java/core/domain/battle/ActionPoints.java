@@ -49,6 +49,19 @@ public record ActionPoints(int current, int max) {
     return new ActionPoints(newMax, newMax);
   }
 
+  /**
+   * {@code max} を変えずに {@code current} を {@code max} まで再充填する。
+   *
+   * <p>{@link #refilledTo(int)} と違い max を引数で上書きしない。AP 上限が固定のキャラ (敵: spawn 時に層番号で 設定済み、ADR-06)
+   * のターン頭リフィルに使う。{@code refilledTo(stats.speed())} を敵に使うと AP 上限が速度ステ値で 上書きされ「敵 AP =
+   * 層番号」が崩れるため、敵にはこちらを使うこと。
+   *
+   * @return current = max, max = 据置 の新 ActionPoints
+   */
+  public ActionPoints refilled() {
+    return new ActionPoints(max, max);
+  }
+
   public boolean canSpend(int cost) {
     return cost >= 0 && current >= cost;
   }
