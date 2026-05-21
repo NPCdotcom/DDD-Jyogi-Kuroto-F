@@ -167,8 +167,8 @@ public final class HudRenderer {
   /**
    * 装備 / Buff の差分ぶん " (+N)" もしくは " (-N)" 表記。0 ならは空文字 (素ステのみ)。
    *
-   * <p>Plan の「物攻 1 (+1) = 2」形式の簡略版: 装備込み合計値の隣に差分のみ表示し、
-   * "(+1)" が見えれば装備効果がかかっていることが分かる (§15-9 / ADR-25)。
+   * <p>Plan の「物攻 1 (+1) = 2」形式の簡略版: 装備込み合計値の隣に差分のみ表示し、 "(+1)" が見えれば装備効果がかかっていることが分かる (§15-9 /
+   * ADR-25)。
    */
   private static String bonusSuffix(int delta) {
     if (delta == 0) {
@@ -239,6 +239,8 @@ public final class HudRenderer {
       case ENEMY_TURN -> jp ? Strings.Ja.PHASE_ENEMY : Strings.En.PHASE_ENEMY;
       case GAME_OVER -> jp ? Strings.Ja.PHASE_GAMEOVER : Strings.En.PHASE_GAMEOVER;
       case CLEARED -> jp ? Strings.Ja.PHASE_CLEARED : Strings.En.PHASE_CLEARED;
+      case ROOM_CLEARED -> jp ? Strings.Ja.PHASE_ROOM_CLEARED : Strings.En.PHASE_ROOM_CLEARED;
+      case RUN_CLEARED -> jp ? Strings.Ja.PHASE_RUN_CLEARED : Strings.En.PHASE_RUN_CLEARED;
     };
   }
 
@@ -282,7 +284,8 @@ public final class HudRenderer {
               .formatted(fa.newLayer());
       case BattleEvent.BuffApplied ba ->
           (jp ? Strings.Ja.EV_BUFF_APPLIED_FORMAT : Strings.En.EV_BUFF_APPLIED_FORMAT)
-              .formatted(ba.who().value(), buffKindLabel(jp, ba.kind()), ba.amount(), ba.remainingTurns());
+              .formatted(
+                  ba.who().value(), buffKindLabel(jp, ba.kind()), ba.amount(), ba.remainingTurns());
       case BattleEvent.EliteDefeated ed ->
           (jp ? Strings.Ja.EV_ELITE_DEFEATED_FORMAT : Strings.En.EV_ELITE_DEFEATED_FORMAT)
               .formatted(ed.who().value());

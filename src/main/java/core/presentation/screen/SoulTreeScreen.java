@@ -1,7 +1,6 @@
 package core.presentation.screen;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input.Buttons;
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
@@ -26,15 +25,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * ソウルツリー画面 (§15-7 / E-2)。タイトル画面から T キーで遷移し、17 ノードを円樹形配置で描画。
- * マウスクリックでノード解放、R キーでツリーリセット、ESC でタイトルに戻る。
+ * ソウルツリー画面 (§15-7 / E-2)。タイトル画面 (2 周目以降) またはラン終了後に遷移し、17 ノードを 円樹形配置で描画。マウスクリックでノード解放、WASD /
+ * 矢印キー・マウスドラッグでパン、Z / X で ズーム、R キーでツリーリセット、ESC でタイトルに戻る。
+ *
+ * <p>カメラは 2 系統: ツリー本体 (枝線 + ノード + ノード文字) は {@link #camera} (パン / ズーム可能) で 描画し、画面下部の HUD (タイトル /
+ * ソウル残量 / ヒント / フラッシュ) は {@link #hudCamera} (固定) で 描画する。これにより HUD はパン /
+ * ズームに追従せず常に同じ位置に出る。ツリーノードを増やしても カメラを動かして全体を見渡せる (拡張時の破綻防止)。
  *
  * <p>描画は 3 層:
  *
  * <ol>
  *   <li>{@link ShapeRenderer} で前提ノードから子ノードへ枝線を描く (解放済み = 黄、未解放 = 暗灰)
  *   <li>{@link SpriteBatch} で {@link Texture}(test.png) をノード位置に描画 (解放済み = 白、解放可 = 緑、未解放 = 暗灰)
- *   <li>同 batch でノード displayName + soulCost テキストを描画 + 画面下部 HUD (Soul 残量 / ヒント)
+ *   <li>同 batch を固定カメラに切り替えてノード displayName + soulCost + 画面下部 HUD を描画
  * </ol>
  *
  * <p>{@code assets/icons/cards/test.png} を全ノードで使い回す (Plan の {@code test.png} 使い回し方針)。
@@ -44,25 +47,62 @@ public final class SoulTreeScreen extends ScreenAdapter {
 
   private static final float CENTER_X = 960f;
   private static final float CENTER_Y = 540f;
-  /** ノードクリック判定の半径 (px、SCREEN 1920×1080 内座標)。 */
+
+  /** ノードクリック判定の半径 (px、ワールド座標)。 */
   private static final float NODE_RADIUS = 32f;
+
   /** ノードテクスチャ描画サイズ (px)。 */
   private static final float NODE_TEX_SIZE = 64f;
-  /** 枝線の太さ (ShapeRenderer の縦横方向は無視されるため、別途短い線分の重ね描きで実現)。 */
+
+  /** 枝線の太さ。 */
   private static final float BRANCH_WIDTH = 4f;
+
+  /** キーパンの速度 (ワールド単位 / 秒)。zoom 倍率を掛けて見かけのパン速度を一定に保つ。 */
+  private static final float PAN_SPEED = 700f;
+
+  /** ズーム下限 (寄り) / 上限 (引き)。1.0 = 等倍。 */
+  private static final float ZOOM_MIN = 0.6f;
+
+  private static final float ZOOM_MAX = 2.2f;
+
+  /** キーズームの速度 (zoom / 秒)。 */
+  private static final float ZOOM_SPEED = 1.3f;
+
+  /** カメラ中心がツリー中心 (CENTER_X, CENTER_Y) から離れられる最大距離 (px)。 */
+  private static final float PAN_LIMIT = 760f;
+
+  /** クリックとドラッグを区別するスクリーン移動量しきい値 (px)。 */
+  private static final float CLICK_DRAG_THRESHOLD = 8f;
 
   /** 17 ノードの画面座標 (放射状配置、§15-7 円樹形 UI)。 */
   private static final Map<NodeId, Vector2> POSITIONS = positions();
 
   private final DddGame game;
   private OrthographicCamera camera;
+
+  /** HUD 専用の固定カメラ。ツリーのパン / ズームに追従しない。 */
+  private OrthographicCamera hudCamera;
+
   private Viewport viewport;
   private SpriteBatch batch;
   private ShapeRenderer shape;
   private Texture nodeTexture;
+
   /** マウスクリック直後の一時メッセージ ("Soul 不足" 等、~2 秒で消える)。 */
   private String flashMessage;
+
   private float flashTimer;
+
+  /** 前フレームでポインタが押下されていたか (押下→解放のクリック検出用)。 */
+  private boolean pointerDown;
+
+  /** ドラッグ判定用: 押下開始スクリーン座標。 */
+  private float touchStartX;
+
+  private float touchStartY;
+
+  /** 押下開始からしきい値を超えて移動したか (true = ドラッグ、離してもノード解放しない)。 */
+  private boolean dragged;
 
   public SoulTreeScreen(DddGame game) {
     this.game = game;
@@ -93,14 +133,19 @@ public final class SoulTreeScreen extends ScreenAdapter {
   private static Vector2 polar(double degrees, float radius) {
     double rad = Math.toRadians(degrees);
     return new Vector2(
-        CENTER_X + radius * (float) Math.cos(rad),
-        CENTER_Y + radius * (float) Math.sin(rad));
+        CENTER_X + radius * (float) Math.cos(rad), CENTER_Y + radius * (float) Math.sin(rad));
   }
 
   @Override
   public void show() {
     camera = new OrthographicCamera();
     viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
+    // ツリー中心を画面中央に置いて開始する。
+    camera.position.set(CENTER_X, CENTER_Y, 0f);
+    camera.update();
+    // HUD は固定カメラ (パン / ズームに追従しない)。
+    hudCamera = new OrthographicCamera();
+    hudCamera.setToOrtho(false, RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT);
     batch = new SpriteBatch();
     shape = new ShapeRenderer();
     // assets/icons/cards/test.png をプレースホルダとして全ノードで使い回し (Plan 方針)。
@@ -126,16 +171,20 @@ public final class SoulTreeScreen extends ScreenAdapter {
 
   @Override
   public void render(float delta) {
+    // カメラ操作 (キーパン / ズーム → ドラッグパン / クリック → 範囲クランプ) を先に確定する。
+    handleCameraInput(delta);
+    handlePointer();
+    clampCamera();
+
     ScreenUtils.clear(0.03f, 0.03f, 0.06f, 1f);
     viewport.apply();
     camera.update();
-    batch.setProjectionMatrix(camera.combined);
-    shape.setProjectionMatrix(camera.combined);
 
     SoulTree tree = game.soulTree();
     Map<NodeId, TreeNode> defs = SoulTree.allNodes();
 
-    // 1) 枝線 (前提ノード → 子ノード)
+    // 1) 枝線 (前提ノード → 子ノード) — パンカメラ
+    shape.setProjectionMatrix(camera.combined);
     shape.begin(ShapeRenderer.ShapeType.Filled);
     for (Map.Entry<NodeId, TreeNode> entry : defs.entrySet()) {
       TreeNode node = entry.getValue();
@@ -160,7 +209,8 @@ public final class SoulTreeScreen extends ScreenAdapter {
     }
     shape.end();
 
-    // 2) ノードテクスチャ + テキスト
+    // 2) ノードテクスチャ + テキスト — パンカメラ
+    batch.setProjectionMatrix(camera.combined);
     batch.begin();
     Fonts fonts = game.fonts();
     boolean jp = fonts.isJapaneseAvailable();
@@ -203,13 +253,17 @@ public final class SoulTreeScreen extends ScreenAdapter {
       large.draw(batch, node.displayName(), pos.x - 90, pos.y - NODE_TEX_SIZE / 2 - 16);
       if (node.soulCost() > 0) {
         String costText =
-            (jp ? Strings.Ja.SOUL_COST_FORMAT : Strings.En.SOUL_COST_FORMAT).formatted(node.soulCost());
+            (jp ? Strings.Ja.SOUL_COST_FORMAT : Strings.En.SOUL_COST_FORMAT)
+                .formatted(node.soulCost());
         large.draw(batch, costText, pos.x - 90, pos.y - NODE_TEX_SIZE / 2 - 56);
       }
     }
     batch.setColor(Color.WHITE);
+    batch.end();
 
-    // 画面下部 HUD: タイトル / 操作ヒント / Soul 残量 / フラッシュメッセージ (large 経由で拡大)
+    // 3) HUD — 固定カメラ (パン / ズームに追従しない)
+    batch.setProjectionMatrix(hudCamera.combined);
+    batch.begin();
     title.setColor(0.9f, 0.85f, 0.4f, 1f);
     title.draw(batch, jp ? Strings.Ja.SOUL_TREE_TITLE : Strings.En.SOUL_TREE_TITLE, 60, 1020);
 
@@ -228,10 +282,73 @@ public final class SoulTreeScreen extends ScreenAdapter {
       large.setColor(1f, 0.55f, 0.35f, 1f);
       large.draw(batch, flashMessage, 60, 940);
     }
+    batch.setColor(Color.WHITE);
     batch.end();
 
-    // 3) 入力処理
+    // 4) 非カメラ入力 (ESC / R / flash タイマ)
     handleInput(delta);
+  }
+
+  /** WASD / 矢印キーでパン、Z / X でズーム。 */
+  private void handleCameraInput(float delta) {
+    float pan = PAN_SPEED * delta * camera.zoom;
+    if (Gdx.input.isKeyPressed(Keys.LEFT) || Gdx.input.isKeyPressed(Keys.A)) {
+      camera.position.x -= pan;
+    }
+    if (Gdx.input.isKeyPressed(Keys.RIGHT) || Gdx.input.isKeyPressed(Keys.D)) {
+      camera.position.x += pan;
+    }
+    if (Gdx.input.isKeyPressed(Keys.UP) || Gdx.input.isKeyPressed(Keys.W)) {
+      camera.position.y += pan;
+    }
+    if (Gdx.input.isKeyPressed(Keys.DOWN) || Gdx.input.isKeyPressed(Keys.S)) {
+      camera.position.y -= pan;
+    }
+    // Z = 寄り (zoom 減)、X = 引き (zoom 増)。
+    if (Gdx.input.isKeyPressed(Keys.Z)) {
+      camera.zoom = Math.max(ZOOM_MIN, camera.zoom - ZOOM_SPEED * delta);
+    }
+    if (Gdx.input.isKeyPressed(Keys.X)) {
+      camera.zoom = Math.min(ZOOM_MAX, camera.zoom + ZOOM_SPEED * delta);
+    }
+  }
+
+  /**
+   * マウス操作を処理する。押下→しきい値超えの移動でドラッグパン、押下→ほぼ静止のまま解放で クリック扱いとしてノード解放を試みる。クリック判定の {@link #viewport}
+   * unproject は前フレームの カメラ行列を使う (クリック中はカメラ移動がほぼ無いため 1 フレーム遅れは無視できる)。
+   */
+  private void handlePointer() {
+    boolean down = Gdx.input.isTouched();
+    if (down && !pointerDown) {
+      touchStartX = Gdx.input.getX();
+      touchStartY = Gdx.input.getY();
+      dragged = false;
+    } else if (down) {
+      float moved =
+          Math.abs(Gdx.input.getX() - touchStartX) + Math.abs(Gdx.input.getY() - touchStartY);
+      if (moved > CLICK_DRAG_THRESHOLD) {
+        dragged = true;
+      }
+      if (dragged) {
+        float worldPerPixel = RenderLayout.SCREEN_WIDTH / (float) Gdx.graphics.getWidth();
+        camera.position.x -= Gdx.input.getDeltaX() * worldPerPixel * camera.zoom;
+        camera.position.y += Gdx.input.getDeltaY() * worldPerPixel * camera.zoom;
+      }
+    } else if (pointerDown && !dragged) {
+      // 押下していたポインタを移動量しきい値未満で離した = クリック → ノード解放。
+      Vector3 world = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0f);
+      viewport.unproject(world);
+      tryUnlockAt(world.x, world.y);
+    }
+    pointerDown = down;
+  }
+
+  /** カメラ中心をツリー中心まわりの可動範囲にクランプする。 */
+  private void clampCamera() {
+    camera.position.x =
+        Math.max(CENTER_X - PAN_LIMIT, Math.min(CENTER_X + PAN_LIMIT, camera.position.x));
+    camera.position.y =
+        Math.max(CENTER_Y - PAN_LIMIT, Math.min(CENTER_Y + PAN_LIMIT, camera.position.y));
   }
 
   private void handleInput(float delta) {
@@ -249,13 +366,6 @@ public final class SoulTreeScreen extends ScreenAdapter {
       game.resetTree();
       boolean jp = game.fonts().isJapaneseAvailable();
       showFlash(jp ? Strings.Ja.SOUL_TREE_FLASH_RESET : Strings.En.SOUL_TREE_FLASH_RESET);
-      return;
-    }
-    if (Gdx.input.justTouched() && Gdx.input.isButtonPressed(Buttons.LEFT)) {
-      // スクリーン座標 → ワールド座標へ変換
-      Vector3 world = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0f);
-      viewport.unproject(world);
-      tryUnlockAt(world.x, world.y);
     }
   }
 
@@ -295,7 +405,8 @@ public final class SoulTreeScreen extends ScreenAdapter {
 
   @Override
   public void resize(int width, int height) {
-    viewport.update(width, height, true);
+    // false: カメラ位置を再センタリングしない (ユーザーのパン位置を保持する)。
+    viewport.update(width, height, false);
   }
 
   @Override

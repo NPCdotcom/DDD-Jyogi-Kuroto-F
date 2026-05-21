@@ -38,8 +38,8 @@ import java.util.Random;
  *   <li>switch 式の網羅性で全アクションを処理する (sealed の意義)
  * </ul>
  *
- * <p>§15-3 / ADR-18 で `BattleAction.UseCard` を追加、プレイヤーがカードを使って敵を殴れる。本 PR では Damage カードのみ実装し、
- * Move / Buff / Trap は `ActionRejected` で「未実装のカード効果」を明示 (sealed 網羅性は維持)。ダメージ計算は ADR-17 通り
+ * <p>§15-3 / ADR-18 で `BattleAction.UseCard` を追加、プレイヤーがカードを使って敵を殴れる。本 PR では Damage カードのみ実装し、 Move /
+ * Buff / Trap は `ActionRejected` で「未実装のカード効果」を明示 (sealed 網羅性は維持)。ダメージ計算は ADR-17 通り
  * `CardEffect.Damage.resolve(Stats, Stats, CardElement)` に委譲、本クラスは結果の int を Stats に反映するだけ。
  */
 public final class TurnEngine {
@@ -103,7 +103,9 @@ public final class TurnEngine {
     Player refreshed =
         buffsDecremented
             .withActionPoints(
-                buffsDecremented.actionPoints().refilledTo(buffsDecremented.effectiveStats().speed()))
+                buffsDecremented
+                    .actionPoints()
+                    .refilledTo(buffsDecremented.effectiveStats().speed()))
             .withCardPileState(buffsDecremented.cardPileState().drawN(1, rng))
             .withPendingMoveCount(0);
     // ADR-22: Turns 罠の remaining-- + expired (=0) を除去。UntilStepped 罠は据置。
@@ -187,10 +189,15 @@ public final class TurnEngine {
     DungeonState afterMove = state.withPlayer(moved);
     List<BattleEvent> events = new ArrayList<>();
     events.add(new BattleEvent.Moved(player.id(), player.position(), next));
-    // 階段に到達したらフロア踏破 (CLEARED)。敵全滅では遷移しない。
+    // 階段に到達したら踏破。最終部屋 (roomIndex == 層内部屋数 = layer.number()) なら CLEARED
+    // (層末ノード選択へ)、途中部屋なら ROOM_CLEARED (同層の次部屋へ)。敵全滅では遷移しない (§15-6)。
     if (state.map().tileAt(next) == Tile.STAIRS_DOWN) {
-      afterMove = afterMove.withPhase(TurnPhase.CLEARED);
-      events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.CLEARED));
+      TurnPhase clearedPhase =
+          state.layer().roomIndex() < state.layer().number()
+              ? TurnPhase.ROOM_CLEARED
+              : TurnPhase.CLEARED;
+      afterMove = afterMove.withPhase(clearedPhase);
+      events.add(new BattleEvent.TurnPhaseChanged(clearedPhase));
     }
     // ADR-22: 罠踏み判定 (Player が罠タイルに進入したか)。CLEARED 時もダメージは入る (踏破直前の罠で死亡もあり得る)。
     afterMove = checkAndTriggerTrap(afterMove, moved.id(), next, true, events);
@@ -452,8 +459,7 @@ public final class TurnEngine {
     List<BattleEvent> events = new ArrayList<>();
     events.add(new BattleEvent.SkillUsed(attackerId, skill.displayName()));
     return switch (skill.effect()) {
-      case SkillEffect.Damage dmg ->
-          resolveDamageToPlayer(state, dmg.amount(), attackerId, events);
+      case SkillEffect.Damage dmg -> resolveDamageToPlayer(state, dmg.amount(), attackerId, events);
     };
   }
 
@@ -485,8 +491,14 @@ public final class TurnEngine {
         events.add(new BattleEvent.EliteDefeated(target.id()));
       }
       DungeonState ns = state.withEnemyRemoved(target.id()).withPlayer(rewardedPlayer);
-      // CLEARED への遷移は階段踏破で行う (applyPlayerMove)。
-      // 敵全滅では CLEARED にしない: 敵 1 体撃破で即クリアになるのを避けるため。
+      // 階段踏破での CLEARED 遷移は applyPlayerMove で行う。敵全滅では CLEARED にしない
+      // (敵 1 体撃破で即クリアになるのを避けるため)。
+      // §15-6 例外: ボス撃破 = ラン勝利 (RUN_CLEARED)。ボスは最終層・最終部屋にのみ配置され、
+      // そのフロアに階段は無いため、ボス撃破が唯一の進行手段となる。
+      if (target.kind() == core.domain.entity.EnemyKind.BOSS) {
+        ns = ns.withPhase(TurnPhase.RUN_CLEARED);
+        events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.RUN_CLEARED));
+      }
       return new StepResult(ns, events);
     }
     Enemy hit = target.withStats(damagedStats);
@@ -587,6 +599,11 @@ public final class TurnEngine {
           events.add(new BattleEvent.EliteDefeated(victimId));
         }
         ns = ns.withEnemyRemoved(victimId).withPlayer(rewardedPlayer);
+        // §15-6 例外: 罠でボスを倒した場合もラン勝利 (resolveDamageToEnemy と同じ扱い)。
+        if (victimEnemy.kind() == core.domain.entity.EnemyKind.BOSS) {
+          ns = ns.withPhase(TurnPhase.RUN_CLEARED);
+          events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.RUN_CLEARED));
+        }
       } else {
         ns = ns.withEnemyReplaced(victimEnemy);
       }

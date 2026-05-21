@@ -30,24 +30,26 @@ public final class DddGame extends Game {
   private TurnDirector director;
   private Fonts fonts;
 
-  /**
-   * ソウルツリー (§15-7 / E-2)。ラン跨ぎで持続する永続強化状態。E-9 セーブ未実装のため
-   * JVM 終了でリセット。タイトル画面のソウルツリー画面で操作する。
-   */
+  /** ソウルツリー (§15-7 / E-2)。ラン跨ぎで持続する永続強化状態。E-9 セーブ未実装のため JVM 終了でリセット。タイトル画面のソウルツリー画面で操作する。 */
   private SoulTree soulTree = SoulTree.empty();
 
   /**
-   * ラン外のプレイヤー所持ソウル (§15-2 / §15-7)。ラン終了時に Player.soul から書き戻され、
-   * 次ラン開始時に新 Player.soul として注入される。タイトル画面のソウルツリー解放でも消費する。
-   * E-9 セーブ未実装のため JVM 終了でリセット (デフォルト 0)。
+   * ラン外のプレイヤー所持ソウル (§15-2 / §15-7)。ラン終了時に Player.soul から書き戻され、 次ラン開始時に新 Player.soul
+   * として注入される。タイトル画面のソウルツリー解放でも消費する。 E-9 セーブ未実装のため JVM 終了でリセット (デフォルト 0)。
    */
   private Soul playerSoul = Soul.zero();
 
   /**
-   * チュートリアル既読フラグ (§15-10 / E-10)。初回起動時のタイトル画面で TutorialOverlay を 1 回表示し、
-   * 閉じたら true 化する。E-9 セーブ未実装のため JVM 終了でリセット (起動ごとに 1 回表示で許容)。
+   * チュートリアル既読フラグ (§15-10 / E-10)。初回起動時のタイトル画面で TutorialOverlay を 1 回表示し、 閉じたら true 化する。E-9
+   * セーブ未実装のため JVM 終了でリセット (起動ごとに 1 回表示で許容)。
    */
   private boolean tutorialSeen = false;
+
+  /**
+   * 周回数 (= 完了したラン数、§15-7 / E-2)。{@link #onRunEnded()} で +1 される。1 以上で タイトル画面のソウルツリー動線 (T キー) を解禁する
+   * (1 周目はツリー非表示、1 周目終了時に 初公開)。E-9 セーブ未実装のため JVM 終了でリセット。
+   */
+  private int runCount = 0;
 
   public GameContext context() {
     return context;
@@ -78,6 +80,11 @@ public final class DddGame extends Game {
     this.tutorialSeen = true;
   }
 
+  /** 完了したラン数 (§15-7 / E-2: 1 以上でソウルツリー動線を解禁)。 */
+  public int runCount() {
+    return runCount;
+  }
+
   /** ラン外のソウルツリー画面でノード解放した結果を受け取る (§15-7)。 */
   public void unlockTreeNode(NodeId nodeId) {
     SoulTree.UnlockResult result = soulTree.unlock(nodeId, playerSoul);
@@ -97,6 +104,15 @@ public final class DddGame extends Game {
     if (context != null) {
       this.playerSoul = context.state().player().soul();
     }
+  }
+
+  /**
+   * ラン終了時 (GameOverScreen 表示時) に呼ぶ (§15-7 / E-2)。{@link #preserveSoulFromRun()} で
+   * 獲得ソウルをラン外保持に退避し、{@link #runCount} を 1 増やす。runCount が 1 以上になることで 以降ソウルツリー動線 (タイトルの T キー) が解禁される。
+   */
+  public void onRunEnded() {
+    preserveSoulFromRun();
+    runCount++;
   }
 
   /** 新しいラン (= ダンジョン挑戦) を開始する。context と director を作り直す。 */
@@ -122,7 +138,17 @@ public final class DddGame extends Game {
    * (presentation 層、両方を import 可能) が担当する。
    */
   public void advanceFloor() {
-    director.advanceFloor(InitialStateFactory.advanceLayer(context.state()));
+    director.advanceFloor(InitialStateFactory.advanceLayer(context.state(), new Random()));
+  }
+
+  /**
+   * 部屋踏破後 (ROOM_CLEARED) に同じ層の次の部屋へ進む (§15-6 N 層 = N 部屋)。
+   *
+   * <p>{@link #advanceFloor} と同型: infrastructure の {@link InitialStateFactory#advanceRoom} で 次部屋
+   * state を生成し、application の {@link core.application.TurnDirector#advanceRoom} に委譲する。
+   */
+  public void advanceRoom() {
+    director.advanceRoom(InitialStateFactory.advanceRoom(context.state(), new Random()));
   }
 
   /**
@@ -136,35 +162,38 @@ public final class DddGame extends Game {
    *   <li>{@link TurnDirector#advanceFloor} に委譲し、AP リフィル + 1 枚ドロー + イベント発火
    * </ol>
    *
-   * <p>CLEARED 以外の状態で呼ばれた場合、効果は player に適用されるが {@link TurnDirector#advanceFloor} の no-op ガードで層遷移は起きない
-   * (二重ガード)。 ただし通常は DungeonScreen 側で CLEARED 時にのみ呼ばれるよう制御する。
+   * <p>CLEARED 以外の状態で呼ばれた場合、効果は player に適用されるが {@link TurnDirector#advanceFloor} の no-op
+   * ガードで層遷移は起きない (二重ガード)。 ただし通常は DungeonScreen 側で CLEARED 時にのみ呼ばれるよう制御する。
    */
   public void resolveLayerEndChoice(LayerEndNode choice) {
     Objects.requireNonNull(choice, "choice");
     DungeonState current = context.state();
     Player upgraded = choice.apply(current.player());
     DungeonState withUpgrade = current.withPlayer(upgraded);
-    director.advanceFloor(InitialStateFactory.advanceLayer(withUpgrade));
+    director.advanceFloor(InitialStateFactory.advanceLayer(withUpgrade, new Random()));
   }
 
   /**
    * §15-3 / §15-6: 強化個体撃破時にカード追加効果を Player に適用する (層遷移は伴わない)。
    *
-   * <p>{@link LayerEndNode#apply(Player)} を呼ぶだけで、{@link
-   * core.application.TurnDirector#advanceFloor} は呼ばない (戦闘継続中のため)。
+   * <p>{@link LayerEndNode#apply(Player)} を呼ぶだけで、{@link core.application.TurnDirector#advanceFloor}
+   * は呼ばない (戦闘継続中のため)。
    */
   public void applyEliteCardReward(LayerEndNode choice) {
     Objects.requireNonNull(choice, "choice");
     DungeonState current = context.state();
     Player upgraded = choice.apply(current.player());
     context.applyResult(
-        new core.domain.battle.TurnEngine.StepResult(current.withPlayer(upgraded), java.util.List.of()));
+        new core.domain.battle.TurnEngine.StepResult(
+            current.withPlayer(upgraded), java.util.List.of()));
   }
 
   @Override
   public void create() {
     fonts = new Fonts();
-    startNewRun();
+    // §15-7 / E-2: startNewRun() はラン開始の瞬間 (TitleScreen の ENTER) でのみ呼ぶ。
+    // ここで呼ぶと獲得前の playerSoul が Player に注入・ゼロ化され、ソウルツリーで使えなく
+    // なる (ソウル消失バグの根治)。context / director は最初のラン開始まで null。
     setScreen(new TitleScreen(this));
   }
 

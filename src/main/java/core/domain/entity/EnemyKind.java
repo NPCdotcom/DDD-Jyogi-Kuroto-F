@@ -8,12 +8,15 @@ package core.domain.entity;
  */
 public enum EnemyKind {
   // §15-2 撃破レート (ADR-30 数値仕様乖離修正):
-  //   SLIME = Soul 1 / Gold 5、ELITE_SLIME = Soul 3 / Gold 15、BOSS = Soul 10 / Gold 50 (未実装)
+  //   SLIME = Soul 1 / Gold 5、ELITE_SLIME = Soul 3 / Gold 15、BOSS = Soul 20 / Gold 50
   // 仕様 GAME_DESIGN.md §15-2 の「雑魚 Soul 0.5」を整数 record 制約のため切り上げ 1 とし、
   // §15-7 ノードコスト (HP+5 = 6 / 物攻+1 = 5 / 速度+1 = 35 等) との整合バランスを取る。
+  // BOSS は §15-2「ボス撃破 (ラン勝利) Soul 20 / Gold 50」を Single Source of Truth として採用。
   SLIME("スライム", 1, 5),
   /** 強化個体 (§15-3 / §15-6、5 層ごとに 1 体出現、撃破時にカード追加 UI を発火)。 */
-  ELITE_SLIME("強化スライム", 3, 15);
+  ELITE_SLIME("強化スライム", 3, 15),
+  /** 最終層のボス (§15-6 / §15-2、撃破でラン勝利 = RUN_CLEARED)。 */
+  BOSS("ボス", 20, 50);
 
   private final String displayName;
   private final int soulReward;

@@ -28,7 +28,7 @@ class InitialStateFactoryAdvanceLayerTest {
   void advanceLayerIncrementsLayerNumber() {
     // §15-6 「層が進むほど敵 AP 増加」: advanceLayer 後の layer.number() == 2
     DungeonState first = InitialStateFactory.firstFloor(new Random(42));
-    DungeonState second = InitialStateFactory.advanceLayer(first);
+    DungeonState second = InitialStateFactory.advanceLayer(first, new Random(42));
 
     assertEquals(2, second.layer().number());
   }
@@ -36,12 +36,13 @@ class InitialStateFactoryAdvanceLayerTest {
   @Test
   void advanceLayerSetsEnemyApEqualToLayerNumber() {
     // ADR-06 / §15-5 「敵 AP = 層番号 N」: 2 層の敵は AP 2 で初期化される
-    DungeonState second = InitialStateFactory.advanceLayer(InitialStateFactory.firstFloor(new Random(42)));
+    DungeonState second =
+        InitialStateFactory.advanceLayer(
+            InitialStateFactory.firstFloor(new Random(42)), new Random(42));
 
     int expectedAp = second.layer().number(); // == 2
     boolean allEnemiesHaveCorrectAp =
-        second.enemies().stream()
-            .allMatch(e -> e.actionPoints().current() == expectedAp);
+        second.enemies().stream().allMatch(e -> e.actionPoints().current() == expectedAp);
     assertTrue(allEnemiesHaveCorrectAp, "2 層の全敵は current AP = 2 でなければならない");
   }
 
@@ -49,9 +50,9 @@ class InitialStateFactoryAdvanceLayerTest {
 
   @Test
   void advanceLayerResetsPlayerPositionToSpawn() {
-    // §15-6 「層遷移時にプレイヤー位置をリセット」: advanceLayer 後は (1, 1) にリセット
+    // §15-6 「層遷移時にプレイヤー位置をリセット」: advanceLayer 後は spawn (1, 1) にリセット
     DungeonState first = InitialStateFactory.firstFloor(new Random(42));
-    DungeonState second = InitialStateFactory.advanceLayer(first);
+    DungeonState second = InitialStateFactory.advanceLayer(first, new Random(42));
 
     assertEquals(new Position(1, 1), second.player().position());
   }
@@ -63,7 +64,7 @@ class InitialStateFactoryAdvanceLayerTest {
     int hpBefore = first.player().stats().currentHp();
     int handSizeBefore = first.player().cardPileState().hand().size();
 
-    DungeonState second = InitialStateFactory.advanceLayer(first);
+    DungeonState second = InitialStateFactory.advanceLayer(first, new Random(42));
 
     assertEquals(hpBefore, second.player().stats().currentHp(), "HP は持ち越される");
     assertEquals(handSizeBefore, second.player().cardPileState().hand().size(), "手札サイズは持ち越される");
@@ -75,10 +76,11 @@ class InitialStateFactoryAdvanceLayerTest {
     PlacedTrap trap =
         new PlacedTrap(
             new Position(3, 3), 3, TrapLifetime.UntilStepped.INSTANCE, CardElement.PHYSICAL);
-    DungeonState withTrap = InitialStateFactory.firstFloor(new Random(42)).withPlacedTraps(List.of(trap));
+    DungeonState withTrap =
+        InitialStateFactory.firstFloor(new Random(42)).withPlacedTraps(List.of(trap));
     assertEquals(1, withTrap.placedTraps().size(), "前提: 罠が 1 件存在する");
 
-    DungeonState advanced = InitialStateFactory.advanceLayer(withTrap);
+    DungeonState advanced = InitialStateFactory.advanceLayer(withTrap, new Random(42));
 
     assertTrue(advanced.placedTraps().isEmpty(), "層遷移後の罠は空であること");
   }
@@ -87,16 +89,15 @@ class InitialStateFactoryAdvanceLayerTest {
   void advanceLayerThriceReachesLayer4() {
     // 連続 3 回の advanceLayer で layer.number() == 4 かつ敵 AP = 4 になる
     DungeonState state = InitialStateFactory.firstFloor(new Random(42));
-    state = InitialStateFactory.advanceLayer(state); // → 2 層
-    state = InitialStateFactory.advanceLayer(state); // → 3 層
-    state = InitialStateFactory.advanceLayer(state); // → 4 層
+    state = InitialStateFactory.advanceLayer(state, new Random(42)); // → 2 層
+    state = InitialStateFactory.advanceLayer(state, new Random(42)); // → 3 層
+    state = InitialStateFactory.advanceLayer(state, new Random(42)); // → 4 層
 
     assertEquals(4, state.layer().number());
 
     int expectedAp = 4;
     boolean allEnemiesHaveLayer4Ap =
-        state.enemies().stream()
-            .allMatch(e -> e.actionPoints().current() == expectedAp);
+        state.enemies().stream().allMatch(e -> e.actionPoints().current() == expectedAp);
     assertTrue(allEnemiesHaveLayer4Ap, "4 層の全敵は current AP = 4 でなければならない");
   }
 
@@ -115,5 +116,60 @@ class InitialStateFactoryAdvanceLayerTest {
     // 最小有効値 1 でスライムが生成でき、AP = 1 になる (ADR-06)
     var slime = InitialStateFactory.newSlimeForLayer("slime#l1", new Position(2, 2), 1);
     assertEquals(1, slime.actionPoints().current());
+  }
+
+  // advanceRoom (§15-6 N 層 = N 部屋: 同じ層の次の部屋へ進む)
+
+  @Test
+  void advanceRoomKeepsLayerNumberAndIncrementsRoomIndex() {
+    // 層 2 部屋 1 → advanceRoom → 層 2 部屋 2 (層番号据置・部屋番号 +1)
+    DungeonState layer2 =
+        InitialStateFactory.advanceLayer(
+            InitialStateFactory.firstFloor(new Random(42)), new Random(42));
+    DungeonState room2 = InitialStateFactory.advanceRoom(layer2, new Random(42));
+
+    assertEquals(2, room2.layer().number(), "層番号は据置");
+    assertEquals(2, room2.layer().roomIndex(), "部屋番号 +1");
+  }
+
+  @Test
+  void advanceRoomResetsPlayerPositionToSpawn() {
+    DungeonState layer2 =
+        InitialStateFactory.advanceLayer(
+            InitialStateFactory.firstFloor(new Random(42)), new Random(42));
+    DungeonState room2 = InitialStateFactory.advanceRoom(layer2, new Random(42));
+
+    assertEquals(new Position(1, 1), room2.player().position(), "部屋遷移後は spawn に戻る");
+  }
+
+  @Test
+  void advanceRoomCarriesPlayerStats() {
+    // §15-6 「Player は HP / 手札を持ち越し」: 部屋遷移でも持ち越される
+    DungeonState layer2 =
+        InitialStateFactory.advanceLayer(
+            InitialStateFactory.firstFloor(new Random(42)), new Random(42));
+    int hpBefore = layer2.player().stats().currentHp();
+    int handBefore = layer2.player().cardPileState().hand().size();
+
+    DungeonState room2 = InitialStateFactory.advanceRoom(layer2, new Random(42));
+
+    assertEquals(hpBefore, room2.player().stats().currentHp(), "HP は持ち越される");
+    assertEquals(handBefore, room2.player().cardPileState().hand().size(), "手札は持ち越される");
+  }
+
+  // newBossForLayer (§15-6 最終層ボス)
+
+  @Test
+  void newBossForLayerHasBossKind() {
+    // ボスは EnemyKind.BOSS (撃破時の RUN_CLEARED 判定の前提)
+    var boss = InitialStateFactory.newBossForLayer("boss#test", new Position(5, 5), 3);
+    assertEquals(core.domain.entity.EnemyKind.BOSS, boss.kind());
+  }
+
+  @Test
+  void newBossForLayerRejectsLayerNumberZero() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> InitialStateFactory.newBossForLayer("boss#z", new Position(5, 5), 0));
   }
 }

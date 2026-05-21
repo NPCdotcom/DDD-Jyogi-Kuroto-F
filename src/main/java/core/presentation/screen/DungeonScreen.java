@@ -35,13 +35,14 @@ import java.util.Random;
 /**
  * ゲーム本編画面。
  *
- * <p>毎フレーム: 入力受付 → TurnEngine 解決 → 描画 → フェーズ遷移チェック の流れで動く。 描画と入力以外のロジックは {@link TurnDirector} に委譲する。
+ * <p>毎フレーム: 入力受付 → TurnEngine 解決 → 描画 → フェーズ遷移チェック の流れで動く。 描画と入力以外のロジックは {@link TurnDirector}
+ * に委譲する。
  *
  * <p>{@code TurnDirector} と {@code Fonts} は {@link DddGame} 側で保持されている個体を都度参照する
  * (新ラン後に古い参照を見続ける事故を構造的に防ぐ)。
  *
- * <p>{@link PlayerInputs} はインスタンスとして保持し、2 ステートモデル (通常 / カード選択中) のカード選択状態を
- * フレーム間で維持する。{@link #show()} / {@link #hide()} / {@link #dispose()} でリセットする。
+ * <p>{@link PlayerInputs} はインスタンスとして保持し、2 ステートモデル (通常 / カード選択中) のカード選択状態を フレーム間で維持する。{@link
+ * #show()} / {@link #hide()} / {@link #dispose()} でリセットする。
  *
  * <p>{@link NodeChoicePopup} は CLEARED 状態 (階段踏破直後) に lazy 初期化され、 1〜3 数字キーで選択された後 {@link
  * DddGame#resolveLayerEndChoice} → 自動的に次層へ遷移し、ポップアップは dispose される (§15-8 / E-6)。
@@ -80,8 +81,10 @@ public final class DungeonScreen extends ScreenAdapter {
   private ShapeRenderer shapes;
   private PlayerInputs playerInputs;
   private NodeChoicePopup nodeChoice;
+
   /** §15-3 / §15-6: 強化個体撃破時のカード追加 UI (1 ノード選択 = 1 枚 DrawPile 追加)。 */
   private NodeChoicePopup eliteCardChoice;
+
   /** §15-9 / Shop silent fail 通知: 一時的なフラッシュメッセージ (~2 秒で消える)。 */
   private String flashMessage;
 
@@ -103,7 +106,7 @@ public final class DungeonScreen extends ScreenAdapter {
   @Override
   public void render(float delta) {
     updateState();
-    processNewEvents();   // §15-5 / E-8: 新規 DamageDealt → popup + shake / EliteDefeated → カード追加 UI
+    processNewEvents(); // §15-5 / E-8: 新規 DamageDealt → popup + shake / EliteDefeated → カード追加 UI
     advanceEffects(delta); // popup の age 加算 + 期限切れ除去 + shake デクリメント + flash デクリメント
     handleEliteCardChoice(); // §15-3 / §15-6: Elite 撃破 popup の入力処理
     drawFrame();
@@ -131,7 +134,15 @@ public final class DungeonScreen extends ScreenAdapter {
       // 階段踏破直後の層末ノード選択フロー (§15-8 / E-6)。
       // この間 ENEMY_TURN への遷移は起きず、敵は静止する (CLEARED は層遷移の前段で全行動凍結)。
       handleLayerEndChoice();
+    } else if (phase == TurnPhase.ROOM_CLEARED) {
+      // §15-6: 途中部屋の階段踏破 → 同層の次部屋へ即遷移 (ポップアップなし)。
+      game.advanceRoom();
+      showFlash(
+          game.fonts().isJapaneseAvailable()
+              ? Strings.Ja.ROOM_ADVANCE_FLASH
+              : Strings.En.ROOM_ADVANCE_FLASH);
     }
+    // RUN_CLEARED / GAME_OVER は transitionIfGameOver() が画面遷移を担う。
   }
 
   /**
@@ -173,8 +184,8 @@ public final class DungeonScreen extends ScreenAdapter {
   }
 
   /**
-   * §15-3 / §15-6: 強化個体撃破時のカード追加 UI 入力処理。{@link NodeChoicePopup} を流用し、
-   * {@link LayerEndNode.Shop}(goldCost=0, ...) を 3 つ提示 → 1 つ選択 → DrawPile に追加。
+   * §15-3 / §15-6: 強化個体撃破時のカード追加 UI 入力処理。{@link NodeChoicePopup} を流用し、 {@link
+   * LayerEndNode.Shop}(goldCost=0, ...) を 3 つ提示 → 1 つ選択 → DrawPile に追加。
    */
   private void handleEliteCardChoice() {
     if (eliteCardChoice == null) {
@@ -201,8 +212,8 @@ public final class DungeonScreen extends ScreenAdapter {
   /**
    * Elite 撃破時のカード追加候補 (3 種) を {@link NodeChoicePopup} で生成する。
    *
-   * <p>候補プールはチームメイト提案カード 5+ 種からシャッフルで 3 つ選び、それぞれ
-   * {@link LayerEndNode.Shop}(goldCost=0, card) でラップ。Gold 0 = 無料カード追加。
+   * <p>候補プールはチームメイト提案カード 5+ 種からシャッフルで 3 つ選び、それぞれ {@link LayerEndNode.Shop}(goldCost=0, card)
+   * でラップ。Gold 0 = 無料カード追加。
    */
   private NodeChoicePopup createEliteCardChoicePopup() {
     List<core.domain.card.Card> allRewards =
@@ -221,7 +232,8 @@ public final class DungeonScreen extends ScreenAdapter {
       choices.add(new LayerEndNode.Shop(0, allRewards.get(i)));
     }
     String title = "強化個体撃破: カード追加";
-    return new NodeChoicePopup(game.fonts().hud(), title, List.copyOf(choices));
+    // large(32px) 等倍。hud(16px)+setFontScale(2f) は Scene2D で漢字が黒四角化するため使えない。
+    return new NodeChoicePopup(game.fonts().large(), title, List.copyOf(choices));
   }
 
   private void showFlash(String message) {
@@ -232,9 +244,9 @@ public final class DungeonScreen extends ScreenAdapter {
   /**
    * 抽選 5 候補から 3 提示の {@link NodeChoicePopup} を生成する (§15-8 完成仕様縮退)。
    *
-   * <p>§15-8 仕様の「4 種カテゴリ (ステ強化 / 休憩 / イベント / ショップ) から 3 提示」を、本セッション
-   * では 5 候補 (HpMaxUp / SpeedUp / Rest / Shop / Event) から Random で 3 選に縮退。
-   * 候補プールに新 LayerEndNode を増やしたい場合は本メソッドの allCandidates に追加するだけ。
+   * <p>§15-8 仕様の「4 種カテゴリ (ステ強化 / 休憩 / イベント / ショップ) から 3 提示」を、本セッション では 5 候補 (HpMaxUp / SpeedUp /
+   * Rest / Shop / Event) から Random で 3 選に縮退。 候補プールに新 LayerEndNode を増やしたい場合は本メソッドの allCandidates
+   * に追加するだけ。
    */
   private NodeChoicePopup createNodeChoicePopup() {
     List<LayerEndNode> allCandidates =
@@ -247,11 +259,15 @@ public final class DungeonScreen extends ScreenAdapter {
                     5, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard()),
                 new LayerEndNode.Event(30, -5, 0, "ソウルの祠 (ソウル +30 / HP -5)")));
     Collections.shuffle(allCandidates, new Random());
-    List<LayerEndNode> choices = List.copyOf(allCandidates.subList(0, NodeChoicePopup.CHOICE_COUNT));
+    List<LayerEndNode> choices =
+        List.copyOf(allCandidates.subList(0, NodeChoicePopup.CHOICE_COUNT));
 
     String title =
-        game.fonts().isJapaneseAvailable() ? Strings.Ja.LAYER_END_TITLE : Strings.En.LAYER_END_TITLE;
-    return new NodeChoicePopup(game.fonts().hud(), title, choices);
+        game.fonts().isJapaneseAvailable()
+            ? Strings.Ja.LAYER_END_TITLE
+            : Strings.En.LAYER_END_TITLE;
+    // large(32px) 等倍。hud(16px)+setFontScale(2f) は Scene2D で漢字が黒四角化するため使えない。
+    return new NodeChoicePopup(game.fonts().large(), title, choices);
   }
 
   /** 0-indexed の i (0〜2) を NUM_1〜NUM_3 にマップ。範囲外は IAE。 */
@@ -295,9 +311,9 @@ public final class DungeonScreen extends ScreenAdapter {
   }
 
   /**
-   * 新規 {@link BattleEvent.DamageDealt} を検知してダメージポップアップを spawn + 画面シェイクをトリガする
-   * (§15-5 / E-8)。{@link core.application.GameContext#totalEventsEmitted()} を前回観測値と比較し、
-   * 差分ぶんだけ {@code latestEvents} で取得する。
+   * 新規 {@link BattleEvent.DamageDealt} を検知してダメージポップアップを spawn + 画面シェイクをトリガする (§15-5 / E-8)。{@link
+   * core.application.GameContext#totalEventsEmitted()} を前回観測値と比較し、 差分ぶんだけ {@code latestEvents}
+   * で取得する。
    */
   private void processNewEvents() {
     long current = game.context().totalEventsEmitted();
@@ -353,9 +369,15 @@ public final class DungeonScreen extends ScreenAdapter {
       tileY = enemyOpt.get().position().y();
     }
     float worldX =
-        RenderLayout.MAP_ORIGIN_X + tileX * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f - 12f;
+        RenderLayout.MAP_ORIGIN_X
+            + tileX * RenderLayout.TILE_SIZE
+            + RenderLayout.TILE_SIZE / 2f
+            - 12f;
     float worldY =
-        RenderLayout.MAP_ORIGIN_Y + tileY * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f + 4f;
+        RenderLayout.MAP_ORIGIN_Y
+            + tileY * RenderLayout.TILE_SIZE
+            + RenderLayout.TILE_SIZE / 2f
+            + 4f;
     Color color = colorForDamage(toPlayer, d.damage());
     if (popups.size() >= MAX_POPUPS) {
       popups.remove(0);
@@ -374,9 +396,8 @@ public final class DungeonScreen extends ScreenAdapter {
   /**
    * §15-5 色分け方針: 被弾=赤、暴力的 (>=8) =黄、それ以外=白。
    *
-   * <p>閾値 8 は ADR-30 修正後の物攻 2 (素 1 + 装備 +1) で「斬撃 (基礎値 5) → ダメ 7」が
-   * 通常、「強打 (基礎値 4) + Buff 物攻 +2 → ダメ 6」程度、「Elite 物攻 3 + 斬撃 → 8」が
-   * 暴力的ヒットの閾値になるよう設定。初期実装の 10 では装備 + Buff 込みでも届かなかった。
+   * <p>閾値 8 は ADR-30 修正後の物攻 2 (素 1 + 装備 +1) で「斬撃 (基礎値 5) → ダメ 7」が 通常、「強打 (基礎値 4) + Buff 物攻 +2 → ダメ
+   * 6」程度、「Elite 物攻 3 + 斬撃 → 8」が 暴力的ヒットの閾値になるよう設定。初期実装の 10 では装備 + Buff 込みでも届かなかった。
    */
   private static Color colorForDamage(boolean toPlayer, int amount) {
     if (toPlayer) {
@@ -421,10 +442,12 @@ public final class DungeonScreen extends ScreenAdapter {
     TurnPhase phase = game.context().state().phase();
     if (phase == TurnPhase.GAME_OVER) {
       game.setScreen(new GameOverScreen(game, false));
+    } else if (phase == TurnPhase.RUN_CLEARED) {
+      // §15-6: 最終層ボス撃破 = ラン勝利。クリア表示の GameOverScreen へ。
+      game.setScreen(new GameOverScreen(game, true));
     }
-    // CLEARED は階段踏破直後の「層末ノード選択待ち」状態 (§15-8 / E-6)。
-    // 画面遷移は行わず、updateState() → handleLayerEndChoice() で選択 → 次層遷移を発火する。
-    // GameOverScreen(game, true) の呼出は最終層クリア概念が定義されるまで保留 (現状最終層なし)。
+    // CLEARED は層末ノード選択待ち、ROOM_CLEARED は部屋遷移待ち。どちらも updateState() で
+    // 処理し、本メソッドでは画面遷移しない。
   }
 
   @Override

@@ -13,7 +13,6 @@ import core.domain.card.DrawPile;
 import core.domain.card.Hand;
 import core.domain.card.TrapLifetime;
 import core.domain.common.Position;
-import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
@@ -60,6 +59,11 @@ public final class InitialStateFactory {
 
   public static Skill slimeBite() {
     return new Skill(SkillId.of("slime_bite"), "Bite", 1, new SkillEffect.Damage(4));
+  }
+
+  /** ボス専用スキル (§15-6)。固定 8 ダメージ / AP 3。ボスが 1 ターン 1 回撃つ前提のバランス値。 */
+  public static Skill bossSlam() {
+    return new Skill(SkillId.of("boss_slam"), "Boss Slam", 3, new SkillEffect.Damage(8));
   }
 
   // ----------------------------- カードマスタ -----------------------------
@@ -172,8 +176,8 @@ public final class InitialStateFactory {
   }
 
   /**
-   * ダッシュカード (物理移動 / 距離 2、AP 1)。ぼろ靴の {@code grantedCards} 経由で初期デッキに自動追加される
-   * (§15-9 / ADR-26)。{@code docs/templates/cards.json} の {@code dash} エントリ準拠。
+   * ダッシュカード (物理移動 / 距離 2、AP 1)。ぼろ靴の {@code grantedCards} 経由で初期デッキに自動追加される (§15-9 / ADR-26)。{@code
+   * docs/templates/cards.json} の {@code dash} エントリ準拠。
    */
   public static Card dashCard() {
     return new Card(
@@ -186,8 +190,8 @@ public final class InitialStateFactory {
   }
 
   /**
-   * 鉄の皮膚カード (物理 Buff / 物防 +2 / 3 ターン残、AP 1)。{@code docs/templates/cards.json} の
-   * {@code iron_skin} エントリ準拠 (§15-3 / ADR-27)。
+   * 鉄の皮膚カード (物理 Buff / 物防 +2 / 3 ターン残、AP 1)。{@code docs/templates/cards.json} の {@code iron_skin}
+   * エントリ準拠 (§15-3 / ADR-27)。
    */
   public static Card ironSkinCard() {
     return new Card(
@@ -200,8 +204,8 @@ public final class InitialStateFactory {
   }
 
   /**
-   * 魔力の帳カード (魔法 Buff / 魔防 +3 / 2 ターン残、AP 2)。{@code docs/templates/cards.json} の
-   * {@code arcane_veil} エントリ準拠 (§15-3 / ADR-27)。
+   * 魔力の帳カード (魔法 Buff / 魔防 +3 / 2 ターン残、AP 2)。{@code docs/templates/cards.json} の {@code arcane_veil}
+   * エントリ準拠 (§15-3 / ADR-27)。
    */
   public static Card arcaneVeilCard() {
     return new Card(
@@ -216,8 +220,8 @@ public final class InitialStateFactory {
   // ----------------------------- 装備マスタ (§15-9 / ADR-26) -----------------------------
 
   /**
-   * ぼろ靴 (初期装備、{@code docs/templates/equipments.json} の {@code tattered_boots} 準拠)。
-   * speed +1、{@link #dashCard()} を {@code grantedCards} で初期デッキに自動追加。
+   * ぼろ靴 (初期装備、{@code docs/templates/equipments.json} の {@code tattered_boots} 準拠)。 speed +1、{@link
+   * #dashCard()} を {@code grantedCards} で初期デッキに自動追加。
    */
   public static Equipment tatteredBoots() {
     return new Equipment(
@@ -229,8 +233,8 @@ public final class InitialStateFactory {
   }
 
   /**
-   * ぼろい短剣 (初期装備、{@code docs/templates/equipments.json} の {@code tattered_dagger} 準拠)。
-   * 物攻 +1、{@link #zangetuCard()} (id="zangeki") を {@code grantedCards} で初期デッキに自動追加。
+   * ぼろい短剣 (初期装備、{@code docs/templates/equipments.json} の {@code tattered_dagger} 準拠)。 物攻 +1、{@link
+   * #zangetuCard()} (id="zangeki") を {@code grantedCards} で初期デッキに自動追加。
    */
   public static Equipment tatteredDagger() {
     return new Equipment(
@@ -244,11 +248,10 @@ public final class InitialStateFactory {
   // ----------------------------- カード ID → Card 解決 (§15-9 / ADR-26) -----------------------------
 
   /**
-   * カード ID から {@link Card} を解決する (装備固有カード自動追加用)。マスタ未登録の ID は
-   * {@link IllegalArgumentException}。
+   * カード ID から {@link Card} を解決する (装備固有カード自動追加用)。マスタ未登録の ID は {@link IllegalArgumentException}。
    *
-   * <p>本セッションの装備固有カードは {@code dash} (ぼろ靴) と {@code zangeki} (ぼろい短剣) の 2 種のみ。
-   * 将来のショップ販売 / 強化個体撃破時の選択肢で他カードが装備される場合、本メソッドに分岐を追加する。
+   * <p>本セッションの装備固有カードは {@code dash} (ぼろ靴) と {@code zangeki} (ぼろい短剣) の 2 種のみ。 将来のショップ販売 /
+   * 強化個体撃破時の選択肢で他カードが装備される場合、本メソッドに分岐を追加する。
    */
   public static Card resolveCard(CardId id) {
     Objects.requireNonNull(id, "id");
@@ -264,26 +267,24 @@ public final class InitialStateFactory {
       case "flame_circle" -> flameCircleCard();
       case "iron_skin" -> ironSkinCard();
       case "arcane_veil" -> arcaneVeilCard();
-      default ->
-          throw new IllegalArgumentException("Unknown CardId for resolution: " + id.value());
+      default -> throw new IllegalArgumentException("Unknown CardId for resolution: " + id.value());
     };
   }
 
-  // ----------------------------- マップ -----------------------------
+  // ----------------------------- ダンジョン構成 -----------------------------
 
-  /** 10x10 の固定マップ。外周は壁、内部は床。右下に階段。 */
-  public static final List<String> FLOOR_01 =
-      List.of(
-          "##########",
-          "#........#",
-          "#........#",
-          "#........#",
-          "#........#",
-          "#........#",
-          "#........#",
-          "#........#",
-          "#.......>#",
-          "##########");
+  /**
+   * ラン全体の層数 (§15-6「初期 3 層」)。最終層 (= MAX_LAYER) の最終部屋がボス部屋になる。 層数拡張 (ソウルツリー) は M2 送り、本セッションは固定 3 層。
+   */
+  public static final int MAX_LAYER = 3;
+
+  /**
+   * 指定の層・部屋がボス部屋か (§15-6 クリア条件 = 最終層ボス撃破)。最終層 (MAX_LAYER) の 最終部屋 (roomIndex == 層内部屋数 ==
+   * layer.number()) がボス部屋。
+   */
+  public static boolean isBossRoom(Layer layer) {
+    return layer.number() == MAX_LAYER && layer.roomIndex() == layer.number();
+  }
 
   // ----------------------------- ファクトリ -----------------------------
 
@@ -291,30 +292,22 @@ public final class InitialStateFactory {
    * 1 層目の DungeonState を組み立てる (ADR-19: Random は引数注入で再現性を呼出元に委ねる)。
    *
    * <p>本番では {@code core.presentation.screen.DddGame#startNewRun} が {@code new Random()} を渡し、
-   * 毎ラン異なる初期手札シャッフルを得る。テストでは {@code new Random(42)} 等の固定シードを渡し、
-   * 再現可能性を担保する。
+   * 毎ラン異なる初期手札シャッフルを得る。テストでは {@code new Random(42)} 等の固定シードを渡し、 再現可能性を担保する。
    */
   public static DungeonState firstFloor(Random rng) {
     Objects.requireNonNull(rng, "rng");
-    DungeonMap map = DungeonMap.of(FLOOR_01);
-    Player player = newPlayer(new Position(1, 1), rng);
-    // 階段 (8, 1) の前に 1 体、フロア中央付近にもう 1 体配置することで、
-    // 戦闘を経ずに踏破するルートにも敵を絡みやすくする。
-    Enemy slimeNearStairs = newSlime("slime#stairs", new Position(6, 1));
-    Enemy slimeMidRoom = newSlime("slime#mid", new Position(4, 4));
-    return new DungeonState(
-        map, player, List.of(slimeNearStairs, slimeMidRoom), TurnPhase.PLAYER_TURN);
+    Player player = newPlayer(DungeonGenerator.SPAWN, rng);
+    return generateRoomState(Layer.first(), player, rng);
   }
 
   /**
    * 初期 Player を組み立てる (§15-9 完全実装 / ADR-25 / ADR-26 / ADR-19: Random は引数注入)。
    *
-   * <p>初期装備として {@link #tatteredBoots()} (FEET) と {@link #tatteredDagger()} (HAND) を装着し、
-   * その {@code grantedCards} ({@code dash} + {@code zangeki}) を初期デッキとする。素ステに装備の
-   * {@code statsBonus} を加えた {@link Player#effectiveStats()} が「物攻 1 → 2 / 速度 3 → 4」になる。
+   * <p>初期装備として {@link #tatteredBoots()} (FEET) と {@link #tatteredDagger()} (HAND) を装着し、 その {@code
+   * grantedCards} ({@code dash} + {@code zangeki}) を初期デッキとする。素ステに装備の {@code statsBonus} を加えた {@link
+   * Player#effectiveStats()} が「物攻 1 → 2 / 速度 3 → 4」になる。
    *
-   * <p>{@code rng} は初期手札シャッフルと初期ドローで共有される。同一インスタンスを渡せばシャッフル後の
-   * 山札順 → 初期ドロー結果が一意に定まる。
+   * <p>{@code rng} は初期手札シャッフルと初期ドローで共有される。同一インスタンスを渡せばシャッフル後の 山札順 → 初期ドロー結果が一意に定まる。
    */
   public static Player newPlayer(Position spawn, Random rng) {
     Objects.requireNonNull(spawn, "spawn");
@@ -385,9 +378,8 @@ public final class InitialStateFactory {
   /**
    * 強化個体スライム生成 (§15-6 強化個体、5 層ごとに 1 体出現)。
    *
-   * <p>雑魚スライムより強い: HP 20 (倍)、物攻 3 (1.5 倍)、物防 1、AP は層番号 +2 で雑魚を凌駕。
-   * 撃破時に {@link core.domain.battle.BattleEvent.EliteDefeated} 発火 →
-   * プレゼン層でカード追加 UI を表示する (§15-3 強化個体撃破時のカード追加)。
+   * <p>雑魚スライムより強い: HP 20 (倍)、物攻 3 (1.5 倍)、物防 1、AP は層番号 +2 で雑魚を凌駕。 撃破時に {@link
+   * core.domain.battle.BattleEvent.EliteDefeated} 発火 → プレゼン層でカード追加 UI を表示する (§15-3 強化個体撃破時のカード追加)。
    */
   public static Enemy newEliteSlimeForLayer(String id, Position spawn, int layerNumber) {
     if (layerNumber < 1) {
@@ -403,47 +395,92 @@ public final class InitialStateFactory {
   }
 
   /**
-   * 現在の DungeonState から次の階層を生成する (§15-6 / ADR-23)。
+   * 現在の DungeonState から次の層の最初の部屋を生成する (§15-6 / ADR-23)。
    *
-   * <p>処理:
+   * <p>{@link Layer#next()} で層番号 +1・部屋番号 1。マップは {@link DungeonGenerator} で手続き 生成、敵は AP = 層番号で新規生成
+   * (5 層ごとに先頭 1 体を強化個体に置換)。Player は持ち越し (HP/AP/手札/装備/ソウル) し位置を spawn にリセット、罠は持ち越さない。
    *
-   * <ol>
-   *   <li>{@link Layer#next()} で層番号 +1
-   *   <li>同じマップを流用 (将来 FLOOR_02 等を別途定義する余地)
-   *   <li>Player は持ち越し (HP/AP/手札/装備/ソウル/pendingMoveCount すべて)、ただし位置を初期スポーン (1, 1) にリセット
-   *   <li>敵を新規生成 (AP = 次層番号、ADR-06)
-   *   <li>罠は層間で持ち越さない (placedTraps = 空)
-   *   <li>TurnPhase = PLAYER_TURN
-   * </ol>
-   *
-   * @param current 現在の状態 (CLEARED 直前 / 直後を想定)
-   * @return 次層の DungeonState
+   * @param current 現在の状態 (層末ノード選択後を想定)
+   * @param rng マップ生成の乱数源 (ADR-19: 引数注入)
    */
-  public static DungeonState advanceLayer(DungeonState current) {
-    Layer nextLayer = current.layer().next();
-    int apForLayer = nextLayer.number();
-    Enemy slimeNearStairs =
-        newSlimeForLayer("slime_L" + nextLayer.number() + "_a", new Position(6, 1), apForLayer);
-    Enemy slimeMidRoom =
-        newSlimeForLayer("slime_L" + nextLayer.number() + "_b", new Position(4, 4), apForLayer);
-    List<Enemy> enemies = new java.util.ArrayList<>();
-    enemies.add(slimeNearStairs);
-    enemies.add(slimeMidRoom);
-    // §15-6 強化個体: 5 層ごとに 1 体追加 (5/10/15... 層)。Elite 撃破時に
-    // BattleEvent.EliteDefeated が発火し、プレゼン層がカード追加 UI を表示。
-    if (nextLayer.number() % 5 == 0) {
-      enemies.add(
-          newEliteSlimeForLayer(
-              "elite_L" + nextLayer.number(), new Position(5, 5), apForLayer));
-    }
-    Player carriedPlayer = current.player().withPosition(new Position(1, 1));
-    return new DungeonState(
-        current.map(),
-        carriedPlayer,
-        List.copyOf(enemies),
-        TurnPhase.PLAYER_TURN,
-        List.of(),
-        nextLayer);
+  public static DungeonState advanceLayer(DungeonState current, Random rng) {
+    Objects.requireNonNull(current, "current");
+    Objects.requireNonNull(rng, "rng");
+    return generateRoomState(current.layer().next(), current.player(), rng);
   }
 
+  /**
+   * 現在の DungeonState から同じ層の次の部屋を生成する (§15-6 N 層 = N 部屋)。
+   *
+   * <p>{@link Layer#nextRoom()} で部屋番号 +1 (層番号据置)。最終層・最終部屋なら {@link #isBossRoom} によりボス部屋を生成する。それ以外は
+   * {@link #advanceLayer} と同じ部屋構築。
+   *
+   * @param current 現在の状態 (部屋踏破 = ROOM_CLEARED 後を想定)
+   * @param rng マップ生成の乱数源 (ADR-19: 引数注入)
+   */
+  public static DungeonState advanceRoom(DungeonState current, Random rng) {
+    Objects.requireNonNull(current, "current");
+    Objects.requireNonNull(rng, "rng");
+    return generateRoomState(current.layer().nextRoom(), current.player(), rng);
+  }
+
+  /**
+   * 指定の層・部屋の DungeonState を組み立てる (firstFloor / advanceLayer / advanceRoom 共通)。
+   *
+   * <p>{@link DungeonGenerator} でマップ + 配置座標を生成し、ボス部屋ならボス 1 体、強化個体部屋 (層 2 の最終部屋) なら雑魚 2 + 強化個体 1 の計
+   * 3 体、通常部屋なら雑魚 2 体を配置する。Player は 位置を spawn にリセットして持ち越し、罠は持ち越さない (placedTraps 空)。
+   */
+  private static DungeonState generateRoomState(Layer layer, Player player, Random rng) {
+    boolean boss = isBossRoom(layer);
+    // §15-3 / §15-6: 強化個体は「2 層目の最終部屋」に出現させる。§15-6「5 層おき」は固定 3 層
+    // (MAX_LAYER=3) では一度も成立しないため、ハッカソン版は層 2 末に 1 回出す (カード追加 UI のデモ用)。
+    boolean hasElite = !boss && layer.number() == 2 && layer.roomIndex() == 2;
+    int enemyCount = boss ? 1 : (hasElite ? 3 : 2);
+    DungeonGenerator.GeneratedRoom room = DungeonGenerator.generate(enemyCount, boss, rng);
+
+    List<Enemy> enemies = new java.util.ArrayList<>();
+    List<Position> spawns = room.enemySpawns();
+    for (int i = 0; i < spawns.size(); i++) {
+      Position pos = spawns.get(i);
+      if (boss) {
+        enemies.add(newBossForLayer("boss_L" + layer.number(), pos, layer.number()));
+      } else if (hasElite && i == 0) {
+        // §15-3 / §15-6 強化個体: 先頭 1 体を強化個体に。撃破で EliteDefeated → カード追加 UI 発火。
+        enemies.add(
+            newEliteSlimeForLayer(
+                "elite_L" + layer.number() + "_R" + layer.roomIndex(), pos, layer.number()));
+      } else {
+        String id = "slime_L" + layer.number() + "_R" + layer.roomIndex() + "_" + i;
+        enemies.add(newSlimeForLayer(id, pos, layer.number()));
+      }
+    }
+
+    Player atSpawn = player.withPosition(room.spawn());
+    return new DungeonState(
+        room.map(), atSpawn, List.copyOf(enemies), TurnPhase.PLAYER_TURN, List.of(), layer);
+  }
+
+  /**
+   * 最終層のボスを生成する (§15-6 / §15-2)。雑魚 (HP 10) ・強化個体 (HP 20) を凌ぐ HP 45、速度 / AP = 層番号 +1、専用スキル {@link
+   * #bossSlam} (固定 8 ダメージ / AP 3) を持つ。撃破で {@code RUN_CLEARED} (ラン勝利)。
+   *
+   * <p>バランス根拠: プレイヤー (HP 30 前後・heavySlash で 15/ターン相当) が約 3 ターンで HP 45 を 削り切る一方、ボスは 8/ターンで 4〜5
+   * ターンかけてプレイヤーを削る — プレイヤー先制で勝ち筋が 残る値。HP 60 / 15 ダメージ案は隣接戦が数学的に成立しなかったため下方修正 (devils-advocate 指摘)。
+   *
+   * @param layerNumber 1 以上の階層番号 (速度 / AP の算出に使う)
+   */
+  public static Enemy newBossForLayer(String id, Position spawn, int layerNumber) {
+    Objects.requireNonNull(id, "id");
+    Objects.requireNonNull(spawn, "spawn");
+    if (layerNumber < 1) {
+      throw new IllegalArgumentException("layerNumber must be >= 1: " + layerNumber);
+    }
+    return new Enemy(
+        ActorId.of(id),
+        spawn,
+        new Stats(45, 45, layerNumber + 1, 5, 0, 1, 0),
+        ActionPoints.full(layerNumber + 1),
+        new SkillSlot(List.of(bossSlam()), 4),
+        EnemyKind.BOSS);
+  }
 }

@@ -112,6 +112,26 @@ public final class TurnDirector {
     context.applyResult(TurnEngine.startPlayerTurn(context.state(), rng));
   }
 
+  /**
+   * 部屋踏破後 (ROOM_CLEARED 状態) に同じ層の次の部屋へ進む (§15-6 N 層 = N 部屋)。
+   *
+   * <p>{@link #advanceFloor} と同型だが、層遷移ではないため {@link BattleEvent.FloorAdvanced} は 発火しない (無音遷移、HUD
+   * ログに「N 層に到達」を出さない)。AP リフィル + 1 ドローは {@link TurnEngine#startPlayerTurn} を流用する。
+   *
+   * <p>ROOM_CLEARED 以外の状態では no-op。DungeonScreen.updateState は ROOM_CLEARED の間 毎フレーム 本メソッドを呼ぶが、1
+   * 回目の適用後に phase が PLAYER_TURN へ変わるため、このガードが多重発火 (毎フレーム新部屋を生成し続ける暴走) を防ぐ唯一の防御線となる。
+   *
+   * @param nextRoomState 同じ層の次部屋の DungeonState (呼出側 InitialStateFactory.advanceRoom が生成)
+   */
+  public void advanceRoom(DungeonState nextRoomState) {
+    Objects.requireNonNull(nextRoomState, "nextRoomState");
+    if (context.state().phase() != TurnPhase.ROOM_CLEARED) {
+      return;
+    }
+    context.applyResult(new StepResult(nextRoomState, List.of()));
+    context.applyResult(TurnEngine.startPlayerTurn(context.state(), rng));
+  }
+
   private void driveEnemy(ActorId id) {
     for (int step = 0; step < ENEMY_STEP_HARD_LIMIT; step++) {
       DungeonState current = context.state();

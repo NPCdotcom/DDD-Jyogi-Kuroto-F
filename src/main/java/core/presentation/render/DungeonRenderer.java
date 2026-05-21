@@ -21,6 +21,8 @@ public final class DungeonRenderer {
   private static final Color STAIRS_COLOR = new Color(0.85f, 0.75f, 0.25f, 1f);
   private static final Color PLAYER_COLOR = new Color(0.30f, 0.65f, 1.00f, 1f);
   private static final Color ENEMY_COLOR = new Color(0.40f, 0.85f, 0.40f, 1f);
+  private static final Color ELITE_COLOR = new Color(0.85f, 0.55f, 0.20f, 1f);
+  private static final Color BOSS_COLOR = new Color(0.85f, 0.25f, 0.30f, 1f);
 
   private DungeonRenderer() {}
 
@@ -45,9 +47,20 @@ public final class DungeonRenderer {
   }
 
   private static void drawEnemies(ShapeRenderer shapes, DungeonState state) {
-    shapes.setColor(ENEMY_COLOR);
-    int inset = 4;
     for (Enemy e : state.enemies()) {
+      // §15-6 視認性: ボスは赤・大きめ、強化個体は橙・中、雑魚は緑・小で描き分ける。
+      int inset =
+          switch (e.kind()) {
+            case BOSS -> 1;
+            case ELITE_SLIME -> 3;
+            case SLIME -> 4;
+          };
+      shapes.setColor(
+          switch (e.kind()) {
+            case BOSS -> BOSS_COLOR;
+            case ELITE_SLIME -> ELITE_COLOR;
+            case SLIME -> ENEMY_COLOR;
+          });
       int sx = RenderLayout.MAP_ORIGIN_X + e.position().x() * RenderLayout.TILE_SIZE + inset;
       int sy = RenderLayout.MAP_ORIGIN_Y + e.position().y() * RenderLayout.TILE_SIZE + inset;
       shapes.rect(sx, sy, RenderLayout.TILE_SIZE - inset * 2, RenderLayout.TILE_SIZE - inset * 2);

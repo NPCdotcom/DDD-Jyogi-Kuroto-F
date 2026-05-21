@@ -37,9 +37,9 @@ public final class GameOverScreen extends ScreenAdapter {
 
   @Override
   public void show() {
-    // §15-7 / E-2: ラン中の Player.soul をラン外保持 (DddGame.playerSoul) に書き戻す。
-    // タイトル画面のソウルツリー解放で使えるようにする。
-    game.preserveSoulFromRun();
+    // §15-7 / E-2: ラン終了処理。Player.soul をラン外保持 (DddGame.playerSoul) に書き戻し、
+    // 周回数を +1 する。これにより獲得ソウルがソウルツリーで使えるようになる。
+    game.onRunEnded();
     soulSnapshot = game.playerSoul().amount();
     camera = new OrthographicCamera();
     viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
@@ -61,23 +61,40 @@ public final class GameOverScreen extends ScreenAdapter {
     batch.begin();
     if (cleared) {
       title.setColor(0.9f, 0.85f, 0.4f, 1f);
-      title.draw(batch, jp ? Strings.Ja.CLEARED_HEADER : Strings.En.CLEARED_HEADER, RenderLayout.GAMEOVER_HEADER_X, RenderLayout.GAMEOVER_HEADER_Y);
+      title.draw(
+          batch,
+          jp ? Strings.Ja.RUN_CLEARED_HEADER : Strings.En.RUN_CLEARED_HEADER,
+          RenderLayout.GAMEOVER_HEADER_X,
+          RenderLayout.GAMEOVER_HEADER_Y);
     } else {
       title.setColor(0.9f, 0.3f, 0.3f, 1f);
-      title.draw(batch, jp ? Strings.Ja.GAME_OVER_HEADER : Strings.En.GAME_OVER_HEADER, RenderLayout.GAMEOVER_HEADER_X, RenderLayout.GAMEOVER_HEADER_Y);
+      title.draw(
+          batch,
+          jp ? Strings.Ja.GAME_OVER_HEADER : Strings.En.GAME_OVER_HEADER,
+          RenderLayout.GAMEOVER_HEADER_X,
+          RenderLayout.GAMEOVER_HEADER_Y);
     }
 
     large.setColor(Color.LIGHT_GRAY);
     String soulLabel = jp ? Strings.Ja.SOULS_KEPT : Strings.En.SOULS_KEPT;
-    large.draw(batch, soulLabel + soulSnapshot, RenderLayout.GAMEOVER_SOUL_X, RenderLayout.GAMEOVER_SOUL_Y);
+    large.draw(
+        batch,
+        soulLabel + soulSnapshot,
+        RenderLayout.GAMEOVER_SOUL_X,
+        RenderLayout.GAMEOVER_SOUL_Y);
 
     hud.setColor(Color.GRAY);
-    hud.draw(batch, jp ? Strings.Ja.NEW_RUN_HINT : Strings.En.NEW_RUN_HINT, RenderLayout.GAMEOVER_HINT_X, RenderLayout.GAMEOVER_HINT_Y);
+    hud.draw(
+        batch,
+        jp ? Strings.Ja.NEW_RUN_HINT : Strings.En.NEW_RUN_HINT,
+        RenderLayout.GAMEOVER_HINT_X,
+        RenderLayout.GAMEOVER_HINT_Y);
     batch.end();
 
     if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
-      game.startNewRun();
-      game.setScreen(new TitleScreen(game));
+      // §15-7 / E-2: ラン終了後はソウルツリーへ遷移し、獲得ソウルを永続強化に使う。
+      // startNewRun() はここでは呼ばない (次ラン開始は TitleScreen の ENTER 時)。
+      game.setScreen(new SoulTreeScreen(game));
     }
   }
 

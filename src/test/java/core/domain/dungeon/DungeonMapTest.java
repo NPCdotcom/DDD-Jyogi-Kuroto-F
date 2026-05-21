@@ -65,4 +65,44 @@ class DungeonMapTest {
   void unknownGlyphRejected() {
     assertThrows(IllegalArgumentException.class, () -> DungeonMap.of(List.of("###", "#@#", "###")));
   }
+
+  // §15-6: 到達可能性 BFS (DungeonGenerator のソフトロック検証に使う)
+
+  @Test
+  void reachableTrueForConnectedFloors() {
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
+    assertTrue(m.reachable(new Position(1, 1), new Position(3, 3)));
+  }
+
+  @Test
+  void reachableTrueForSameWalkablePosition() {
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
+    assertTrue(m.reachable(new Position(2, 2), new Position(2, 2)));
+  }
+
+  @Test
+  void reachableTrueDetouringAroundPillar() {
+    // 中央 (2,2) のピラーを迂回して (1,1) → (3,3) に到達できる
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#.#.#", "#...#", "#####"));
+    assertTrue(m.reachable(new Position(1, 1), new Position(3, 3)));
+  }
+
+  @Test
+  void reachableFalseWhenWalledOff() {
+    // x=2 の壁列が左右の床領域を完全分断する
+    DungeonMap m = DungeonMap.of(List.of("#####", "#.#.#", "#.#.#", "#.#.#", "#####"));
+    assertFalse(m.reachable(new Position(1, 1), new Position(3, 3)));
+  }
+
+  @Test
+  void reachableFalseWhenEndpointIsWall() {
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
+    assertFalse(m.reachable(new Position(1, 1), new Position(0, 0)));
+  }
+
+  @Test
+  void reachableFalseForOutOfBoundsEndpoint() {
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
+    assertFalse(m.reachable(new Position(1, 1), new Position(99, 99)));
+  }
 }

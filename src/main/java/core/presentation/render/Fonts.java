@@ -2,8 +2,10 @@ package core.presentation.render;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.PixmapPacker;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
 import com.badlogic.gdx.utils.Disposable;
@@ -70,7 +72,9 @@ public final class Fonts implements Disposable {
           + "字使方法決定取消"
           // 追加 (Strings.Ja の旧 GAME_GLYPH_CHARS 欠落分、5 視点レビューで指摘された豆腐文字対策)
           + "踏成功敗北帰新挑拒否付与数設置矢印累計返却戻黄倒次向指中手札"
-          // 記号 (一部 ASCII にないもの)
+          // Strings.java の Javadoc / 内部コメント / 動的文字列で登場する可能性のある文字 (network covering)
+          + "保側偽判剰同名囲国域報増後性情態料断権版直真知符等範線言足通過適配閉際領"
+          // 記号 (一部 ASCII にないもの)。— (em dash) と 〜 (波ダッシュ) は LAYER_END_TITLE / HAND_HINT で使用。
           + "→←↑↓・×÷±％—〜";
 
   /** ASCII + 数字 + 記号 (FreeType デフォルト相当)。 */
@@ -120,7 +124,13 @@ public final class Fonts implements Disposable {
     // ピクセルフォントなので Nearest フィルタでドット感を維持 (Linear だとぼやける)。
     param.minFilter = Texture.TextureFilter.Nearest;
     param.magFilter = Texture.TextureFilter.Nearest;
-    return generator.generateFont(param);
+    // §UI: Scene2D Label のページ切替バグを回避するため、PixmapPacker を 2048×2048 で明示し
+    // 全グリフを 1 texture page に収める。デフォルト packer (512×512) では 16px × 500+ 文字で
+    // 複数 page に分割され、 Scene2D Window 内の Label 描画でアトラス参照が破綻する (黒四角化)。
+    param.packer = new PixmapPacker(2048, 2048, Pixmap.Format.RGBA8888, 2, false);
+    BitmapFont font = generator.generateFont(param);
+    Gdx.app.log("Fonts", "generated size=" + size + " pages=" + font.getRegions().size);
+    return font;
   }
 
   /**
@@ -131,8 +141,8 @@ public final class Fonts implements Disposable {
    *   <li>層 2: Reflection で {@code Strings.Ja} の全 String + ドメインの動的 displayName を収集
    * </ul>
    *
-   * <p>層 2 の動的収集で例外が出た場合は層 1 のみで動作 ({@code Gdx.app.log} でログ出力)。
-   * これで Card / Equipment / SoulTree の追加時にも自動的にグリフ生成され、豆腐文字を予防する。
+   * <p>層 2 の動的収集で例外が出た場合は層 1 のみで動作 ({@code Gdx.app.log} でログ出力)。 これで Card / Equipment / SoulTree
+   * の追加時にも自動的にグリフ生成され、豆腐文字を予防する。
    */
   private static String buildAllCharacters() {
     TreeSet<Character> chars = new TreeSet<>();
@@ -157,12 +167,11 @@ public final class Fonts implements Disposable {
   }
 
   /**
-   * 層 2: Strings.Ja の全 String + ドメイン (EnemyKind / SoulTree / InitialStateFactory のカード &
-   * 装備マスタ / LayerEndNode.Rest) の displayName を Reflection / 動的呼出で集約し、{@code set} に
-   * 追加する。
+   * 層 2: Strings.Ja の全 String + ドメイン (EnemyKind / SoulTree / InitialStateFactory のカード & 装備マスタ /
+   * LayerEndNode.Rest) の displayName を Reflection / 動的呼出で集約し、{@code set} に 追加する。
    *
-   * <p>新カード / 新装備を追加した場合、本メソッドが自動で文字を拾うため、{@code GAME_GLYPH_CHARS} の手動拡張が
-   * 基本的に不要になる (将来の事故予防、5 視点レビュー teammate-pov の懸念対応)。
+   * <p>新カード / 新装備を追加した場合、本メソッドが自動で文字を拾うため、{@code GAME_GLYPH_CHARS} の手動拡張が 基本的に不要になる (将来の事故予防、5
+   * 視点レビュー teammate-pov の懸念対応)。
    */
   private static void collectDynamicCharacters(TreeSet<Character> set) {
     // Strings.Ja の全 static final String を抽出
@@ -193,8 +202,7 @@ public final class Fonts implements Disposable {
     addAllChars(set, new LayerEndNode.Rest().displayName()); // "HP 全回復"
     // Shop の固定フォーマット "ショップ: %s (金貨 %d)" の文字を網羅
     // (引数 Card の displayName は別途 InitialStateFactory のマスタから収集済)。
-    addAllChars(
-        set, new LayerEndNode.Shop(0, InitialStateFactory.dashCard()).displayName());
+    addAllChars(set, new LayerEndNode.Shop(0, InitialStateFactory.dashCard()).displayName());
     // Event の displayLabel は DungeonScreen.createNodeChoicePopup でハードコード渡し。
     // 現状の唯一の Event displayLabel をここに転写 (M2 で候補プールを集約して自動化予定)。
     addAllChars(set, "ソウルの祠 (ソウル +30 / HP -5)");

@@ -60,31 +60,66 @@ public final class TitleScreen extends ScreenAdapter {
 
     batch.begin();
     title.setColor(Color.WHITE);
-    title.draw(batch, jp ? Strings.Ja.TITLE : Strings.En.TITLE, RenderLayout.TITLE_TEXT_X, RenderLayout.TITLE_TEXT_Y);
+    title.draw(
+        batch,
+        jp ? Strings.Ja.TITLE : Strings.En.TITLE,
+        RenderLayout.TITLE_TEXT_X,
+        RenderLayout.TITLE_TEXT_Y);
 
     large.setColor(Color.LIGHT_GRAY);
-    large.draw(batch, jp ? Strings.Ja.SUBTITLE : Strings.En.SUBTITLE, RenderLayout.SUBTITLE_X, RenderLayout.SUBTITLE_Y);
+    large.draw(
+        batch,
+        jp ? Strings.Ja.SUBTITLE : Strings.En.SUBTITLE,
+        RenderLayout.SUBTITLE_X,
+        RenderLayout.SUBTITLE_Y);
 
     // §UI 拡大方針: 旧 hud() (16px) → large() (32px) で操作系を全て表示。
     // 行高 / 各 Y 座標は RenderLayout に集約 (CONTROLS_HEADER_Y と TITLE_OPEN_TREE_HINT_Y の衝突を回避)。
     large.setColor(Color.LIGHT_GRAY);
-    large.draw(batch, jp ? Strings.Ja.START_HINT : Strings.En.START_HINT, RenderLayout.START_HINT_X, RenderLayout.START_HINT_Y);
-
-    // §15-7 / E-2: ソウルツリーへの動線。所持ソウルも表示してプレイヤーに解放可能性を示す。
-    large.setColor(0.9f, 0.85f, 0.4f, 1f);
     large.draw(
         batch,
-        (jp ? Strings.Ja.TITLE_OPEN_TREE_HINT_FORMAT : Strings.En.TITLE_OPEN_TREE_HINT_FORMAT)
-            .formatted(game.playerSoul().amount()),
+        jp ? Strings.Ja.START_HINT : Strings.En.START_HINT,
         RenderLayout.START_HINT_X,
-        RenderLayout.TITLE_OPEN_TREE_HINT_Y);
+        RenderLayout.START_HINT_Y);
+
+    // §15-7 / E-2: ソウルツリーへの動線。1 周目 (runCount 0) は非表示、
+    // 1 周目終了後に解禁する。所持ソウルも表示して解放可能性を示す。
+    if (game.runCount() >= 1) {
+      large.setColor(0.9f, 0.85f, 0.4f, 1f);
+      large.draw(
+          batch,
+          (jp ? Strings.Ja.TITLE_OPEN_TREE_HINT_FORMAT : Strings.En.TITLE_OPEN_TREE_HINT_FORMAT)
+              .formatted(game.playerSoul().amount()),
+          RenderLayout.START_HINT_X,
+          RenderLayout.TITLE_OPEN_TREE_HINT_Y);
+    }
 
     large.setColor(Color.GRAY);
-    large.draw(batch, jp ? Strings.Ja.CONTROLS_HEADER : Strings.En.CONTROLS_HEADER, RenderLayout.CONTROLS_HEADER_X, RenderLayout.CONTROLS_HEADER_Y);
-    large.draw(batch, jp ? Strings.Ja.CONTROLS_MOVE : Strings.En.CONTROLS_MOVE, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y);
-    large.draw(batch, jp ? Strings.Ja.CONTROLS_SKILL : Strings.En.CONTROLS_SKILL, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT);
-    large.draw(batch, jp ? Strings.Ja.CONTROLS_WAIT : Strings.En.CONTROLS_WAIT, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT * 2);
-    large.draw(batch, jp ? Strings.Ja.CONTROLS_END : Strings.En.CONTROLS_END, RenderLayout.CONTROLS_X, RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT * 3);
+    large.draw(
+        batch,
+        jp ? Strings.Ja.CONTROLS_HEADER : Strings.En.CONTROLS_HEADER,
+        RenderLayout.CONTROLS_HEADER_X,
+        RenderLayout.CONTROLS_HEADER_Y);
+    large.draw(
+        batch,
+        jp ? Strings.Ja.CONTROLS_MOVE : Strings.En.CONTROLS_MOVE,
+        RenderLayout.CONTROLS_X,
+        RenderLayout.CONTROLS_ROW1_Y);
+    large.draw(
+        batch,
+        jp ? Strings.Ja.CONTROLS_SKILL : Strings.En.CONTROLS_SKILL,
+        RenderLayout.CONTROLS_X,
+        RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT);
+    large.draw(
+        batch,
+        jp ? Strings.Ja.CONTROLS_WAIT : Strings.En.CONTROLS_WAIT,
+        RenderLayout.CONTROLS_X,
+        RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT * 2);
+    large.draw(
+        batch,
+        jp ? Strings.Ja.CONTROLS_END : Strings.En.CONTROLS_END,
+        RenderLayout.CONTROLS_X,
+        RenderLayout.CONTROLS_ROW1_Y - RenderLayout.CONTROLS_LINE_HEIGHT * 3);
     batch.end();
 
     // §15-10 / E-10: チュートリアル overlay は HUD 描画の最後に重ねる。
@@ -100,8 +135,12 @@ public final class TitleScreen extends ScreenAdapter {
     }
 
     if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
+      // §15-7 / E-2: ラン開始の瞬間にここで startNewRun() を呼ぶ (ソウル消失バグの根治)。
+      // ラン外で貯めた playerSoul はこの時点で Player に注入される。
+      game.startNewRun();
       game.setScreen(new DungeonScreen(game));
-    } else if (Gdx.input.isKeyJustPressed(Keys.T)) {
+    } else if (Gdx.input.isKeyJustPressed(Keys.T) && game.runCount() >= 1) {
+      // 1 周目 (runCount 0) はソウルツリー非アクセス、1 周目終了後に解禁。
       game.setScreen(new SoulTreeScreen(game));
     }
   }
