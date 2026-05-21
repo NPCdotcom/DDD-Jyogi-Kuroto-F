@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "_comment": "カード設計テンプレート。実装済 3 種 (zangeki/magic_bolt/strong_strike) + 想定 4 種 (fireball/dash/iron_skin/spike_trap) のサンプル。Damage 系のみ TurnEngine で動作、Move/Buff/Trap は実装待ち (5/15 以降)。",
+  "_comment": "【旧テンプレート / 参考用】カードマスタの実体は src/main/resources/cards.json に移行済み (CardCatalog がロードする)。カードの追加・編集は src/main/resources/cards.json を編集すること。Damage/Move/Buff/Trap の全効果が実装済み。本ファイルは設計参考用に残す旧サンプル。",
   "cards": [
     {
       "gameplay": {

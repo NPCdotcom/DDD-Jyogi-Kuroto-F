@@ -33,13 +33,12 @@ public final class Strings {
         "WASD/矢印: 移動   1〜9: カード   SPACE: 待機   ENTER: ターン終了   Tab: ステータス";
 
     // 移動権保持中の操作ヒント (ADR-21 §15-5)
-    public static final String MOVE_TOKEN_HINT = "移動権保持中: WASD/矢印で移動";
+    public static final String MOVE_TOKEN_HINT = "移動権保持中: WASD/矢印で移動   ENTER で終了";
 
     public static final String PHASE_PLAYER = "あなたのターン";
     public static final String PHASE_ENEMY = "敵のターン";
     public static final String PHASE_GAMEOVER = "ゲームオーバー";
     public static final String PHASE_CLEARED = "踏破成功";
-    public static final String PHASE_ROOM_CLEARED = "部屋踏破";
     public static final String PHASE_RUN_CLEARED = "ダンジョン制覇";
 
     public static final String GAME_OVER_HEADER = "敗 北";
@@ -51,9 +50,6 @@ public final class Strings {
     // CLEARED 状態 (階段踏破直後) の操作ヒント (§15-6 / §15-8 / E-6)。
     // ポップアップが前面に出るが、HUD ヒント領域にも同等情報を残して二重視認性を確保。
     public static final String CLEARED_HINT = "層末ノード選択中: 1〜3 で選択";
-
-    // §15-6: 途中部屋を踏破して次部屋へ進むときの一時通知。
-    public static final String ROOM_ADVANCE_FLASH = "次の部屋へ";
 
     // 層末ノード選択ポップアップのタイトル (§15-8 / E-6)
     public static final String LAYER_END_TITLE = "層末ノード — 1 つ選んでください";
@@ -115,6 +111,12 @@ public final class Strings {
     public static final String SOUL_TREE_FLASH_RESET = "ツリーをリセットしました";
     public static final String TITLE_OPEN_TREE_HINT_FORMAT = "[T] ソウルツリーを開く (所持ソウル: %d)";
 
+    // §15-3 カード図鑑
+    public static final String COLLECTION_TITLE = "カード図鑑";
+    public static final String COLLECTION_LOCKED = "？？？ (未入手)";
+    public static final String COLLECTION_HINT = "[↑↓ / WS] スクロール   [ESC] タイトルへ戻る";
+    public static final String TITLE_OPEN_COLLECTION_HINT = "[C] カード図鑑を開く";
+
     // §15-10 / E-10 チュートリアル
     public static final String TUTORIAL_TITLE = "操作説明";
     public static final String TUTORIAL_BODY =
@@ -154,13 +156,13 @@ public final class Strings {
         "WASD/Arrows: Move   1-9: Card   SPACE: Wait   ENTER: End turn   Tab: Status";
 
     // Move token hint during movement mode (ADR-21 §15-5)
-    public static final String MOVE_TOKEN_HINT = "Move tokens: use WASD/Arrows to move";
+    public static final String MOVE_TOKEN_HINT =
+        "Move tokens: WASD/Arrows to move, ENTER to end turn";
 
     public static final String PHASE_PLAYER = "YOUR TURN";
     public static final String PHASE_ENEMY = "ENEMY TURN";
     public static final String PHASE_GAMEOVER = "GAME OVER";
     public static final String PHASE_CLEARED = "CLEARED";
-    public static final String PHASE_ROOM_CLEARED = "ROOM CLEARED";
     public static final String PHASE_RUN_CLEARED = "DUNGEON CLEAR";
 
     public static final String GAME_OVER_HEADER = "YOU DIED";
@@ -172,9 +174,6 @@ public final class Strings {
     // Hint shown after stepping on stairs (§15-6 / §15-8 / E-6).
     // Popup overlays the screen; HUD hint area also shows the same info for redundancy.
     public static final String CLEARED_HINT = "Layer-end node: press 1, 2, or 3";
-
-    // §15-6: transient notice when advancing to the next room within a layer.
-    public static final String ROOM_ADVANCE_FLASH = "Next room";
 
     // Title shown on the layer-end node selection popup (§15-8 / E-6)
     public static final String LAYER_END_TITLE = "Layer-end node — choose one";
@@ -236,6 +235,12 @@ public final class Strings {
         "[Click] Unlock  [WASD/Arrows] Pan  [Z/X] Zoom  [R] Reset  [ESC] Back";
     public static final String SOUL_TREE_FLASH_RESET = "Tree reset";
     public static final String TITLE_OPEN_TREE_HINT_FORMAT = "[T] Open Soul Tree (Soul: %d)";
+
+    // §15-3 Card collection
+    public static final String COLLECTION_TITLE = "Card Collection";
+    public static final String COLLECTION_LOCKED = "??? (locked)";
+    public static final String COLLECTION_HINT = "[Up/Down / WS] Scroll   [ESC] Back to title";
+    public static final String TITLE_OPEN_COLLECTION_HINT = "[C] Open Card Collection";
 
     // §15-10 / E-10 Tutorial
     public static final String TUTORIAL_TITLE = "How to Play";

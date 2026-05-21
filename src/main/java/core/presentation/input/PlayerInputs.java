@@ -16,8 +16,8 @@ import java.util.Optional;
  *   <li>状態0 (通常): 数字キー 1〜9 でカード選択 (状態1へ)、WASD/矢印で移動、SPACE/ENTER は待機/ターン終了
  *   <li>状態1 (カード選択中): 方向キーで {@link BattleAction.UseCard} 発行しリセット、ESC でキャンセル
  *   <li>状態2 (移動権保持中): {@code DungeonState.player().pendingMoveCount() > 0} のとき自動遷移。 WASD/方向キーで
- *       {@link BattleAction.Move} 発行 (TurnEngine が AP 0 で処理)、数字キーは無視。 ESC による移動権破棄は YAGNI (ADR-21
- *       §Decision-6)、本実装では実装しない。
+ *       {@link BattleAction.Move} 発行 (TurnEngine が AP 0 で処理)、ENTER で残り移動権を放棄してターン終了
+ *       (四方を塞がれた際のソフトロック回避)。数字キー・SPACE は無視。
  * </ul>
  *
  * <p>{@code pendingCardIndex()} で現在選択中のカード番号を参照できる (HudRenderer からハイライト用に利用)。 -1 は「未選択」を意味する。
@@ -84,16 +84,22 @@ public final class PlayerInputs {
   }
 
   /**
-   * 状態2 (移動権保持中): WASD/方向キーで Move 発行。数字キーは無視。
+   * 状態2 (移動権保持中): WASD/方向キーで Move 発行。ENTER で残り移動権を放棄してターン終了。
    *
-   * <p>ESC による移動権破棄は YAGNI (ADR-21 §Decision-6)、本実装では不要。
+   * <p>ENTER 受付は移動権ソフトロック対策: 四方を壁・敵で塞がれて移動できない状態で移動カードを使うと、移動権が消費 できず {@code
+   * autoEndPlayerTurnIfApDepleted} も pendingMoveCount ガードで発火しないため、ENTER による明示的な
+   * ターン終了が唯一の脱出路となる。数字キー・SPACE は移動専念のため無視する。
    */
   private Optional<BattleAction> pollMovementTokenMode() {
     Direction dir = readDirection();
     if (dir != null) {
       return Optional.of(new BattleAction.Move(dir));
     }
-    // 数字キー・SPACE・ENTER は移動権保持中は無視 (仕様: 移動専念)
+    // ENTER で残り移動権を放棄してターン終了 (四方塞がれ時のソフトロック回避)。
+    if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
+      return Optional.of(new BattleAction.EndTurn());
+    }
+    // 数字キー・SPACE は移動権保持中は無視 (移動専念)。
     return Optional.empty();
   }
 

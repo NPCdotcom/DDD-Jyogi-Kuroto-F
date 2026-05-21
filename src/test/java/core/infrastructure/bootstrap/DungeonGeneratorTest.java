@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import core.domain.common.Position;
@@ -12,10 +13,10 @@ import core.domain.dungeon.Tile;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 
-/** §15-6 手続き型ダンジョン生成の検証。最重要は「全シードで spawn → 階段 / 敵が到達可能」= ソフトロックが構造的に起こり得ないことの実証。 */
+/** §15-6 BSP ダンジョン生成の検証。最重要は「全シードで spawn → 階段 / 全敵が到達可能」= ソフトロックが構造的に起こり得ないことの実証。 */
 class DungeonGeneratorTest {
 
-  /** マップ全走査で階段タイルを探す。無ければ null (ボス部屋)。 */
+  /** マップ全走査で階段タイルを探す。無ければ null (ボス層)。 */
   private static Position findStairs(DungeonMap map) {
     for (int y = 0; y < map.height(); y++) {
       for (int x = 0; x < map.width(); x++) {
@@ -27,80 +28,96 @@ class DungeonGeneratorTest {
     return null;
   }
 
+  /** 床 (FLOOR + STAIRS_DOWN = 歩行可能タイル) の数を数える。 */
+  private static int countFloor(DungeonMap map) {
+    int count = 0;
+    for (int y = 0; y < map.height(); y++) {
+      for (int x = 0; x < map.width(); x++) {
+        if (map.isWalkable(new Position(x, y))) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
   @Test
   void spawnIsAlwaysWalkableForManySeeds() {
     for (int seed = 0; seed < 30; seed++) {
-      DungeonGenerator.GeneratedRoom room = DungeonGenerator.generate(2, false, new Random(seed));
-      assertEquals(DungeonGenerator.SPAWN, room.spawn(), "spawn は常に (1,1)");
-      assertTrue(room.map().isWalkable(room.spawn()), "seed " + seed + ": spawn は歩行可能でなければならない");
+      DungeonGenerator.GeneratedDungeon d =
+          DungeonGenerator.generate(14, 12, 3, true, new Random(seed));
+      assertTrue(d.map().isWalkable(d.spawn()), "seed " + seed + ": spawn は歩行可能でなければならない");
     }
   }
 
   @Test
-  void nonBossRoomStairsAreReachableFromSpawn() {
+  void nonBossLayerStairsAreReachableFromSpawn() {
     // §15-6 ソフトロック排除の核心: 全シードで spawn → 階段が到達可能。
     for (int seed = 0; seed < 30; seed++) {
-      DungeonGenerator.GeneratedRoom room = DungeonGenerator.generate(3, false, new Random(seed));
-      Position stairs = findStairs(room.map());
-      assertNotNull(stairs, "seed " + seed + ": 非ボス部屋には階段がある");
+      DungeonGenerator.GeneratedDungeon d =
+          DungeonGenerator.generate(19, 15, 5, true, new Random(seed));
+      Position stairs = findStairs(d.map());
+      assertNotNull(stairs, "seed " + seed + ": 非ボス層には階段がある");
       assertTrue(
-          room.map().reachable(room.spawn(), stairs),
-          "seed " + seed + ": spawn → 階段が到達可能でなければならない");
+          d.map().reachable(d.spawn(), stairs), "seed " + seed + ": spawn → 階段が到達可能でなければならない");
     }
   }
 
   @Test
   void allEnemySpawnsAreReachableFromSpawn() {
     for (int seed = 0; seed < 30; seed++) {
-      DungeonGenerator.GeneratedRoom room = DungeonGenerator.generate(3, false, new Random(seed));
-      for (Position e : room.enemySpawns()) {
+      DungeonGenerator.GeneratedDungeon d =
+          DungeonGenerator.generate(19, 15, 6, true, new Random(seed));
+      for (Position e : d.enemySpawns()) {
         assertTrue(
-            room.map().reachable(room.spawn(), e),
+            d.map().reachable(d.spawn(), e),
             "seed " + seed + ": spawn → 敵 " + e + " が到達可能でなければならない");
       }
     }
   }
 
   @Test
-  void bossRoomHasNoStairs() {
-    // ボス部屋に階段は無い (ボス撃破が唯一の進行手段)。
+  void bossLayerHasNoStairs() {
+    // ボス層に階段は無い (ボス撃破が唯一の進行手段)。
     for (int seed = 0; seed < 20; seed++) {
-      DungeonGenerator.GeneratedRoom room = DungeonGenerator.generate(1, true, new Random(seed));
-      assertNull(findStairs(room.map()), "seed " + seed + ": ボス部屋に階段は無い");
+      DungeonGenerator.GeneratedDungeon d =
+          DungeonGenerator.generate(26, 20, 8, false, new Random(seed));
+      assertNull(findStairs(d.map()), "seed " + seed + ": ボス層に階段は無い");
     }
   }
 
   @Test
-  void bossRoomEnemyIsReachable() {
-    // ボス部屋は開けたアリーナ、ボスは spawn から到達可能。
+  void bossLayerFirstEnemyIsReachable() {
+    // ボス層: 先頭の敵 (= spawn から最遠の部屋中心、ボス配置位置) が到達可能。
     for (int seed = 0; seed < 20; seed++) {
-      DungeonGenerator.GeneratedRoom room = DungeonGenerator.generate(1, true, new Random(seed));
-      assertEquals(1, room.enemySpawns().size(), "ボス部屋の敵は 1 体");
-      assertTrue(room.map().reachable(room.spawn(), room.enemySpawns().get(0)));
+      DungeonGenerator.GeneratedDungeon d =
+          DungeonGenerator.generate(26, 20, 8, false, new Random(seed));
+      assertFalse(d.enemySpawns().isEmpty(), "seed " + seed + ": ボス層に敵が配置される");
+      assertTrue(d.map().reachable(d.spawn(), d.enemySpawns().get(0)));
     }
   }
 
   @Test
   void requestedEnemyCountIsPlaced() {
-    DungeonGenerator.GeneratedRoom room = DungeonGenerator.generate(3, false, new Random(7));
-    assertEquals(3, room.enemySpawns().size(), "要求した敵数ぶん配置される");
+    DungeonGenerator.GeneratedDungeon d = DungeonGenerator.generate(19, 15, 6, true, new Random(7));
+    assertEquals(6, d.enemySpawns().size(), "要求した敵数ぶん配置される");
   }
 
   @Test
   void enemySpawnsAreWalkableDistinctAndNotOnSpawn() {
-    DungeonGenerator.GeneratedRoom room = DungeonGenerator.generate(3, false, new Random(7));
-    for (Position e : room.enemySpawns()) {
-      assertTrue(room.map().isWalkable(e), "敵座標は歩行可能");
-      assertFalse(e.equals(room.spawn()), "敵は spawn 上に置かれない");
+    DungeonGenerator.GeneratedDungeon d = DungeonGenerator.generate(19, 15, 6, true, new Random(7));
+    for (Position e : d.enemySpawns()) {
+      assertTrue(d.map().isWalkable(e), "敵座標は歩行可能");
+      assertFalse(e.equals(d.spawn()), "敵は spawn 上に置かれない");
     }
     assertEquals(
-        room.enemySpawns().size(), room.enemySpawns().stream().distinct().count(), "敵座標は互いに重複しない");
+        d.enemySpawns().size(), d.enemySpawns().stream().distinct().count(), "敵座標は互いに重複しない");
   }
 
   @Test
   void borderIsAllWalls() {
-    DungeonGenerator.GeneratedRoom room = DungeonGenerator.generate(2, false, new Random(1));
-    DungeonMap map = room.map();
+    DungeonGenerator.GeneratedDungeon d = DungeonGenerator.generate(19, 15, 5, true, new Random(1));
+    DungeonMap map = d.map();
     for (int x = 0; x < map.width(); x++) {
       assertEquals(Tile.WALL, map.tileAt(new Position(x, 0)), "下辺は壁");
       assertEquals(Tile.WALL, map.tileAt(new Position(x, map.height() - 1)), "上辺は壁");
@@ -112,10 +129,21 @@ class DungeonGeneratorTest {
   }
 
   @Test
-  void sameSeedProducesSameRoom() {
-    // 決定性: 同一シード → 同一マップ + 同一敵配置。
-    DungeonGenerator.GeneratedRoom a = DungeonGenerator.generate(3, false, new Random(99));
-    DungeonGenerator.GeneratedRoom b = DungeonGenerator.generate(3, false, new Random(99));
+  void floorAreaGrowsWithGridSize() {
+    // §15-6: 層が深いほど (グリッドが大きいほど) 床面積が拡大する。
+    int small = countFloor(DungeonGenerator.generate(14, 12, 3, true, new Random(1)).map());
+    int large = countFloor(DungeonGenerator.generate(26, 20, 8, true, new Random(1)).map());
+    assertTrue(large > small, "大きいグリッドの方が床面積が大きい (small=" + small + " large=" + large + ")");
+  }
+
+  @Test
+  void sameSeedProducesSameDungeon() {
+    // 決定性: 同一シード + 同一引数 → 同一マップ + 同一敵配置。
+    DungeonGenerator.GeneratedDungeon a =
+        DungeonGenerator.generate(19, 15, 5, true, new Random(99));
+    DungeonGenerator.GeneratedDungeon b =
+        DungeonGenerator.generate(19, 15, 5, true, new Random(99));
+    assertEquals(a.spawn(), b.spawn(), "同シードは同じ spawn");
     assertEquals(a.enemySpawns(), b.enemySpawns(), "同シードは同じ敵配置");
     for (int y = 0; y < a.map().height(); y++) {
       for (int x = 0; x < a.map().width(); x++) {
@@ -127,7 +155,24 @@ class DungeonGeneratorTest {
 
   @Test
   void zeroEnemyCountProducesEmptyEnemyList() {
-    DungeonGenerator.GeneratedRoom room = DungeonGenerator.generate(0, false, new Random(3));
-    assertTrue(room.enemySpawns().isEmpty());
+    DungeonGenerator.GeneratedDungeon d = DungeonGenerator.generate(14, 12, 0, true, new Random(3));
+    assertTrue(d.enemySpawns().isEmpty());
+  }
+
+  @Test
+  void gridTooSmallIsRejected() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> DungeonGenerator.generate(11, 12, 0, true, new Random(0)));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> DungeonGenerator.generate(12, 11, 0, true, new Random(0)));
+  }
+
+  @Test
+  void negativeEnemyCountIsRejected() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> DungeonGenerator.generate(14, 12, -1, true, new Random(0)));
   }
 }

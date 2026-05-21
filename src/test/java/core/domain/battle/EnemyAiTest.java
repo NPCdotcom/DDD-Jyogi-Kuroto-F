@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import core.domain.common.Direction;
 import core.domain.common.Position;
+import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.Enemy;
 import core.domain.entity.Player;
@@ -62,5 +63,19 @@ class EnemyAiTest {
 
     BattleAction action = EnemyAi.decide(e, s);
     assertTrue(action instanceof BattleAction.Wait, "AP 0 ではスキル発動できないため Wait");
+  }
+
+  @Test
+  void enemyDetoursAroundWall() {
+    // 壁で直線が塞がれていても BFS で迂回経路の 1 歩目へ動く (BSP 廊下対応)。
+    // 中央列 x=2 は y=2,3 が壁。敵 (3,3) → プレイヤー (1,3) の直線 LEFT は壁、迂回は DOWN から。
+    DungeonMap map = DungeonMap.of(List.of("#####", "#.#.#", "#.#.#", "#...#", "#####"));
+    Player p = DomainFixtures.playerAt(new Position(1, 3));
+    Enemy e = DomainFixtures.slimeAt(new Position(3, 3));
+    DungeonState s = new DungeonState(map, p, List.of(e), TurnPhase.ENEMY_TURN);
+
+    BattleAction action = EnemyAi.decide(e, s);
+    assertTrue(action instanceof BattleAction.Move, "壁に阻まれても Wait せず迂回移動する");
+    assertEquals(Direction.DOWN, ((BattleAction.Move) action).direction(), "迂回経路の 1 歩目は DOWN");
   }
 }

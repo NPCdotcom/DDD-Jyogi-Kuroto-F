@@ -34,27 +34,30 @@ class InitialStateFactoryAdvanceLayerTest {
   }
 
   @Test
-  void advanceLayerSetsEnemyApEqualToLayerNumber() {
-    // ADR-06 / §15-5 「敵 AP = 層番号 N」: 2 層の敵は AP 2 で初期化される
+  void advanceLayerSetsSlimeApEqualToLayerNumber() {
+    // ADR-06 / §15-5 「敵 AP = 層番号 N」: 2 層の雑魚スライムは AP 2 で初期化される。
+    // 強化個体は AP = 層番号 +2 で別枠のため、本テストは雑魚スライムのみ検証する。
     DungeonState second =
         InitialStateFactory.advanceLayer(
             InitialStateFactory.firstFloor(new Random(42)), new Random(42));
 
     int expectedAp = second.layer().number(); // == 2
-    boolean allEnemiesHaveCorrectAp =
-        second.enemies().stream().allMatch(e -> e.actionPoints().current() == expectedAp);
-    assertTrue(allEnemiesHaveCorrectAp, "2 層の全敵は current AP = 2 でなければならない");
+    boolean allSlimesHaveCorrectAp =
+        second.enemies().stream()
+            .filter(e -> e.kind() == core.domain.entity.EnemyKind.SLIME)
+            .allMatch(e -> e.actionPoints().current() == expectedAp);
+    assertTrue(allSlimesHaveCorrectAp, "2 層の雑魚スライムは current AP = 2 でなければならない");
   }
 
   // 境界値
 
   @Test
-  void advanceLayerResetsPlayerPositionToSpawn() {
-    // §15-6 「層遷移時にプレイヤー位置をリセット」: advanceLayer 後は spawn (1, 1) にリセット
+  void advanceLayerPlacesPlayerOnWalkableSpawn() {
+    // §15-6 「層遷移時にプレイヤー位置をリセット」: advanceLayer 後は新マップの spawn (歩行可能タイル) に置かれる。
     DungeonState first = InitialStateFactory.firstFloor(new Random(42));
     DungeonState second = InitialStateFactory.advanceLayer(first, new Random(42));
 
-    assertEquals(new Position(1, 1), second.player().position());
+    assertTrue(second.map().isWalkable(second.player().position()), "層遷移後のプレイヤーは新マップの歩行可能タイルに置かれる");
   }
 
   @Test
@@ -116,45 +119,6 @@ class InitialStateFactoryAdvanceLayerTest {
     // 最小有効値 1 でスライムが生成でき、AP = 1 になる (ADR-06)
     var slime = InitialStateFactory.newSlimeForLayer("slime#l1", new Position(2, 2), 1);
     assertEquals(1, slime.actionPoints().current());
-  }
-
-  // advanceRoom (§15-6 N 層 = N 部屋: 同じ層の次の部屋へ進む)
-
-  @Test
-  void advanceRoomKeepsLayerNumberAndIncrementsRoomIndex() {
-    // 層 2 部屋 1 → advanceRoom → 層 2 部屋 2 (層番号据置・部屋番号 +1)
-    DungeonState layer2 =
-        InitialStateFactory.advanceLayer(
-            InitialStateFactory.firstFloor(new Random(42)), new Random(42));
-    DungeonState room2 = InitialStateFactory.advanceRoom(layer2, new Random(42));
-
-    assertEquals(2, room2.layer().number(), "層番号は据置");
-    assertEquals(2, room2.layer().roomIndex(), "部屋番号 +1");
-  }
-
-  @Test
-  void advanceRoomResetsPlayerPositionToSpawn() {
-    DungeonState layer2 =
-        InitialStateFactory.advanceLayer(
-            InitialStateFactory.firstFloor(new Random(42)), new Random(42));
-    DungeonState room2 = InitialStateFactory.advanceRoom(layer2, new Random(42));
-
-    assertEquals(new Position(1, 1), room2.player().position(), "部屋遷移後は spawn に戻る");
-  }
-
-  @Test
-  void advanceRoomCarriesPlayerStats() {
-    // §15-6 「Player は HP / 手札を持ち越し」: 部屋遷移でも持ち越される
-    DungeonState layer2 =
-        InitialStateFactory.advanceLayer(
-            InitialStateFactory.firstFloor(new Random(42)), new Random(42));
-    int hpBefore = layer2.player().stats().currentHp();
-    int handBefore = layer2.player().cardPileState().hand().size();
-
-    DungeonState room2 = InitialStateFactory.advanceRoom(layer2, new Random(42));
-
-    assertEquals(hpBefore, room2.player().stats().currentHp(), "HP は持ち越される");
-    assertEquals(handBefore, room2.player().cardPileState().hand().size(), "手札は持ち越される");
   }
 
   // newBossForLayer (§15-6 最終層ボス)

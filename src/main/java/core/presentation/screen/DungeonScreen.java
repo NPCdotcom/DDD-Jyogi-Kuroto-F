@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -15,6 +16,7 @@ import core.application.TurnDirector;
 import core.domain.battle.BattleAction;
 import core.domain.battle.BattleEvent;
 import core.domain.battle.TurnPhase;
+import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
@@ -76,7 +78,12 @@ public final class DungeonScreen extends ScreenAdapter {
   /** 画面シェイクの振幅 (px、被弾 / 与ダメで切替)。 */
   private float shakeAmplitude = 0f;
 
+  /** マップ描画用カメラ (プレイヤー追従)。 */
   private OrthographicCamera camera;
+
+  /** HUD 描画用カメラ (画面固定、追従カメラに引きずられない)。 */
+  private OrthographicCamera hudCamera;
+
   private Viewport viewport;
   private SpriteBatch batch;
   private ShapeRenderer shapes;
@@ -105,6 +112,8 @@ public final class DungeonScreen extends ScreenAdapter {
   public void show() {
     camera = new OrthographicCamera();
     viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
+    hudCamera = new OrthographicCamera();
+    hudCamera.setToOrtho(false, RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT);
     batch = new SpriteBatch();
     shapes = new ShapeRenderer();
     playerInputs = new PlayerInputs();
@@ -170,13 +179,6 @@ public final class DungeonScreen extends ScreenAdapter {
       // 階段踏破直後の層末ノード選択フロー (§15-8 / E-6)。
       // この間 ENEMY_TURN への遷移は起きず、敵は静止する (CLEARED は層遷移の前段で全行動凍結)。
       handleLayerEndChoice();
-    } else if (phase == TurnPhase.ROOM_CLEARED) {
-      // §15-6: 途中部屋の階段踏破 → 同層の次部屋へ即遷移 (ポップアップなし)。
-      game.advanceRoom();
-      showFlash(
-          game.fonts().isJapaneseAvailable()
-              ? Strings.Ja.ROOM_ADVANCE_FLASH
-              : Strings.En.ROOM_ADVANCE_FLASH);
     }
     // RUN_CLEARED / GAME_OVER は transitionIfGameOver() が画面遷移を担う。
   }
@@ -248,20 +250,16 @@ public final class DungeonScreen extends ScreenAdapter {
   /**
    * Elite 撃破時のカード追加候補 (3 種) を {@link NodeChoicePopup} で生成する。
    *
-   * <p>候補プールはチームメイト提案カード 5+ 種からシャッフルで 3 つ選び、それぞれ {@link LayerEndNode.Shop}(goldCost=0, card)
-   * でラップ。Gold 0 = 無料カード追加。
+   * <p>候補プールはカードマスタ (cards.json) の<b>攻撃カード</b>からシャッフルで 3 つ選び、それぞれ {@link
+   * LayerEndNode.Shop}(goldCost=0, card) でラップ。Gold 0 = 無料カード追加。攻撃カードに限定するのは、撃破報酬を 手応えのある 3
+   * 択にし「移動・バフだけのハズレ 3 択」を防ぐため (他タグはショップノードで入手可能)。
    */
   private NodeChoicePopup createEliteCardChoicePopup() {
     List<core.domain.card.Card> allRewards =
         new ArrayList<>(
-            List.of(
-                core.infrastructure.bootstrap.InitialStateFactory.emberShotCard(),
-                core.infrastructure.bootstrap.InitialStateFactory.blazeNovaCard(),
-                core.infrastructure.bootstrap.InitialStateFactory.blinkStepCard(),
-                core.infrastructure.bootstrap.InitialStateFactory.flameCircleCard(),
-                core.infrastructure.bootstrap.InitialStateFactory.ironSkinCard(),
-                core.infrastructure.bootstrap.InitialStateFactory.arcaneVeilCard(),
-                core.infrastructure.bootstrap.InitialStateFactory.fireballCard()));
+            core.infrastructure.bootstrap.InitialStateFactory.cardCatalog().all().stream()
+                .filter(c -> c.tag() == core.domain.card.CardTag.ATTACK)
+                .toList());
     Collections.shuffle(allRewards, new Random());
     List<LayerEndNode> choices = new ArrayList<>();
     for (int i = 0; i < NodeChoicePopup.CHOICE_COUNT; i++) {
@@ -270,6 +268,14 @@ public final class DungeonScreen extends ScreenAdapter {
     String title = "強化個体撃破: カード追加";
     // large(32px) 等倍。hud(16px)+setFontScale(2f) は Scene2D で漢字が黒四角化するため使えない。
     return new NodeChoicePopup(game.fonts().large(), title, List.copyOf(choices));
+  }
+
+  /** カードマスタ (cards.json) からランダムに 1 枚返す (層末ショップノードのカード抽選用)。 */
+  private static core.domain.card.Card randomCatalogCard() {
+    List<core.domain.card.Card> all =
+        new ArrayList<>(core.infrastructure.bootstrap.InitialStateFactory.cardCatalog().all());
+    Collections.shuffle(all, new Random());
+    return all.get(0);
   }
 
   private void showFlash(String message) {
@@ -291,8 +297,7 @@ public final class DungeonScreen extends ScreenAdapter {
                 new LayerEndNode.HpMaxUp(5),
                 new LayerEndNode.SpeedUp(1),
                 new LayerEndNode.Rest(),
-                new LayerEndNode.Shop(
-                    5, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard()),
+                new LayerEndNode.Shop(5, randomCatalogCard()),
                 new LayerEndNode.Event(30, -5, 0, "ソウルの祠 (ソウル +30 / HP -5)")));
     Collections.shuffle(allCandidates, new Random());
     List<LayerEndNode> choices =
@@ -317,19 +322,32 @@ public final class DungeonScreen extends ScreenAdapter {
   }
 
   private void drawFrame() {
-    // §15-5 / E-8: 画面シェイク。残り時間に応じて振幅を線形減衰させ、ランダム角度で揺らす。
-    applyCameraShake();
+    updateMapCamera(); // §15-6: プレイヤー追従 + 画面シェイク + マップ端クランプ
 
     ScreenUtils.clear(0.08f, 0.08f, 0.1f, 1f);
     viewport.apply();
+
+    // マップ層: 追従カメラで描画 (タイル → 敵 → プレイヤー → ダメージポップアップ)。
     shapes.setProjectionMatrix(camera.combined);
-    batch.setProjectionMatrix(camera.combined);
-
     DungeonRenderer.draw(shapes, game.context().state());
+    batch.setProjectionMatrix(camera.combined);
+    batch.begin();
+    drawPopups(batch);
+    batch.end();
 
+    // HUD 層: 固定カメラで描画。マップが画面全体を覆うため、HUD テキストの背後に半透明パネルを
+    // 敷いて可読性を確保する (右上 = ステータス群、下部 = 手札 / ログ / 操作ヒント)。
+    Gdx.gl.glEnable(GL20.GL_BLEND);
+    shapes.setProjectionMatrix(hudCamera.combined);
+    shapes.begin(ShapeRenderer.ShapeType.Filled);
+    shapes.setColor(0f, 0f, 0f, 0.55f);
+    shapes.rect(1330f, 770f, 590f, 310f);
+    shapes.rect(0f, 0f, RenderLayout.SCREEN_WIDTH, 300f);
+    shapes.end();
+
+    batch.setProjectionMatrix(hudCamera.combined);
     batch.begin();
     HudRenderer.draw(batch, game.fonts(), game.context(), playerInputs.pendingCardIndex());
-    drawPopups(batch);
     drawFlash(batch);
     batch.end();
   }
@@ -445,8 +463,11 @@ public final class DungeonScreen extends ScreenAdapter {
     return new Color(1f, 1f, 1f, 1f);
   }
 
-  /** カメラを揺らす (FitViewport の中心を基準に dx/dy を加算)。残り時間で線形減衰。 */
-  private void applyCameraShake() {
+  /** マップカメラをプレイヤーへ追従させ、画面シェイク (§15-5) を加え、マップ端でクランプする。残り時間でシェイク振幅を線形減衰させランダム角度で揺らす。 */
+  private void updateMapCamera() {
+    DungeonState s = game.context().state();
+    float px = s.player().position().x() * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f;
+    float py = s.player().position().y() * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f;
     float dx = 0f;
     float dy = 0f;
     if (shakeRemaining > 0f) {
@@ -455,9 +476,25 @@ public final class DungeonScreen extends ScreenAdapter {
       dx = (float) (Math.cos(angle) * intensity);
       dy = (float) (Math.sin(angle) * intensity);
     }
-    camera.position.set(
-        RenderLayout.SCREEN_WIDTH / 2f + dx, RenderLayout.SCREEN_HEIGHT / 2f + dy, 0f);
+    camera.position.set(px + dx, py + dy, 0f);
+    clampCamera(s.map());
     camera.update();
+  }
+
+  /** マップカメラの可視範囲がマップ外を映さないようクランプする。マップが視界より小さい軸は中央に固定する。 */
+  private void clampCamera(DungeonMap map) {
+    float mapW = map.width() * RenderLayout.TILE_SIZE;
+    float mapH = map.height() * RenderLayout.TILE_SIZE;
+    float halfW = RenderLayout.SCREEN_WIDTH / 2f;
+    float halfH = RenderLayout.SCREEN_HEIGHT / 2f;
+    camera.position.x =
+        mapW <= RenderLayout.SCREEN_WIDTH
+            ? mapW / 2f
+            : Math.max(halfW, Math.min(mapW - halfW, camera.position.x));
+    camera.position.y =
+        mapH <= RenderLayout.SCREEN_HEIGHT
+            ? mapH / 2f
+            : Math.max(halfH, Math.min(mapH - halfH, camera.position.y));
   }
 
   /** popup 群を large フォントで描画 (HUD の上)。 */
@@ -482,8 +519,7 @@ public final class DungeonScreen extends ScreenAdapter {
       // §15-6: 最終層ボス撃破 = ラン勝利。クリア表示の GameOverScreen へ。
       game.setScreen(new GameOverScreen(game, true));
     }
-    // CLEARED は層末ノード選択待ち、ROOM_CLEARED は部屋遷移待ち。どちらも updateState() で
-    // 処理し、本メソッドでは画面遷移しない。
+    // CLEARED は層末ノード選択待ち。updateState() で処理し、本メソッドでは画面遷移しない。
   }
 
   @Override

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import core.domain.common.Direction;
 import core.domain.common.Position;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -104,5 +105,34 @@ class DungeonMapTest {
   void reachableFalseForOutOfBoundsEndpoint() {
     DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
     assertFalse(m.reachable(new Position(1, 1), new Position(99, 99)));
+  }
+
+  // §15-6: BFS 経路の 1 歩目 (敵 AI の壁迂回)
+
+  @Test
+  void firstStepTowardReturnsDirectStepInOpenRoom() {
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
+    assertEquals(
+        Direction.RIGHT, m.firstStepToward(new Position(1, 1), new Position(3, 1)).orElseThrow());
+  }
+
+  @Test
+  void firstStepTowardDetoursAroundWall() {
+    // 中央列 x=2 が y=2,3 で壁。(3,3) → (1,3) の直線 LEFT は不可、迂回経路の 1 歩目は DOWN。
+    DungeonMap m = DungeonMap.of(List.of("#####", "#.#.#", "#.#.#", "#...#", "#####"));
+    assertEquals(
+        Direction.DOWN, m.firstStepToward(new Position(3, 3), new Position(1, 3)).orElseThrow());
+  }
+
+  @Test
+  void firstStepTowardEmptyWhenWalledOff() {
+    DungeonMap m = DungeonMap.of(List.of("#####", "#.#.#", "#.#.#", "#.#.#", "#####"));
+    assertTrue(m.firstStepToward(new Position(1, 1), new Position(3, 3)).isEmpty());
+  }
+
+  @Test
+  void firstStepTowardEmptyForSamePosition() {
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
+    assertTrue(m.firstStepToward(new Position(2, 2), new Position(2, 2)).isEmpty());
   }
 }

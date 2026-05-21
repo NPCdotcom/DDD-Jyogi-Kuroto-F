@@ -16,28 +16,22 @@ public final class RenderLayout {
   public static final int SCREEN_HEIGHT = 1080;
 
   /**
-   * タイルサイズ (ピクセル)。48px を採用。
+   * タイルサイズ (ピクセル)。80px を採用。
    *
-   * <p>根拠: 10×10 マップ = 480px、余白 (1920-480)/2 = 720px → マップを水平中央配置できる。 32 より大きく視認性が上がり、64
-   * より小さくマップが画面を圧迫しない。 DotGothic16 (16px 倍数フォント) に対して 3 倍で整合する。
+   * <p>BSP マップ (層 1≈14×12 〜 層 3≈26×20) をプレイヤー追従カメラで表示する前提。80px なら層 2 以降の マップが 1920×1080
+   * の視界を超えてスクロールが機能し、かつタイル 1 つが十分大きく視認できる。
    */
-  public static final int TILE_SIZE = 48;
+  public static final int TILE_SIZE = 80;
+
+  /** ダンジョン描画原点。マップはワールド座標 (0,0) 始点で描画し、画面内の位置決めは {@code DungeonScreen} の プレイヤー追従カメラが担う (§15-6)。 */
+  public static final int MAP_ORIGIN_X = 0;
+
+  public static final int MAP_ORIGIN_Y = 0;
 
   /**
-   * ダンジョン描画開始位置 (仮想座標系の左下基準)。
+   * HUD (HP/AP/Soul/Phase) 描画位置。画面右上に固定カメラで配置 (§15-6 追従カメラのマップに重畳)。
    *
-   * <p>MAP_ORIGIN_X: (1920 - 10 * 48) / 2 = 720 で水平中央。 MAP_ORIGIN_Y: 1080 の中央付近 (300)
-   * に配置し、上部にログ・右にHUDを展開。
-   */
-  public static final int MAP_ORIGIN_X = 720;
-
-  public static final int MAP_ORIGIN_Y = 300;
-
-  /**
-   * HUD (HP/AP/Soul/Phase) 描画位置。画面右側に配置。
-   *
-   * <p>マップ右端: 720 + 10*48 = 1200。HUD_X=1380 で large (32px) フォントの長い文字列 (例「AP: 5 / 5 (速度 3 (+1))」≈
-   * 520px) を画面右端まで収める。
+   * <p>HUD_X=1380 で large (32px) フォントの長い文字列 (例「AP: 5 / 5 (速度 3 (+1))」≈ 520px) を画面右端まで収める。
    */
   public static final int HUD_X = 1380;
 

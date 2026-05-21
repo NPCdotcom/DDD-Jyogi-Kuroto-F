@@ -197,15 +197,10 @@ public final class TurnEngine {
     DungeonState afterMove = state.withPlayer(moved);
     List<BattleEvent> events = new ArrayList<>();
     events.add(new BattleEvent.Moved(player.id(), player.position(), next));
-    // 階段に到達したら踏破。最終部屋 (roomIndex == 層内部屋数 = layer.number()) なら CLEARED
-    // (層末ノード選択へ)、途中部屋なら ROOM_CLEARED (同層の次部屋へ)。敵全滅では遷移しない (§15-6)。
+    // 階段に到達したら踏破 = CLEARED (層末ノード選択へ)。敵全滅では遷移しない (§15-6)。
     if (state.map().tileAt(next) == Tile.STAIRS_DOWN) {
-      TurnPhase clearedPhase =
-          state.layer().roomIndex() < state.layer().number()
-              ? TurnPhase.ROOM_CLEARED
-              : TurnPhase.CLEARED;
-      afterMove = afterMove.withPhase(clearedPhase);
-      events.add(new BattleEvent.TurnPhaseChanged(clearedPhase));
+      afterMove = afterMove.withPhase(TurnPhase.CLEARED);
+      events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.CLEARED));
     }
     // ADR-22: 罠踏み判定 (Player が罠タイルに進入したか)。CLEARED 時もダメージは入る (踏破直前の罠で死亡もあり得る)。
     afterMove = checkAndTriggerTrap(afterMove, moved.id(), next, true, events);

@@ -23,14 +23,13 @@ import core.domain.entity.Enemy;
 import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
 import core.domain.entity.Stats;
-import core.domain.layer.Layer;
 import core.domain.skill.SkillSlot;
 import core.domain.support.DomainFixtures;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * §15-6: ボス撃破 → RUN_CLEARED 遷移、および階段踏破時の ROOM_CLEARED / CLEARED 撃ち分けの検証。
+ * §15-6: ボス撃破 → RUN_CLEARED 遷移、および階段踏破 → CLEARED の検証。
  *
  * <p>ボス撃破は通常攻撃経路 ({@code resolveDamageToEnemy}) と罠経路 ({@code checkAndTriggerTrap}) の
  * 両方で勝利になる必要があるため、双方を検証する (Plan D-7)。
@@ -136,28 +135,12 @@ class TurnEngineBossTest {
   }
 
   @Test
-  void steppingStairsInNonFinalRoomEmitsRoomCleared() {
-    // §15-6: 途中部屋 (roomIndex < layer.number()) の階段踏破は ROOM_CLEARED (次部屋へ)。
+  void steppingStairsEmitsCleared() {
+    // §15-6: 階段踏破は常に CLEARED (層末ノード選択へ)。シームレス層化で ROOM_CLEARED は廃止。
     Player player = DomainFixtures.playerAt(new Position(2, 1));
     DungeonState state =
         DomainFixtures.newStateWith(
-                DomainFixtures.roomWithStairs(), player, List.of(), TurnPhase.PLAYER_TURN)
-            .withLayer(new Layer(2, 1, "2 層"));
-
-    TurnEngine.StepResult result =
-        TurnEngine.resolvePlayerAction(state, new BattleAction.Move(Direction.UP));
-
-    assertEquals(TurnPhase.ROOM_CLEARED, result.state().phase());
-  }
-
-  @Test
-  void steppingStairsInFinalRoomEmitsCleared() {
-    // §15-6: 最終部屋 (roomIndex == layer.number()) の階段踏破は CLEARED (層末ノード選択へ)。
-    Player player = DomainFixtures.playerAt(new Position(2, 1));
-    DungeonState state =
-        DomainFixtures.newStateWith(
-                DomainFixtures.roomWithStairs(), player, List.of(), TurnPhase.PLAYER_TURN)
-            .withLayer(new Layer(2, 2, "2 層"));
+            DomainFixtures.roomWithStairs(), player, List.of(), TurnPhase.PLAYER_TURN);
 
     TurnEngine.StepResult result =
         TurnEngine.resolvePlayerAction(state, new BattleAction.Move(Direction.UP));

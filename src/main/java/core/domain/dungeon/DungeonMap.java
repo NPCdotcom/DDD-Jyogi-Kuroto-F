@@ -1,10 +1,12 @@
 package core.domain.dungeon;
 
+import core.domain.common.Direction;
 import core.domain.common.Position;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * ダンジョン1階層の静的マップ。
@@ -111,5 +113,42 @@ public final class DungeonMap {
       }
     }
     return false;
+  }
+
+  /**
+   * {@code from} から {@code to} への最短経路の「最初の 1 歩」の向きを 4 近傍 BFS で求める (敵 AI の壁迂回用)。
+   *
+   * <p>{@link #reachable} と同型の BFS。各セルに「from から最初に踏んだ向き」を記録し、{@code to} に到達した
+   * 時点でその向きを返す。壁を貫通しない経路が存在しなければ {@link Optional#empty()}。{@code from == to}、 いずれかが歩行不可、到達不能の場合も
+   * empty。純粋関数 (状態を変更しない)。
+   */
+  public Optional<Direction> firstStepToward(Position from, Position to) {
+    Objects.requireNonNull(from, "from");
+    Objects.requireNonNull(to, "to");
+    if (from.equals(to) || !isWalkable(from) || !isWalkable(to)) {
+      return Optional.empty();
+    }
+    Direction[] dirs = {Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT};
+    boolean[][] visited = new boolean[height][width];
+    Direction[][] firstStep = new Direction[height][width];
+    Deque<Position> queue = new ArrayDeque<>();
+    queue.add(from);
+    visited[from.y()][from.x()] = true;
+    while (!queue.isEmpty()) {
+      Position cur = queue.removeFirst();
+      for (Direction d : dirs) {
+        Position next = new Position(cur.x() + d.dx(), cur.y() + d.dy());
+        if (!isWalkable(next) || visited[next.y()][next.x()]) {
+          continue;
+        }
+        visited[next.y()][next.x()] = true;
+        firstStep[next.y()][next.x()] = cur.equals(from) ? d : firstStep[cur.y()][cur.x()];
+        if (next.equals(to)) {
+          return Optional.of(firstStep[next.y()][next.x()]);
+        }
+        queue.add(next);
+      }
+    }
+    return Optional.empty();
   }
 }

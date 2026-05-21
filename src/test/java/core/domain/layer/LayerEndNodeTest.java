@@ -24,6 +24,11 @@ class LayerEndNodeTest {
     return InitialStateFactory.firstFloor(new Random(42)).player();
   }
 
+  /** テスト用カード (Shop ノードに渡す)。cards.json の strong_strike を解決。 */
+  private static core.domain.card.Card sampleCard() {
+    return InitialStateFactory.resolveCard(core.domain.card.CardId.of("strong_strike"));
+  }
+
   // ---------------- HpMaxUp ----------------
 
   @Test
@@ -136,8 +141,7 @@ class LayerEndNodeTest {
           new LayerEndNode.HpMaxUp(1),
           new LayerEndNode.SpeedUp(1),
           new LayerEndNode.Rest(),
-          new LayerEndNode.Shop(
-              5, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard()),
+          new LayerEndNode.Shop(5, sampleCard()),
           new LayerEndNode.Event(10, -3, 0, "テスト")
         };
     for (LayerEndNode node : allKinds) {
@@ -157,11 +161,7 @@ class LayerEndNodeTest {
 
   @Test
   void shopRejectsNegativeGoldCost() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            new LayerEndNode.Shop(
-                -1, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard()));
+    assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.Shop(-1, sampleCard()));
   }
 
   @Test
@@ -177,10 +177,7 @@ class LayerEndNodeTest {
             + p.cardPileState().hand().size()
             + p.cardPileState().discardPile().size();
 
-    Player after =
-        new LayerEndNode.Shop(
-                5, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard())
-            .apply(p);
+    Player after = new LayerEndNode.Shop(5, sampleCard()).apply(p);
 
     assertEquals(5, after.gold().amount(), "10 - 5 = 5");
     int deckSizeAfter =
@@ -193,10 +190,7 @@ class LayerEndNodeTest {
   @Test
   void shopSilentFailWhenInsufficientGold() {
     Player p = initialPlayer(); // gold 0
-    Player after =
-        new LayerEndNode.Shop(
-                5, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard())
-            .apply(p);
+    Player after = new LayerEndNode.Shop(5, sampleCard()).apply(p);
     // Gold 不足: apply は引数の Player をそのまま返す (silent fail)
     assertEquals(p.gold().amount(), after.gold().amount(), "Gold 不変");
     assertEquals(p.cardPileState(), after.cardPileState(), "デッキ不変");
@@ -204,10 +198,7 @@ class LayerEndNodeTest {
 
   @Test
   void shopDisplayNameIncludesCardAndCost() {
-    String label =
-        new LayerEndNode.Shop(
-                5, core.infrastructure.bootstrap.InitialStateFactory.strongStrikeCard())
-            .displayName();
+    String label = new LayerEndNode.Shop(5, sampleCard()).displayName();
     assertTrue(label.contains("ショップ"));
     assertTrue(label.contains("5"));
   }

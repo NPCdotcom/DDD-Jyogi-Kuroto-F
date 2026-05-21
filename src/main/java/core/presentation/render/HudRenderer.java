@@ -144,6 +144,18 @@ public final class HudRenderer {
       x += text.length() * RenderLayout.HAND_CARD_GLYPH_WIDTH;
     }
 
+    // §15-3: 選択中カードの効果説明を 1 行表示する (ユーザー要望: カード説明の確認手段)。
+    if (pendingCardIndex >= 0 && pendingCardIndex < cards.size()) {
+      Card sel = cards.get(pendingCardIndex);
+      font.setColor(Color.YELLOW);
+      font.draw(
+          batch,
+          sel.displayName() + " — " + CardDescriber.describe(sel),
+          RenderLayout.HUD_X,
+          RenderLayout.HAND_Y + RenderLayout.LARGE_LINE_HEIGHT * 2);
+      font.setColor(Color.WHITE);
+    }
+
     // カード選択中ヒントは drawControlsHint() (画面左下) に統合済み。
     // 手札の下に再描画すると二重表示になり、画面下端で文字が切れる原因となるためここでは描かない。
   }
@@ -239,7 +251,6 @@ public final class HudRenderer {
       case ENEMY_TURN -> jp ? Strings.Ja.PHASE_ENEMY : Strings.En.PHASE_ENEMY;
       case GAME_OVER -> jp ? Strings.Ja.PHASE_GAMEOVER : Strings.En.PHASE_GAMEOVER;
       case CLEARED -> jp ? Strings.Ja.PHASE_CLEARED : Strings.En.PHASE_CLEARED;
-      case ROOM_CLEARED -> jp ? Strings.Ja.PHASE_ROOM_CLEARED : Strings.En.PHASE_ROOM_CLEARED;
       case RUN_CLEARED -> jp ? Strings.Ja.PHASE_RUN_CLEARED : Strings.En.PHASE_RUN_CLEARED;
     };
   }

@@ -57,7 +57,11 @@ public final class TurnDirector {
 
   private void autoEndPlayerTurnIfApDepleted() {
     DungeonState s = context.state();
-    if (s.phase() == TurnPhase.PLAYER_TURN && s.player().actionPoints().isEmpty()) {
+    // pendingMoveCount > 0 (移動カードの移動権が残存) の間は自動終了しない。
+    // 移動カードは AP を消費しつつ移動権を付与するため、AP 0 になっても移動権を使い切るまでターンを継続する。
+    if (s.phase() == TurnPhase.PLAYER_TURN
+        && s.player().actionPoints().isEmpty()
+        && s.player().pendingMoveCount() == 0) {
       StepResult ended =
           TurnEngine.resolvePlayerAction(context.state(), new BattleAction.EndTurn());
       context.applyResult(ended);
@@ -109,26 +113,6 @@ public final class TurnDirector {
     // 新層開始時の AP リフィル + 1 枚ドローを startPlayerTurn 流用で適用 (DRY)。
     // advanceLayer は既に PLAYER_TURN 状態を返しているため、startPlayerTurn 内の withPhase は no-op、
     // TurnPhaseChanged(PLAYER_TURN) イベントが「次層スタート = プレイヤーターン頭」として発火する。
-    context.applyResult(TurnEngine.startPlayerTurn(context.state(), rng));
-  }
-
-  /**
-   * 部屋踏破後 (ROOM_CLEARED 状態) に同じ層の次の部屋へ進む (§15-6 N 層 = N 部屋)。
-   *
-   * <p>{@link #advanceFloor} と同型だが、層遷移ではないため {@link BattleEvent.FloorAdvanced} は 発火しない (無音遷移、HUD
-   * ログに「N 層に到達」を出さない)。AP リフィル + 1 ドローは {@link TurnEngine#startPlayerTurn} を流用する。
-   *
-   * <p>ROOM_CLEARED 以外の状態では no-op。DungeonScreen.updateState は ROOM_CLEARED の間 毎フレーム 本メソッドを呼ぶが、1
-   * 回目の適用後に phase が PLAYER_TURN へ変わるため、このガードが多重発火 (毎フレーム新部屋を生成し続ける暴走) を防ぐ唯一の防御線となる。
-   *
-   * @param nextRoomState 同じ層の次部屋の DungeonState (呼出側 InitialStateFactory.advanceRoom が生成)
-   */
-  public void advanceRoom(DungeonState nextRoomState) {
-    Objects.requireNonNull(nextRoomState, "nextRoomState");
-    if (context.state().phase() != TurnPhase.ROOM_CLEARED) {
-      return;
-    }
-    context.applyResult(new StepResult(nextRoomState, List.of()));
     context.applyResult(TurnEngine.startPlayerTurn(context.state(), rng));
   }
 

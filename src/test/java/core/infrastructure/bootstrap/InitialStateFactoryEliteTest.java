@@ -10,8 +10,7 @@ import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 /**
- * §15-6 強化個体仕様の検証。固定 3 層構成では §15-6「5 層おき」が一度も成立しないため、ハッカソン版は 強化個体を「2 層目の最終部屋」に出現させる
- * (§15-3「強化個体撃破時のカード追加 UI」をデモ可能にする)。
+ * §15-6 強化個体仕様の検証。シームレス層モデルでは強化個体を「層 2」に出現させる (§15-3「強化個体撃破時のカード追加 UI」をデモ可能にする)。層 1 / 層 3 には出ない。
  */
 class InitialStateFactoryEliteTest {
 
@@ -23,11 +22,10 @@ class InitialStateFactoryEliteTest {
     return state.enemies().stream().filter(e -> e.kind() == EnemyKind.SLIME).count();
   }
 
-  /** 層 2 の最終部屋 (部屋 2) の DungeonState。firstFloor → advanceLayer → advanceRoom。 */
-  private static DungeonState layer2LastRoom() {
+  /** 層 2 の DungeonState。firstFloor → advanceLayer。 */
+  private static DungeonState layer2() {
     DungeonState layer1 = InitialStateFactory.firstFloor(new Random(42));
-    DungeonState layer2Room1 = InitialStateFactory.advanceLayer(layer1, new Random(42));
-    return InitialStateFactory.advanceRoom(layer2Room1, new Random(42));
+    return InitialStateFactory.advanceLayer(layer1, new Random(42));
   }
 
   @Test
@@ -36,32 +34,19 @@ class InitialStateFactoryEliteTest {
   }
 
   @Test
-  void layer2FirstRoomContainsNoElite() {
-    // 強化個体は層 2 の最終部屋に出現する。1 部屋目にはまだ出ない。
-    DungeonState layer2Room1 =
-        InitialStateFactory.advanceLayer(
-            InitialStateFactory.firstFloor(new Random(42)), new Random(42));
-    assertEquals(0, eliteCount(layer2Room1), "層 2 の 1 部屋目には Elite なし");
+  void layer2ContainsExactlyOneElite() {
+    // §15-3 / §15-6: 層 2 に Elite 1 体 + 雑魚 5 体 (enemyCountFor(2)=6)。撃破でカード追加 UI が発火する。
+    DungeonState layer2 = layer2();
+    assertEquals(1, eliteCount(layer2), "層 2 に Elite 1 体出現");
+    assertEquals(5, slimeCount(layer2), "残りは雑魚スライム 5 体");
+    assertEquals(6, layer2.enemies().size(), "総敵数は 6 (雑魚 5 + Elite 1)");
   }
 
   @Test
-  void layer2LastRoomContainsExactlyOneElite() {
-    // §15-3 / §15-6: 層 2 の最終部屋に Elite 1 体 + 雑魚 2 体。撃破でカード追加 UI が発火する。
-    DungeonState room = layer2LastRoom();
-    assertEquals(1, eliteCount(room), "層 2 最終部屋に Elite 1 体出現");
-    assertEquals(2, slimeCount(room), "雑魚 2 体は維持");
-    assertEquals(3, room.enemies().size(), "総敵数は 3 (雑魚 2 + Elite 1)");
-  }
-
-  @Test
-  void layer3FirstRoomContainsNoElite() {
-    // 層 3 の通常部屋には Elite なし (層 3 の最終部屋はボス部屋)
-    DungeonState layer3 =
-        InitialStateFactory.advanceLayer(
-            InitialStateFactory.advanceLayer(
-                InitialStateFactory.firstFloor(new Random(42)), new Random(42)),
-            new Random(42));
-    assertEquals(0, eliteCount(layer3), "層 3 の 1 部屋目には Elite なし");
+  void layer3ContainsNoElite() {
+    // 層 3 は最終層 (ボス層)。Elite は出ず、ボス 1 体のみ。
+    DungeonState layer3 = InitialStateFactory.advanceLayer(layer2(), new Random(42));
+    assertEquals(0, eliteCount(layer3), "層 3 には Elite なし");
   }
 
   @Test

@@ -94,6 +94,14 @@ public final class TitleScreen extends ScreenAdapter {
           RenderLayout.TITLE_OPEN_TREE_HINT_Y);
     }
 
+    // §15-3: カード図鑑への動線 (周回数に関わらず常時アクセス可)。
+    large.setColor(0.6f, 0.8f, 0.95f, 1f);
+    large.draw(
+        batch,
+        jp ? Strings.Ja.TITLE_OPEN_COLLECTION_HINT : Strings.En.TITLE_OPEN_COLLECTION_HINT,
+        RenderLayout.START_HINT_X,
+        RenderLayout.TITLE_OPEN_TREE_HINT_Y - RenderLayout.LARGE_LINE_HEIGHT);
+
     large.setColor(Color.GRAY);
     large.draw(
         batch,
@@ -142,6 +150,9 @@ public final class TitleScreen extends ScreenAdapter {
     } else if (Gdx.input.isKeyJustPressed(Keys.T) && game.runCount() >= 1) {
       // 1 周目 (runCount 0) はソウルツリー非アクセス、1 周目終了後に解禁。
       game.setScreen(new SoulTreeScreen(game));
+    } else if (Gdx.input.isKeyJustPressed(Keys.C)) {
+      // §15-3: カード図鑑はいつでもアクセス可。
+      game.setScreen(new CardCollectionScreen(game));
     }
   }
 

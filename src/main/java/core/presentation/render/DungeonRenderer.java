@@ -3,9 +3,11 @@ package core.presentation.render;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
+import core.domain.card.CardElement;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
+import core.domain.dungeon.PlacedTrap;
 import core.domain.dungeon.Tile;
 import core.domain.entity.Enemy;
 
@@ -23,15 +25,30 @@ public final class DungeonRenderer {
   private static final Color ENEMY_COLOR = new Color(0.40f, 0.85f, 0.40f, 1f);
   private static final Color ELITE_COLOR = new Color(0.85f, 0.55f, 0.20f, 1f);
   private static final Color BOSS_COLOR = new Color(0.85f, 0.25f, 0.30f, 1f);
+  private static final Color TRAP_PHYSICAL_COLOR = new Color(0.95f, 0.55f, 0.15f, 1f);
+  private static final Color TRAP_MAGICAL_COLOR = new Color(0.70f, 0.35f, 0.95f, 1f);
 
   private DungeonRenderer() {}
 
   public static void draw(ShapeRenderer shapes, DungeonState state) {
     shapes.begin(ShapeType.Filled);
     drawMap(shapes, state.map());
+    drawTraps(shapes, state);
     drawEnemies(shapes, state);
     drawPlayer(shapes, state.player().position());
     shapes.end();
+  }
+
+  /** 設置済みの罠を小マーカーで描画する (§15-3、物理 = 橙 / 魔法 = 紫)。空タイル上の罠を可視化する。 */
+  private static void drawTraps(ShapeRenderer shapes, DungeonState state) {
+    int inset = RenderLayout.TILE_SIZE / 4;
+    for (PlacedTrap trap : state.placedTraps()) {
+      shapes.setColor(
+          trap.element() == CardElement.PHYSICAL ? TRAP_PHYSICAL_COLOR : TRAP_MAGICAL_COLOR);
+      int sx = RenderLayout.MAP_ORIGIN_X + trap.position().x() * RenderLayout.TILE_SIZE + inset;
+      int sy = RenderLayout.MAP_ORIGIN_Y + trap.position().y() * RenderLayout.TILE_SIZE + inset;
+      shapes.rect(sx, sy, RenderLayout.TILE_SIZE - inset * 2, RenderLayout.TILE_SIZE - inset * 2);
+    }
   }
 
   private static void drawMap(ShapeRenderer shapes, DungeonMap map) {

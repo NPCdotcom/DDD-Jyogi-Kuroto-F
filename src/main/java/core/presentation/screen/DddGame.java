@@ -3,6 +3,9 @@ package core.presentation.screen;
 import com.badlogic.gdx.Game;
 import core.application.GameContext;
 import core.application.TurnDirector;
+import core.domain.card.Card;
+import core.domain.card.CardId;
+import core.domain.card.CardPileState;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.Player;
 import core.domain.layer.LayerEndNode;
@@ -11,8 +14,10 @@ import core.domain.tree.NodeId;
 import core.domain.tree.SoulTree;
 import core.infrastructure.bootstrap.InitialStateFactory;
 import core.presentation.render.Fonts;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * LibGDX の {@link Game} を継承したエントリポイント。
@@ -51,8 +56,36 @@ public final class DddGame extends Game {
    */
   private int runCount = 0;
 
+  /**
+   * これまでに入手したカードの ID 集合 (§15-3 カード図鑑)。カード図鑑の解放判定に使う (入手済 = 解放)。 初期デッキ / 強化個体報酬 /
+   * 層末ショップで入手するたびに記録する。E-9 セーブ未実装のため JVM 終了でリセット。
+   */
+  private final Set<CardId> obtainedCards = new HashSet<>();
+
   public GameContext context() {
     return context;
+  }
+
+  /** これまでに入手したカード ID の集合 (カード図鑑の解放判定用、防御コピー)。 */
+  public Set<CardId> obtainedCards() {
+    return Set.copyOf(obtainedCards);
+  }
+
+  /** 現在の Player が保持する全カード (山札 + 手札 + 捨て札) の ID を入手済として記録する。 */
+  private void recordObtainedCards() {
+    if (context == null) {
+      return;
+    }
+    CardPileState piles = context.state().player().cardPileState();
+    for (Card c : piles.drawPile().cards()) {
+      obtainedCards.add(c.id());
+    }
+    for (Card c : piles.hand().cards()) {
+      obtainedCards.add(c.id());
+    }
+    for (Card c : piles.discardPile().cards()) {
+      obtainedCards.add(c.id());
+    }
   }
 
   public TurnDirector director() {
@@ -128,27 +161,7 @@ public final class DddGame extends Game {
     this.playerSoul = Soul.zero();
     this.context = GameContext.startNewRun(state.withPlayer(withSoul));
     this.director = new TurnDirector(this.context, new Random());
-  }
-
-  /**
-   * 階段踏破後 (CLEARED 状態) に次の層へ進む (§15-6 / ADR-23)。
-   *
-   * <p>infrastructure 層の {@link InitialStateFactory#advanceLayer} を呼んで次層 state を生成し、application 層の
-   * {@link TurnDirector#advanceFloor} に委譲する。application が infrastructure を直接 import しないための依存逆転を本クラス
-   * (presentation 層、両方を import 可能) が担当する。
-   */
-  public void advanceFloor() {
-    director.advanceFloor(InitialStateFactory.advanceLayer(context.state(), new Random()));
-  }
-
-  /**
-   * 部屋踏破後 (ROOM_CLEARED) に同じ層の次の部屋へ進む (§15-6 N 層 = N 部屋)。
-   *
-   * <p>{@link #advanceFloor} と同型: infrastructure の {@link InitialStateFactory#advanceRoom} で 次部屋
-   * state を生成し、application の {@link core.application.TurnDirector#advanceRoom} に委譲する。
-   */
-  public void advanceRoom() {
-    director.advanceRoom(InitialStateFactory.advanceRoom(context.state(), new Random()));
+    recordObtainedCards(); // §15-3: 初期デッキを図鑑に記録
   }
 
   /**
@@ -171,6 +184,7 @@ public final class DddGame extends Game {
     Player upgraded = choice.apply(current.player());
     DungeonState withUpgrade = current.withPlayer(upgraded);
     director.advanceFloor(InitialStateFactory.advanceLayer(withUpgrade, new Random()));
+    recordObtainedCards(); // §15-3: ショップノードで入手したカードを図鑑に記録
   }
 
   /**
@@ -186,6 +200,7 @@ public final class DddGame extends Game {
     context.applyResult(
         new core.domain.battle.TurnEngine.StepResult(
             current.withPlayer(upgraded), java.util.List.of()));
+    recordObtainedCards(); // §15-3: 強化個体報酬で入手したカードを図鑑に記録
   }
 
   @Override

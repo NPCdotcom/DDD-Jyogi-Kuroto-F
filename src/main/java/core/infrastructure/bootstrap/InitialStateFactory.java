@@ -3,15 +3,12 @@ package core.infrastructure.bootstrap;
 import core.domain.battle.ActionPoints;
 import core.domain.battle.TurnPhase;
 import core.domain.card.Card;
-import core.domain.card.CardEffect;
 import core.domain.card.CardElement;
 import core.domain.card.CardId;
 import core.domain.card.CardPileState;
-import core.domain.card.CardTag;
 import core.domain.card.DiscardPile;
 import core.domain.card.DrawPile;
 import core.domain.card.Hand;
-import core.domain.card.TrapLifetime;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.ActorId;
@@ -70,162 +67,24 @@ public final class InitialStateFactory {
         SkillId.of("boss_slam"), "Boss Slam", 3, new SkillEffect.Damage(8, CardElement.MAGICAL));
   }
 
-  // ----------------------------- カードマスタ -----------------------------
+  // ----------------------------- カードマスタ (§15-3、cards.json) -----------------------------
 
   /**
-   * 斬撃カード (物理 / ダメージ 5 ベース)。
-   *
-   * <p>物攻ステに連動するため、{@link Stats#physicalAttack()} が高いほど最終ダメージが伸びる。
+   * カードマスタ。クラスパスの {@code cards.json} から起動時に 1 度ロードする。カード定義はハードコードせず JSON に集約し、{@link #resolveCard}
+   * / {@link #cardCatalog()} 経由で参照する (チームがカードを増やす際は JSON 編集のみで済む)。
    */
-  public static Card zangetuCard() {
-    return new Card(
-        CardId.of("zangeki"),
-        "斬撃",
-        1,
-        CardTag.ATTACK,
-        CardElement.PHYSICAL,
-        new CardEffect.Damage(5));
-  }
+  private static final CardCatalog CARD_CATALOG = CardCatalog.load();
 
-  /**
-   * 魔法弾カード (魔法 / ダメージ 3 ベース)。
-   *
-   * <p>魔攻ステに連動する。
-   */
-  public static Card magicBoltCard() {
-    return new Card(
-        CardId.of("magic_bolt"),
-        "魔法弾",
-        2,
-        CardTag.ATTACK,
-        CardElement.MAGICAL,
-        new CardEffect.Damage(3));
-  }
-
-  /**
-   * 強打カード (物理 / ダメージ 4 ベース)。
-   *
-   * <p>斬撃より基礎値は低いが AP コストも 1 で使いやすい。
-   */
-  public static Card strongStrikeCard() {
-    return new Card(
-        CardId.of("strong_strike"),
-        "強打",
-        1,
-        CardTag.ATTACK,
-        CardElement.PHYSICAL,
-        new CardEffect.Damage(4));
-  }
-
-  /**
-   * 火球カード (魔法 / ダメージ 3 ベース)。
-   *
-   * <p>docs/templates/cards.json のテンプレに合わせて追加。魔法弾と同性能だが別 id で扱う (将来別効果に拡張する余地)。
-   */
-  public static Card fireballCard() {
-    return new Card(
-        CardId.of("fireball"),
-        "火球",
-        2,
-        CardTag.ATTACK,
-        CardElement.MAGICAL,
-        new CardEffect.Damage(3));
-  }
-
-  // ----- チームメイト提案カード (ADR-24、本 PR で Java マスター登録、初期デッキには含めず将来 -----
-  // ----- ショップ販売・強化個体撃破時の選択肢・装備固有カード解放で参照する素材として確保) -----
-
-  /** 炎弾カード (魔法 / ダメージ 2 ベース、AP 1)。軽量連射型、AP 効率 2.0。 */
-  public static Card emberShotCard() {
-    return new Card(
-        CardId.of("ember_shot"),
-        "炎弾",
-        1,
-        CardTag.ATTACK,
-        CardElement.MAGICAL,
-        new CardEffect.Damage(2));
-  }
-
-  /** 爆炎カード (魔法 / ダメージ 6 ベース、AP 3)。1 ターン全力フィニッシャー、AP 効率 2.0。 */
-  public static Card blazeNovaCard() {
-    return new Card(
-        CardId.of("blaze_nova"),
-        "爆炎",
-        3,
-        CardTag.ATTACK,
-        CardElement.MAGICAL,
-        new CardEffect.Damage(6));
-  }
-
-  /** 瞬歩カード (魔法移動 / 距離 3、AP 1)。長距離移動、ADR-21 移動 α 案で動作。 */
-  public static Card blinkStepCard() {
-    return new Card(
-        CardId.of("blink_step"),
-        "瞬歩",
-        1,
-        CardTag.MOVEMENT,
-        CardElement.MAGICAL,
-        new CardEffect.Move(3));
-  }
-
-  /** 炎の魔法陣カード (魔法罠 / ダメージ 3 / 4 ターン残、AP 2)。Turns 型ライフタイム、ADR-22 で動作。 */
-  public static Card flameCircleCard() {
-    return new Card(
-        CardId.of("flame_circle"),
-        "炎の魔法陣",
-        2,
-        CardTag.TRAP,
-        CardElement.MAGICAL,
-        new CardEffect.Trap(3, new TrapLifetime.Turns(4)));
-  }
-
-  /**
-   * ダッシュカード (物理移動 / 距離 2、AP 1)。ぼろ靴の {@code grantedCards} 経由で初期デッキに自動追加される (§15-9 / ADR-26)。{@code
-   * docs/templates/cards.json} の {@code dash} エントリ準拠。
-   */
-  public static Card dashCard() {
-    return new Card(
-        CardId.of("dash"),
-        "ダッシュ",
-        1,
-        CardTag.MOVEMENT,
-        CardElement.PHYSICAL,
-        new CardEffect.Move(2));
-  }
-
-  /**
-   * 鉄の皮膚カード (物理 Buff / 物防 +2 / 3 ターン残、AP 1)。{@code docs/templates/cards.json} の {@code iron_skin}
-   * エントリ準拠 (§15-3 / ADR-27)。
-   */
-  public static Card ironSkinCard() {
-    return new Card(
-        CardId.of("iron_skin"),
-        "鉄の皮膚",
-        1,
-        CardTag.BUFF,
-        CardElement.PHYSICAL,
-        new CardEffect.Buff(CardEffect.BuffKind.PHYSICAL_DEFENSE_UP, 2, 3));
-  }
-
-  /**
-   * 魔力の帳カード (魔法 Buff / 魔防 +3 / 2 ターン残、AP 2)。{@code docs/templates/cards.json} の {@code arcane_veil}
-   * エントリ準拠 (§15-3 / ADR-27)。
-   */
-  public static Card arcaneVeilCard() {
-    return new Card(
-        CardId.of("arcane_veil"),
-        "魔力の帳",
-        2,
-        CardTag.BUFF,
-        CardElement.MAGICAL,
-        new CardEffect.Buff(CardEffect.BuffKind.MAGICAL_DEFENSE_UP, 3, 2));
+  /** カードマスタを返す (ショップ抽選・強化個体報酬・カード図鑑が全カードを参照するのに使う)。 */
+  public static CardCatalog cardCatalog() {
+    return CARD_CATALOG;
   }
 
   // ----------------------------- 装備マスタ (§15-9 / ADR-26) -----------------------------
 
   /**
-   * ぼろ靴 (初期装備、{@code docs/templates/equipments.json} の {@code tattered_boots} 準拠)。 speed +1、{@link
-   * #dashCard()} を {@code grantedCards} で初期デッキに自動追加。
+   * ぼろ靴 (初期装備、{@code docs/templates/equipments.json} の {@code tattered_boots} 準拠)。 speed +1、{@code
+   * dash} カードを {@code grantedCards} で初期デッキに自動追加。
    */
   public static Equipment tatteredBoots() {
     return new Equipment(
@@ -237,8 +96,8 @@ public final class InitialStateFactory {
   }
 
   /**
-   * ぼろい短剣 (初期装備、{@code docs/templates/equipments.json} の {@code tattered_dagger} 準拠)。 物攻 +1、{@link
-   * #zangetuCard()} (id="zangeki") を {@code grantedCards} で初期デッキに自動追加。
+   * ぼろい短剣 (初期装備、{@code docs/templates/equipments.json} の {@code tattered_dagger} 準拠)。 物攻 +1、{@code
+   * zangeki} カードを {@code grantedCards} で初期デッキに自動追加。
    */
   public static Equipment tatteredDagger() {
     return new Equipment(
@@ -252,42 +111,22 @@ public final class InitialStateFactory {
   // ----------------------------- カード ID → Card 解決 (§15-9 / ADR-26) -----------------------------
 
   /**
-   * カード ID から {@link Card} を解決する (装備固有カード自動追加用)。マスタ未登録の ID は {@link IllegalArgumentException}。
-   *
-   * <p>本セッションの装備固有カードは {@code dash} (ぼろ靴) と {@code zangeki} (ぼろい短剣) の 2 種のみ。 将来のショップ販売 /
-   * 強化個体撃破時の選択肢で他カードが装備される場合、本メソッドに分岐を追加する。
+   * カード ID から {@link Card} を解決する (装備固有カード自動追加・ソウルツリーのカード解放用)。{@link #CARD_CATALOG} (cards.json)
+   * に委譲する。マスタ未登録の ID は {@link IllegalArgumentException}。
    */
   public static Card resolveCard(CardId id) {
     Objects.requireNonNull(id, "id");
-    return switch (id.value()) {
-      case "dash" -> dashCard();
-      case "zangeki" -> zangetuCard();
-      case "magic_bolt" -> magicBoltCard();
-      case "strong_strike" -> strongStrikeCard();
-      case "fireball" -> fireballCard();
-      case "ember_shot" -> emberShotCard();
-      case "blaze_nova" -> blazeNovaCard();
-      case "blink_step" -> blinkStepCard();
-      case "flame_circle" -> flameCircleCard();
-      case "iron_skin" -> ironSkinCard();
-      case "arcane_veil" -> arcaneVeilCard();
-      default -> throw new IllegalArgumentException("Unknown CardId for resolution: " + id.value());
-    };
+    return CARD_CATALOG.get(id);
   }
 
   // ----------------------------- ダンジョン構成 -----------------------------
 
-  /**
-   * ラン全体の層数 (§15-6「初期 3 層」)。最終層 (= MAX_LAYER) の最終部屋がボス部屋になる。 層数拡張 (ソウルツリー) は M2 送り、本セッションは固定 3 層。
-   */
+  /** ラン全体の層数 (§15-6「初期 3 層」)。最終層 (= MAX_LAYER) にボスが出現する。 層数拡張 (ソウルツリー) は M2 送り、本セッションは固定 3 層。 */
   public static final int MAX_LAYER = 3;
 
-  /**
-   * 指定の層・部屋がボス部屋か (§15-6 クリア条件 = 最終層ボス撃破)。最終層 (MAX_LAYER) の 最終部屋 (roomIndex == 層内部屋数 ==
-   * layer.number()) がボス部屋。
-   */
-  public static boolean isBossRoom(Layer layer) {
-    return layer.number() == MAX_LAYER && layer.roomIndex() == layer.number();
+  /** 指定の層が最終層か (§15-6 クリア条件 = 最終層ボス撃破)。最終層 (MAX_LAYER) にボスを配置する。 */
+  public static boolean isFinalLayer(Layer layer) {
+    return layer.number() == MAX_LAYER;
   }
 
   // ----------------------------- ファクトリ -----------------------------
@@ -301,7 +140,7 @@ public final class InitialStateFactory {
   public static DungeonState firstFloor(Random rng) {
     Objects.requireNonNull(rng, "rng");
     Player player = newPlayer(DungeonGenerator.SPAWN, rng);
-    return generateRoomState(Layer.first(), player, rng);
+    return generateLayerState(Layer.first(), player, rng);
   }
 
   /**
@@ -399,10 +238,10 @@ public final class InitialStateFactory {
   }
 
   /**
-   * 現在の DungeonState から次の層の最初の部屋を生成する (§15-6 / ADR-23)。
+   * 現在の DungeonState から次の層を生成する (§15-6)。
    *
-   * <p>{@link Layer#next()} で層番号 +1・部屋番号 1。マップは {@link DungeonGenerator} で手続き 生成、敵は AP = 層番号で新規生成
-   * (5 層ごとに先頭 1 体を強化個体に置換)。Player は持ち越し (HP/AP/手札/装備/ソウル) し位置を spawn にリセット、罠は持ち越さない。
+   * <p>{@link Layer#next()} で層番号 +1。マップは {@link DungeonGenerator} で手続き生成、敵は AP = 層番号で 新規生成 (層 2
+   * に強化個体、最終層にボス)。Player は持ち越し (HP/AP/手札/装備/ソウル) し位置を spawn に リセット、罠は持ち越さない。
    *
    * @param current 現在の状態 (層末ノード選択後を想定)
    * @param rng マップ生成の乱数源 (ADR-19: 引数注入)
@@ -410,58 +249,69 @@ public final class InitialStateFactory {
   public static DungeonState advanceLayer(DungeonState current, Random rng) {
     Objects.requireNonNull(current, "current");
     Objects.requireNonNull(rng, "rng");
-    return generateRoomState(current.layer().next(), current.player(), rng);
+    return generateLayerState(current.layer().next(), current.player(), rng);
   }
 
   /**
-   * 現在の DungeonState から同じ層の次の部屋を生成する (§15-6 N 層 = N 部屋)。
+   * 指定の層の DungeonState を組み立てる (firstFloor / advanceLayer 共通)。
    *
-   * <p>{@link Layer#nextRoom()} で部屋番号 +1 (層番号据置)。最終層・最終部屋なら {@link #isBossRoom} によりボス部屋を生成する。それ以外は
-   * {@link #advanceLayer} と同じ部屋構築。
-   *
-   * @param current 現在の状態 (部屋踏破 = ROOM_CLEARED 後を想定)
-   * @param rng マップ生成の乱数源 (ADR-19: 引数注入)
+   * <p>{@link DungeonGenerator} で BSP マップ + 配置座標を生成する。層ごとにグリッドが拡大し ({@link #gridWidthFor} / {@link
+   * #gridHeightFor})、敵数も増える ({@link #enemyCountFor})。最終層は先頭 1 体をボスに、層 2 は先頭 1
+   * 体を強化個体に、残りは雑魚スライムにする。Player は位置を spawn にリセットして持ち越し、罠は持ち越さない (placedTraps 空)。
    */
-  public static DungeonState advanceRoom(DungeonState current, Random rng) {
-    Objects.requireNonNull(current, "current");
-    Objects.requireNonNull(rng, "rng");
-    return generateRoomState(current.layer().nextRoom(), current.player(), rng);
-  }
-
-  /**
-   * 指定の層・部屋の DungeonState を組み立てる (firstFloor / advanceLayer / advanceRoom 共通)。
-   *
-   * <p>{@link DungeonGenerator} でマップ + 配置座標を生成し、ボス部屋ならボス 1 体、強化個体部屋 (層 2 の最終部屋) なら雑魚 2 + 強化個体 1 の計
-   * 3 体、通常部屋なら雑魚 2 体を配置する。Player は 位置を spawn にリセットして持ち越し、罠は持ち越さない (placedTraps 空)。
-   */
-  private static DungeonState generateRoomState(Layer layer, Player player, Random rng) {
-    boolean boss = isBossRoom(layer);
-    // §15-3 / §15-6: 強化個体は「2 層目の最終部屋」に出現させる。§15-6「5 層おき」は固定 3 層
-    // (MAX_LAYER=3) では一度も成立しないため、ハッカソン版は層 2 末に 1 回出す (カード追加 UI のデモ用)。
-    boolean hasElite = !boss && layer.number() == 2 && layer.roomIndex() == 2;
-    int enemyCount = boss ? 1 : (hasElite ? 3 : 2);
-    DungeonGenerator.GeneratedRoom room = DungeonGenerator.generate(enemyCount, boss, rng);
+  private static DungeonState generateLayerState(Layer layer, Player player, Random rng) {
+    int n = layer.number();
+    boolean boss = isFinalLayer(layer);
+    // §15-3 / §15-6: 強化個体は層 2 に出現させる (撃破で EliteDefeated → カード追加 UI のデモ用)。
+    boolean hasElite = !boss && n == 2;
+    DungeonGenerator.GeneratedDungeon dungeon =
+        DungeonGenerator.generate(gridWidthFor(n), gridHeightFor(n), enemyCountFor(n), !boss, rng);
 
     List<Enemy> enemies = new java.util.ArrayList<>();
-    List<Position> spawns = room.enemySpawns();
+    List<Position> spawns = dungeon.enemySpawns();
     for (int i = 0; i < spawns.size(); i++) {
       Position pos = spawns.get(i);
-      if (boss) {
-        enemies.add(newBossForLayer("boss_L" + layer.number(), pos, layer.number()));
+      if (boss && i == 0) {
+        // ボス層: 先頭 1 体 (spawn から最遠) をボスに。撃破で RUN_CLEARED。
+        enemies.add(newBossForLayer("boss_L" + n, pos, n));
       } else if (hasElite && i == 0) {
-        // §15-3 / §15-6 強化個体: 先頭 1 体を強化個体に。撃破で EliteDefeated → カード追加 UI 発火。
-        enemies.add(
-            newEliteSlimeForLayer(
-                "elite_L" + layer.number() + "_R" + layer.roomIndex(), pos, layer.number()));
+        // 層 2: 先頭 1 体を強化個体に。撃破で EliteDefeated → カード追加 UI 発火。
+        enemies.add(newEliteSlimeForLayer("elite_L" + n, pos, n));
       } else {
-        String id = "slime_L" + layer.number() + "_R" + layer.roomIndex() + "_" + i;
-        enemies.add(newSlimeForLayer(id, pos, layer.number()));
+        enemies.add(newSlimeForLayer("slime_L" + n + "_" + i, pos, n));
       }
     }
 
-    Player atSpawn = player.withPosition(room.spawn());
+    Player atSpawn = player.withPosition(dungeon.spawn());
     return new DungeonState(
-        room.map(), atSpawn, List.copyOf(enemies), TurnPhase.PLAYER_TURN, List.of(), layer);
+        dungeon.map(), atSpawn, List.copyOf(enemies), TurnPhase.PLAYER_TURN, List.of(), layer);
+  }
+
+  /** 層ごとの敵数 (§15-6 難易度: 層 1=3 / 層 2=6 [雑魚 5+強化個体 1] / 層 3=8 [雑魚 7+ボス 1])。 */
+  private static int enemyCountFor(int layerNumber) {
+    return switch (layerNumber) {
+      case 1 -> 3;
+      case 2 -> 6;
+      default -> 8;
+    };
+  }
+
+  /** 層ごとの BSP グリッド幅 (層が深いほど床面積が拡大、§15-6)。 */
+  private static int gridWidthFor(int layerNumber) {
+    return switch (layerNumber) {
+      case 1 -> 14;
+      case 2 -> 19;
+      default -> 26;
+    };
+  }
+
+  /** 層ごとの BSP グリッド高さ。 */
+  private static int gridHeightFor(int layerNumber) {
+    return switch (layerNumber) {
+      case 1 -> 12;
+      case 2 -> 15;
+      default -> 20;
+    };
   }
 
   /**

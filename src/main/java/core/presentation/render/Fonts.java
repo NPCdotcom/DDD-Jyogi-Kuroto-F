@@ -201,23 +201,17 @@ public final class Fonts implements Disposable {
     addAllChars(set, new LayerEndNode.SpeedUp(1).displayName()); // "速度 +1"
     addAllChars(set, new LayerEndNode.Rest().displayName()); // "HP 全回復"
     // Shop の固定フォーマット "ショップ: %s (金貨 %d)" の文字を網羅
-    // (引数 Card の displayName は別途 InitialStateFactory のマスタから収集済)。
-    addAllChars(set, new LayerEndNode.Shop(0, InitialStateFactory.dashCard()).displayName());
+    // (引数 Card の displayName は下のカードマスタ走査で収集される)。
+    addAllChars(
+        set,
+        new LayerEndNode.Shop(0, InitialStateFactory.cardCatalog().all().get(0)).displayName());
     // Event の displayLabel は DungeonScreen.createNodeChoicePopup でハードコード渡し。
     // 現状の唯一の Event displayLabel をここに転写 (M2 で候補プールを集約して自動化予定)。
     addAllChars(set, "ソウルの祠 (ソウル +30 / HP -5)");
-    // InitialStateFactory のカードマスタ (11 種、ADR-24 + ADR-30)
-    addAllChars(set, InitialStateFactory.zangetuCard().displayName());
-    addAllChars(set, InitialStateFactory.magicBoltCard().displayName());
-    addAllChars(set, InitialStateFactory.strongStrikeCard().displayName());
-    addAllChars(set, InitialStateFactory.fireballCard().displayName());
-    addAllChars(set, InitialStateFactory.emberShotCard().displayName());
-    addAllChars(set, InitialStateFactory.blazeNovaCard().displayName());
-    addAllChars(set, InitialStateFactory.blinkStepCard().displayName());
-    addAllChars(set, InitialStateFactory.flameCircleCard().displayName());
-    addAllChars(set, InitialStateFactory.dashCard().displayName());
-    addAllChars(set, InitialStateFactory.ironSkinCard().displayName());
-    addAllChars(set, InitialStateFactory.arcaneVeilCard().displayName());
+    // カードマスタ (cards.json) 全カードの displayName グリフを網羅。
+    for (var card : InitialStateFactory.cardCatalog().all()) {
+      addAllChars(set, card.displayName());
+    }
     // InitialStateFactory の装備マスタ (2 種)
     addAllChars(set, InitialStateFactory.tatteredBoots().displayName());
     addAllChars(set, InitialStateFactory.tatteredDagger().displayName());

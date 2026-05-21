@@ -6,10 +6,21 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import core.domain.battle.ActionPoints;
+import core.domain.battle.BattleAction;
 import core.domain.battle.BattleEvent;
 import core.domain.battle.TurnPhase;
+import core.domain.card.CardPileState;
+import core.domain.card.DiscardPile;
+import core.domain.card.DrawPile;
+import core.domain.card.Hand;
+import core.domain.common.Direction;
+import core.domain.common.Position;
 import core.domain.dungeon.DungeonState;
+import core.domain.entity.Player;
+import core.domain.support.DomainFixtures;
 import core.infrastructure.bootstrap.InitialStateFactory;
+import java.util.List;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +53,56 @@ class TurnDirectorTest {
   }
 
   @Test
+  void moveCardWithLastApDoesNotAutoEndTurn() {
+    // §15-3 / ADR-21: 移動カードで AP 0 になっても、移動権 (pendingMoveCount) が残る間はターンを終えない。
+    // 旧バグ: AP 0 即 autoEnd で瞬歩が発動せず敵ターンに移っていた。
+    Player player =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withActionPoints(new ActionPoints(1, 5))
+            .withCardPileState(
+                new CardPileState(
+                    DrawPile.empty(),
+                    Hand.empty().add(DomainFixtures.moveCard("dash")),
+                    DiscardPile.empty()));
+    DungeonState state =
+        DomainFixtures.newStateWith(
+            DomainFixtures.squareRoom(), player, List.of(), TurnPhase.PLAYER_TURN);
+    GameContext ctx = GameContext.startNewRun(state);
+    TurnDirector director = new TurnDirector(ctx, new Random(SEED));
+
+    director.applyPlayerAction(new BattleAction.UseCard(0, Direction.RIGHT));
+
+    assertEquals(TurnPhase.PLAYER_TURN, ctx.state().phase(), "移動権が残るうちは敵ターンに移らない");
+    assertEquals(0, ctx.state().player().actionPoints().current(), "AP は 0");
+    assertEquals(2, ctx.state().player().pendingMoveCount(), "移動権 2 が保持される");
+  }
+
+  @Test
+  void endTurnEscapesMovementTokenSoftLock() {
+    // 移動権ソフトロック回避: 移動権を持ったまま (pendingMoveCount > 0) でも EndTurn でターンを
+    // 終えられる。四方を壁・敵で塞がれ移動権を消費できない場合の唯一の脱出路 (PlayerInputs が ENTER に割当)。
+    Player player =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withActionPoints(new ActionPoints(1, 5))
+            .withCardPileState(
+                new CardPileState(
+                    DrawPile.empty(),
+                    Hand.empty().add(DomainFixtures.moveCard("dash")),
+                    DiscardPile.empty()));
+    DungeonState state =
+        DomainFixtures.newStateWith(
+            DomainFixtures.squareRoom(), player, List.of(), TurnPhase.PLAYER_TURN);
+    GameContext ctx = GameContext.startNewRun(state);
+    TurnDirector director = new TurnDirector(ctx, new Random(SEED));
+
+    director.applyPlayerAction(new BattleAction.UseCard(0, Direction.RIGHT));
+    // この時点で pendingMoveCount > 0 / AP 0 / PLAYER_TURN。EndTurn で脱出できることを検証。
+    director.applyPlayerAction(new BattleAction.EndTurn());
+
+    assertEquals(TurnPhase.ENEMY_TURN, ctx.state().phase(), "移動権が残っていても EndTurn でターンを終えられる");
+  }
+
+  @Test
   void advanceFloorRefillsApAndDrawsCardOnNewLayer() {
     // §15-6 / ADR-19: 新層開始時に AP リフィル + 1 枚ドロー (startPlayerTurn 流用)
     // 初期デッキ (装備固有カード dash + zangeki) は 2 枚で全部初期ドローされて山札 0 になるため、
@@ -51,7 +112,11 @@ class TurnDirectorTest {
         new core.domain.card.CardPileState(
             first.player().cardPileState().drawPile(),
             first.player().cardPileState().hand(),
-            first.player().cardPileState().discardPile().add(InitialStateFactory.magicBoltCard()));
+            first
+                .player()
+                .cardPileState()
+                .discardPile()
+                .add(DomainFixtures.magicCard("magic_bolt")));
     var playerArmed = first.player().withCardPileState(pileWithDiscard);
     // AP を 0 まで使い切った状態を再現してから CLEARED にする (リフィルが効いているか確認するため)
     DungeonState exhausted =

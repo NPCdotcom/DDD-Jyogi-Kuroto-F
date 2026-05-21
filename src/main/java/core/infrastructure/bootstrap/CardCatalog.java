@@ -1,0 +1,117 @@
+package core.infrastructure.bootstrap;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import core.domain.card.Card;
+import core.domain.card.CardEffect;
+import core.domain.card.CardElement;
+import core.domain.card.CardId;
+import core.domain.card.CardTag;
+import core.domain.card.TrapLifetime;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+/**
+ * カードマスタ (§15-3)。クラスパス上の {@code /cards.json} を 1 度ロードし、{@code CardId → Card} のマップを構築する。
+ *
+ * <p>カード定義をハードコード Java から JSON に分離することで、チームメイトが {@code cards.json} を編集するだけで カードを追加できる。不正な
+ * JSON・未知の効果型・重複 ID はロード時に例外を投げ、起動時に早期検出する。
+ *
+ * <p>{@link #all()} は {@code cards.json} の登録順を保つ (カード図鑑の表示順に使う)。
+ */
+public final class CardCatalog {
+
+  private static final String RESOURCE = "/cards.json";
+
+  private final Map<CardId, Card> byId;
+
+  private CardCatalog(Map<CardId, Card> byId) {
+    this.byId = byId;
+  }
+
+  /** クラスパスの {@code /cards.json} を読み込んで CardCatalog を構築する。 */
+  public static CardCatalog load() {
+    try (InputStream in = CardCatalog.class.getResourceAsStream(RESOURCE)) {
+      if (in == null) {
+        throw new IllegalStateException("card master not found on classpath: " + RESOURCE);
+      }
+      JsonNode root = new ObjectMapper().readTree(in);
+      JsonNode cards = root.get("cards");
+      if (cards == null || !cards.isArray()) {
+        throw new IllegalStateException("cards.json must contain a 'cards' array");
+      }
+      Map<CardId, Card> map = new LinkedHashMap<>();
+      for (JsonNode node : cards) {
+        Card card = parseCard(node);
+        if (map.put(card.id(), card) != null) {
+          throw new IllegalStateException("duplicate card id in cards.json: " + card.id().value());
+        }
+      }
+      return new CardCatalog(map);
+    } catch (IOException e) {
+      throw new IllegalStateException("failed to load " + RESOURCE, e);
+    }
+  }
+
+  /** 指定 ID のカードを返す。未登録なら {@link IllegalArgumentException}。 */
+  public Card get(CardId id) {
+    Objects.requireNonNull(id, "id");
+    Card card = byId.get(id);
+    if (card == null) {
+      throw new IllegalArgumentException("unknown card id: " + id.value());
+    }
+    return card;
+  }
+
+  /** 登録順 (cards.json 記載順) の全カード。図鑑表示・抽選プールに使う。 */
+  public List<Card> all() {
+    return List.copyOf(byId.values());
+  }
+
+  private static Card parseCard(JsonNode n) {
+    return new Card(
+        CardId.of(text(n, "id")),
+        text(n, "displayName"),
+        n.get("apCost").asInt(),
+        CardTag.valueOf(text(n, "tag")),
+        CardElement.valueOf(text(n, "element")),
+        parseEffect(n.get("effect")));
+  }
+
+  private static CardEffect parseEffect(JsonNode e) {
+    String type = text(e, "type");
+    return switch (type) {
+      case "Damage" -> new CardEffect.Damage(e.get("baseValue").asInt());
+      case "Move" -> new CardEffect.Move(e.get("distance").asInt());
+      case "Buff" ->
+          new CardEffect.Buff(
+              CardEffect.BuffKind.valueOf(text(e, "kind")),
+              e.get("amount").asInt(),
+              e.get("durationTurns").asInt());
+      case "Trap" ->
+          new CardEffect.Trap(e.get("baseValue").asInt(), parseLifetime(e.get("lifetime")));
+      default -> throw new IllegalStateException("unknown card effect type: " + type);
+    };
+  }
+
+  private static TrapLifetime parseLifetime(JsonNode l) {
+    String type = text(l, "type");
+    return switch (type) {
+      case "UntilStepped" -> TrapLifetime.UntilStepped.INSTANCE;
+      case "Turns" -> new TrapLifetime.Turns(l.get("remaining").asInt());
+      default -> throw new IllegalStateException("unknown trap lifetime type: " + type);
+    };
+  }
+
+  private static String text(JsonNode n, String field) {
+    JsonNode v = n == null ? null : n.get(field);
+    if (v == null || v.isNull()) {
+      throw new IllegalStateException("cards.json: missing field '" + field + "'");
+    }
+    return v.asText();
+  }
+}
