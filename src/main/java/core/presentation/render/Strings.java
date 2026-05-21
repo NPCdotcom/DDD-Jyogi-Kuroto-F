@@ -29,7 +29,8 @@ public final class Strings {
     public static final String HUD_SOUL = "ソウル";
     public static final String HUD_PHASE = "フェーズ";
     public static final String HUD_SPEED = "速度";
-    public static final String HUD_HINT = "WASD/矢印: 移動   1〜9: カード   SPACE: 待機   ENTER: ターン終了";
+    public static final String HUD_HINT =
+        "WASD/矢印: 移動   1〜9: カード   SPACE: 待機   ENTER: ターン終了   Tab: ステータス";
 
     // 移動権保持中の操作ヒント (ADR-21 §15-5)
     public static final String MOVE_TOKEN_HINT = "移動権保持中: WASD/矢印で移動";
@@ -90,6 +91,14 @@ public final class Strings {
     public static final String BUFF_KIND_MAGICAL_DEFENSE = "魔防";
     public static final String BUFF_KIND_SPEED = "速度";
 
+    // §15-4 ステータス確認ポップアップ (Tab キーで開閉)
+    public static final String STATUS_TITLE = "ステータス";
+    public static final String STATUS_PHYSICAL_ATTACK = "物攻";
+    public static final String STATUS_MAGICAL_ATTACK = "魔攻";
+    public static final String STATUS_PHYSICAL_DEFENSE = "物防";
+    public static final String STATUS_MAGICAL_DEFENSE = "魔防";
+    public static final String STATUS_HINT = "[Tab] 閉じる";
+
     // §15-2 / §15-9 金貨 (ラン内通貨)
     public static final String HUD_GOLD = "金貨";
     public static final String EV_GOLD_GAINED_FORMAT = "%s は %d 金貨を獲得";
@@ -142,7 +151,7 @@ public final class Strings {
     public static final String HUD_PHASE = "Phase";
     public static final String HUD_SPEED = "Speed";
     public static final String HUD_HINT =
-        "WASD/Arrows: Move   1-9: Card   SPACE: Wait   ENTER: End turn";
+        "WASD/Arrows: Move   1-9: Card   SPACE: Wait   ENTER: End turn   Tab: Status";
 
     // Move token hint during movement mode (ADR-21 §15-5)
     public static final String MOVE_TOKEN_HINT = "Move tokens: use WASD/Arrows to move";
@@ -202,6 +211,14 @@ public final class Strings {
     public static final String BUFF_KIND_PHYSICAL_DEFENSE = "PhyDef";
     public static final String BUFF_KIND_MAGICAL_DEFENSE = "MagDef";
     public static final String BUFF_KIND_SPEED = "Speed";
+
+    // §15-4 status check popup (toggle with Tab)
+    public static final String STATUS_TITLE = "Status";
+    public static final String STATUS_PHYSICAL_ATTACK = "Phys Atk";
+    public static final String STATUS_MAGICAL_ATTACK = "Mag Atk";
+    public static final String STATUS_PHYSICAL_DEFENSE = "Phys Def";
+    public static final String STATUS_MAGICAL_DEFENSE = "Mag Def";
+    public static final String STATUS_HINT = "[Tab] Close";
 
     // §15-2 / §15-9 Gold (run-local currency)
     public static final String HUD_GOLD = "Gold";

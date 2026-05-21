@@ -26,6 +26,7 @@ import core.presentation.render.HudRenderer;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
 import core.presentation.window.NodeChoicePopup;
+import core.presentation.window.StatusPopup;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -90,6 +91,12 @@ public final class DungeonScreen extends ScreenAdapter {
 
   private float flashTimer;
 
+  /** §15-4: ステータス確認ポップアップ (Tab で開閉)。show() で 1 度だけ生成。 */
+  private StatusPopup statusPopup;
+
+  /** ステータスポップアップ表示中フラグ。true の間はプレイヤー入力・進行を凍結する (モーダル)。 */
+  private boolean statusPanelOpen;
+
   public DungeonScreen(DddGame game) {
     this.game = game;
   }
@@ -101,14 +108,19 @@ public final class DungeonScreen extends ScreenAdapter {
     batch = new SpriteBatch();
     shapes = new ShapeRenderer();
     playerInputs = new PlayerInputs();
+    statusPopup = new StatusPopup(game.fonts().large(), game.fonts().isJapaneseAvailable());
   }
 
   @Override
   public void render(float delta) {
-    updateState();
-    processNewEvents(); // §15-5 / E-8: 新規 DamageDealt → popup + shake / EliteDefeated → カード追加 UI
-    advanceEffects(delta); // popup の age 加算 + 期限切れ除去 + shake デクリメント + flash デクリメント
-    handleEliteCardChoice(); // §15-3 / §15-6: Elite 撃破 popup の入力処理
+    handleStatusPanelToggle(); // §15-4: Tab でステータスポップアップ開閉
+    if (!statusPanelOpen) {
+      // ステータスポップアップ表示中はゲーム進行を凍結する (モーダル)。
+      updateState();
+      processNewEvents(); // §15-5 / E-8: 新規 DamageDealt → popup + shake / EliteDefeated → カード追加 UI
+      advanceEffects(delta); // popup の age 加算 + 期限切れ除去 + shake デクリメント + flash デクリメント
+      handleEliteCardChoice(); // §15-3 / §15-6: Elite 撃破 popup の入力処理
+    }
     drawFrame();
     // Popup は HUD の上に重ねて描画する (CLEARED 中の前面 UI)。drawFrame() で batch.end() 済みのため、
     // Stage の SpriteBatch とは衝突しない (描画スタックの順序: ダンジョン → HUD → Popup)。
@@ -118,7 +130,31 @@ public final class DungeonScreen extends ScreenAdapter {
     if (eliteCardChoice != null) {
       eliteCardChoice.render(delta);
     }
+    if (statusPanelOpen) {
+      statusPopup.updateValues(game.context().state().player());
+      statusPopup.render(delta);
+    }
     transitionIfGameOver();
+  }
+
+  /**
+   * §15-4: Tab キーでステータスポップアップを開閉する。
+   *
+   * <p>開ける条件は「プレイヤーターン中」かつ「他ポップアップ (層末ノード / Elite カード選択) 非表示」。 開いている間は Tab / ESC のどちらでも閉じられる。
+   */
+  private void handleStatusPanelToggle() {
+    if (statusPanelOpen) {
+      if (Gdx.input.isKeyJustPressed(Keys.TAB) || Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
+        statusPanelOpen = false;
+      }
+      return;
+    }
+    boolean otherPopupActive = nodeChoice != null || eliteCardChoice != null;
+    if (!otherPopupActive
+        && game.context().state().phase() == TurnPhase.PLAYER_TURN
+        && Gdx.input.isKeyJustPressed(Keys.TAB)) {
+      statusPanelOpen = true;
+    }
   }
 
   private void updateState() {
@@ -460,6 +496,9 @@ public final class DungeonScreen extends ScreenAdapter {
     if (eliteCardChoice != null) {
       eliteCardChoice.resize(width, height);
     }
+    if (statusPopup != null) {
+      statusPopup.resize(width, height);
+    }
   }
 
   @Override
@@ -468,6 +507,7 @@ public final class DungeonScreen extends ScreenAdapter {
     if (playerInputs != null) {
       playerInputs.reset();
     }
+    statusPanelOpen = false;
     if (nodeChoice != null) {
       nodeChoice.dispose();
       nodeChoice = null;
@@ -485,6 +525,10 @@ public final class DungeonScreen extends ScreenAdapter {
     }
     if (shapes != null) {
       shapes.dispose();
+    }
+    if (statusPopup != null) {
+      statusPopup.dispose();
+      statusPopup = null;
     }
     if (nodeChoice != null) {
       nodeChoice.dispose();
