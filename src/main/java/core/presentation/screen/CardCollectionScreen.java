@@ -100,7 +100,7 @@ public final class CardCollectionScreen extends ScreenAdapter {
   private void drawList(SpriteBatch batch) {
     boolean jp = game.fonts().isJapaneseAvailable();
     BitmapFont font = game.fonts().large();
-    Set<CardId> obtained = game.obtainedCards();
+    Set<CardId> obtained = game.progress().obtainedCards();
     CardImageRegistry images = game.cardImageRegistry();
     float textX = LIST_X + THUMB_WIDTH + TEXT_GAP;
     for (int i = 0; i < allCards.size(); i++) {
@@ -150,7 +150,7 @@ public final class CardCollectionScreen extends ScreenAdapter {
         "%s    %d / %d"
             .formatted(
                 jp ? Strings.Ja.COLLECTION_TITLE : Strings.En.COLLECTION_TITLE,
-                game.obtainedCards().size(),
+                game.progress().obtainedCards().size(),
                 allCards.size()),
         LIST_X,
         RenderLayout.SCREEN_HEIGHT - 28f);

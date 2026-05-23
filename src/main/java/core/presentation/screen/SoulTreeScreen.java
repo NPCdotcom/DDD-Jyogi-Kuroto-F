@@ -252,7 +252,7 @@ public final class SoulTreeScreen extends ScreenAdapter {
     viewport.apply();
     camera.update();
 
-    SoulTree tree = game.soulTree();
+    SoulTree tree = game.progress().soulTree();
     Map<NodeId, TreeNode> defs = SoulTree.allNodes();
 
     // 1) 枝線 (前提ノード → 子ノード) — パンカメラ
@@ -369,7 +369,7 @@ public final class SoulTreeScreen extends ScreenAdapter {
     large.setColor(Color.LIGHT_GRAY);
     String inventoryText =
         (jp ? Strings.Ja.SOUL_TREE_INVENTORY_FORMAT : Strings.En.SOUL_TREE_INVENTORY_FORMAT)
-            .formatted(game.playerSoul().amount());
+            .formatted(game.progress().playerSoul().amount());
     large.draw(batch, inventoryText, 60, 120);
     large.draw(
         batch,
@@ -647,7 +647,7 @@ public final class SoulTreeScreen extends ScreenAdapter {
       if (distSq > NODE_RADIUS * NODE_RADIUS) {
         continue;
       }
-      if (!game.soulTree().isVisible(candidate)) {
+      if (!game.progress().soulTree().isVisible(candidate)) {
         continue; // シルエットノードは候補から除外
       }
       if (distSq < bestDistSq) {
@@ -688,7 +688,7 @@ public final class SoulTreeScreen extends ScreenAdapter {
             game.fonts().large(),
             node,
             iconTex,
-            game.playerSoul().amount(),
+            game.progress().playerSoul().amount(),
             isCardGrant);
     this.pendingUnlockId = bestId;
   }

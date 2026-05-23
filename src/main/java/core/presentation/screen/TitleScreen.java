@@ -40,7 +40,7 @@ public final class TitleScreen extends ScreenAdapter {
     // §15-5: タイトル BGM を再生 (既に再生中なら no-op)
     game.soundManager().playBgm(BgmKind.TITLE);
     // §15-10 / E-10: 初回のみチュートリアル overlay を表示
-    if (!game.isTutorialSeen()) {
+    if (!game.progress().tutorialSeen()) {
       boolean jp = game.fonts().isJapaneseAvailable();
       tutorial =
           new TutorialOverlay(
@@ -101,12 +101,12 @@ public final class TitleScreen extends ScreenAdapter {
 
     // §15-7 / E-2: ソウルツリーへの動線。1 周目 (runCount 0) は非表示、
     // 1 周目終了後に解禁する。所持ソウルも表示して解放可能性を示す。
-    if (game.runCount() >= 1) {
+    if (game.progress().runCount() >= 1) {
       large.setColor(0.9f, 0.85f, 0.4f, 1f);
       large.draw(
           batch,
           (jp ? Strings.Ja.TITLE_OPEN_TREE_HINT_FORMAT : Strings.En.TITLE_OPEN_TREE_HINT_FORMAT)
-              .formatted(game.playerSoul().amount()),
+              .formatted(game.progress().playerSoul().amount()),
           RenderLayout.START_HINT_X,
           RenderLayout.TITLE_OPEN_TREE_HINT_Y);
     }
@@ -186,7 +186,7 @@ public final class TitleScreen extends ScreenAdapter {
         game.soundManager().playSe(SeKind.BUTTON);
         game.changeScreen(new DungeonScreen(game));
       }
-    } else if (Gdx.input.isKeyJustPressed(Keys.T) && game.runCount() >= 1) {
+    } else if (Gdx.input.isKeyJustPressed(Keys.T) && game.progress().runCount() >= 1) {
       // 1 周目 (runCount 0) はソウルツリー非アクセス、1 周目終了後に解禁。
       game.soundManager().playSe(SeKind.BUTTON);
       game.changeScreen(new SoulTreeScreen(game));

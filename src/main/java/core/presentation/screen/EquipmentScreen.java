@@ -106,7 +106,7 @@ public final class EquipmentScreen extends ScreenAdapter {
       return;
     }
     Equipment eq = allEquipment.get(i);
-    if (eq.equals(game.loadout().get(eq.slot()))) {
+    if (eq.equals(game.progress().loadout().get(eq.slot()))) {
       game.unequipSlot(eq.slot()); // 既に装着中 → 解除
     } else {
       game.equipInLoadout(eq); // 未装着 → 装着 (同スロットの既存装備は置き換わる)
@@ -116,7 +116,7 @@ public final class EquipmentScreen extends ScreenAdapter {
   private void drawList(SpriteBatch batch) {
     boolean jp = game.fonts().isJapaneseAvailable();
     BitmapFont font = game.fonts().large();
-    Map<EquipmentSlot, Equipment> loadout = game.loadout();
+    Map<EquipmentSlot, Equipment> loadout = game.progress().loadout();
     for (int i = 0; i < allEquipment.size(); i++) {
       float y = LIST_TOP_Y - i * ROW_HEIGHT + scrollOffset;
       if (y < LIST_BOTTOM_Y || y > LIST_TOP_Y + ROW_HEIGHT) {
@@ -225,7 +225,7 @@ public final class EquipmentScreen extends ScreenAdapter {
         batch,
         (jp ? Strings.Ja.EQUIP_SCREEN_TITLE : Strings.En.EQUIP_SCREEN_TITLE)
             + "    "
-            + game.loadout().size()
+            + game.progress().loadout().size()
             + " / "
             + EquipmentSlot.values().length,
         LIST_X,

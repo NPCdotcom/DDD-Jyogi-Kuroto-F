@@ -87,7 +87,7 @@ public final class BestiaryScreen extends ScreenAdapter {
   private void drawList(SpriteBatch batch) {
     boolean jp = game.fonts().isJapaneseAvailable();
     BitmapFont font = game.fonts().large();
-    Bestiary bestiary = game.bestiary();
+    Bestiary bestiary = game.progress().bestiary();
 
     for (int i = 0; i < allKinds.length; i++) {
       float y = LIST_TOP_Y - i * ROW_HEIGHT + scrollOffset;
@@ -114,7 +114,7 @@ public final class BestiaryScreen extends ScreenAdapter {
   private void drawHeaderAndFooter(SpriteBatch batch) {
     boolean jp = game.fonts().isJapaneseAvailable();
     BitmapFont font = game.fonts().large();
-    Bestiary bestiary = game.bestiary();
+    Bestiary bestiary = game.progress().bestiary();
 
     font.setColor(0.95f, 0.85f, 0.3f, 1f);
     font.draw(

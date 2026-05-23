@@ -42,7 +42,7 @@ public final class GameOverScreen extends ScreenAdapter {
     // §15-7 / E-2: ラン終了処理。Player.soul をラン外保持 (DddGame.playerSoul) に書き戻し、
     // 周回数を +1 する。これにより獲得ソウルがソウルツリーで使えるようになる。
     game.onRunEnded();
-    soulSnapshot = game.playerSoul().amount();
+    soulSnapshot = game.progress().playerSoul().amount();
     // §15-5: ゲームオーバー / クリア時にタイトル BGM へ切替 (ダンジョン BGM を停止して引継)
     game.soundManager().playBgm(BgmKind.TITLE);
     camera = new OrthographicCamera();

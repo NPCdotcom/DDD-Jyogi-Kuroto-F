@@ -14,7 +14,6 @@ import core.domain.entity.Player;
 import core.domain.equipment.Equipment;
 import core.domain.equipment.EquipmentSlot;
 import core.domain.layer.LayerEndNode;
-import core.domain.meta.Bestiary;
 import core.domain.meta.PlayerProgress;
 import core.domain.meta.Soul;
 import core.domain.tree.NodeId;
@@ -71,8 +70,9 @@ public final class DddGame extends Game {
    * obtainedCards / bestiary / loadout) を 1 集約に置換。各 setter は {@code progress =
    * progress.withXxx(...)} で新インスタンスを返す純関数 + 代入で更新する (Escape Analysis でチェイン生成は GC 負荷なし)。
    *
-   * <p>Screen 公開 API は当面 {@link #soulTree} / {@link #playerSoul} 等の中継 getter で互換維持。 公開 API の
-   * PlayerProgress 直接公開は Wave 7 以降に breaking change として移行予定。
+   * <p>Wave 7 W7-β で {@link #progress()} を公開し、旧 7 中継 getter (playerSoul / runCount / soulTree
+   * / bestiary / loadout / obtainedCards / isTutorialSeen) は撤去済。Screen 側は {@code
+   * game.progress().playerSoul()} 等で field にアクセスする。
    */
   private PlayerProgress progress = PlayerProgress.initial(defaultLoadout());
 
@@ -96,9 +96,12 @@ public final class DddGame extends Game {
     return context;
   }
 
-  /** 現在の装備ロードアウト (装備画面表示用、PlayerProgress 内で既に防御コピー済)。 */
-  public Map<EquipmentSlot, Equipment> loadout() {
-    return progress.loadout();
+  /**
+   * ラン外進捗 record を返す (Wave 7 W7-β で公開化)。Screen 側からは {@code game.progress().playerSoul()} 等で
+   * フィールドにアクセスする。本メソッド経由でアクセスを集約することで、DddGame の API 表面積を縮小する (旧中継 getter 7 件を撤去)。
+   */
+  public PlayerProgress progress() {
+    return progress;
   }
 
   /**
@@ -132,16 +135,6 @@ public final class DddGame extends Game {
     Map<EquipmentSlot, Equipment> next = new HashMap<>(progress.loadout());
     next.remove(slot);
     progress = progress.withLoadout(next);
-  }
-
-  /** これまでに入手したカード ID の集合 (カード図鑑の解放判定用、PlayerProgress 内で既に防御コピー済)。 */
-  public Set<CardId> obtainedCards() {
-    return progress.obtainedCards();
-  }
-
-  /** 撃破済敵種の Bestiary (§15-5、不変 record、防御コピー不要)。 */
-  public Bestiary bestiary() {
-    return progress.bestiary();
   }
 
   /**
@@ -215,26 +208,9 @@ public final class DddGame extends Game {
         id -> cardCatalog().get(id), id -> equipmentCatalog().get(id));
   }
 
-  public SoulTree soulTree() {
-    return progress.soulTree();
-  }
-
-  public Soul playerSoul() {
-    return progress.playerSoul();
-  }
-
-  public boolean isTutorialSeen() {
-    return progress.tutorialSeen();
-  }
-
   /** §15-10 / E-10: チュートリアル overlay を閉じた時に呼び、次回以降の自動表示を抑制する。 */
   public void markTutorialSeen() {
     progress = progress.withTutorialSeen(true);
-  }
-
-  /** 完了したラン数 (§15-7 / E-2: 1 以上でソウルツリー動線を解禁)。 */
-  public int runCount() {
-    return progress.runCount();
   }
 
   /** ラン外のソウルツリー画面でノード解放した結果を受け取る (§15-7)。 */
