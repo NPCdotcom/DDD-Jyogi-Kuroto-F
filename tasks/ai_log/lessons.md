@@ -141,3 +141,29 @@
 - **判断 (受け入れ)**: 各 draw メソッドの末尾で `font.setColor(Color.WHITE)` (または既定色) にリセットすることを徹底するパターンを採用。Wave 4 W4-ε で drawLog 末尾にリセット追加、W4-δ BestiaryScreen でも徹底
 - **学び**: **LibGDX のミュータブル Color フィールド (BitmapFont.color / SpriteBatch.color / ShapeRenderer.color) は描画メソッドの内側で setColor したら、必ず末尾で reset する**。grep で確認する方法: `grep -n "setColor" <ファイル>` で setColor 直後の対称的な reset があるか目視確認
 - **適用範囲**: LibGDX の BitmapFont / SpriteBatch / ShapeRenderer の color プロパティを使う全描画コード
+
+### 2026-05-23: Logger 級の Static initialization setter は許容パターン
+
+- **状況**: Wave 5 W5-γ で SoulTree.allNodes() の domain → infrastructure 依存方向違反 (InitialStateFactory.soulTreeNodes() 直接呼出) を Supplier 注入パターンで解消
+- **判断**: `private static Supplier<Map<NodeId, TreeNode>> nodeProvider;` フィールド + `public static void setNodeProvider(...)` で起動時に 1 度だけ注入。mutable static state 禁止ルールの**例外**として許容する条件 (1) 初期化フェーズのみ set (2) read 以降の state 変更なし (3) テストで初期化可能 (`@BeforeAll`)
+- **学び**: **「Logger / Properties 級の単発 initialization setter」は許容**。java.util.logging.Logger.getLogger() や System.setProperty() と同じ位置付けで「JVM 起動時に 1 度設定し、以降は read-only」が守られるなら mutable static 禁止ルールの例外として認める。代わりに以下のガードを必須に: (a) Javadoc で「Logger 級の単発 setter」と明記 (b) null チェックで起動初期化漏れを早期検出 (`throw new IllegalStateException(...)`)(c) テストで `@BeforeAll` で provider を注入
+- **並列テスト時の注意**: Gradle 並列テスト実行時、static フィールドは全テストで共有される。通常は同一 provider で問題ないが、**カタログモックテスト等で setProvider を上書きする場合**は `@AfterEach` で前 provider に復元する (try-finally スコープ限定 setter ヘルパが理想)
+- **適用範囲**: domain layer から infrastructure layer への直接呼出を解消したいときの第一手 (依存逆転の代替案)。コンストラクタ注入が困難な「事実上のシングルトン」(record の static method 等) で特に有効
+
+### 2026-05-23: TurnEngine 段階的分割 (Movement → CardResolver → SkillResolver の依存最小順)
+
+- **状況**: Wave 5 W5-α-1/2/3 で TurnEngine 663 行 (God Object) を 3 クラスに分割
+- **判断**: 依存最小から順に切り出し: (1) W5-α-1 TurnEngineMovement (applyPlayerMove / applyEnemyMove、移動 + 罠踏み) → (2) W5-α-2 TurnEngineCardResolver (CardEffect 4 種 dispatcher + resolver) → (3) W5-α-3 TurnEngineSkillResolver (Skill 関連 + 効果適用)。各段階で `gradlew check` 緑を保ちつつコミット
+- **効果**: 663 → 622 (W5-α-1、-41 行) → 472 (W5-α-2、-150 行) → 330 (W5-α-3、-142 行) と 3 段階で計 ~50% 削減
+- **共通ヘルパの扱い**: `reject` / `resolveDamageToEnemy` / `checkAndTriggerTrap` は複数 resolver から呼ばれるため TurnEngine に**残し package-private に降格**。Plan では「checkAndTriggerTrap も SkillResolver に移動」と書いていたが、Movement と Skill 両方から呼ばれるため Movement → Skill の不自然な依存方向を回避する**妥当な逸脱**として TurnEngine に残置を選択
+- **学び**: **God Object 分割は「依存最小から」「共通ヘルパは残置」の 2 原則を守る**。理由 (1) 依存最小から切り出すと chain refactor が起きにくい (2) 共通ヘルパを安易に新クラスに移すと「Movement → SkillResolver」のような奇妙な依存方向ができてしまう (3) package-private 降格は同パッケージ内クラスからは呼べるため、副作用なく分離可能
+- **Plan からの妥当な逸脱の判断基準**: Plan の文字通りに従うと依存方向が悪化する場合は逸脱してよい。ただし**コミットメッセージとクラス Javadoc に「Plan からの逸脱理由」を明記**することで後追い可能にする
+- **適用範囲**: 500+ 行のドメイン層 utility / engine クラスを分割するとき全般
+
+### 2026-05-23: 集約 record の段階的導入 (内部統合は次 Wave へ)
+
+- **状況**: Wave 5 W5-β で DddGame の 7 ラン外フィールド (playerSoul / runCount / tutorialSeen / obtainedCards / bestiary / loadout / soulTree) を PlayerProgress record に集約する計画。Plan では「内部リファクタも実施」と書いていたが、影響範囲が広く 644 件のテスト破壊リスクが高い
+- **判断**: **段階的アプローチを採用**。Wave 5 W5-β では PlayerProgress record + テスト 11 件のみ作成し、DddGame の内部統合 (フィールド統合 + setter / getter 書換) は Wave 6 で実施する m2_backlog に記録
+- **学び**: **集約 record の導入は 2 段階に分ける**。(1) 第 1 段階: record + テスト追加で「集約の形」を確立 (低リスク、テスト 0 件追加なら破壊しようがない) (2) 第 2 段階: 既存コードの内部統合 (中リスク、setter / getter を順次中継メソッドに置き換え)。Plan に「両方同 Wave」と書かれていても、テスト破壊リスクが高ければ 2 Wave に分割するのが安全
+- **判断基準**: 影響範囲が 5 ファイル以上 / 既存テスト 100 件以上を経由するなら段階分割を検討。1 Wave で完了せず複数 Wave に渡る場合は m2_backlog に明示しておくと後追いが容易
+- **適用範囲**: 大規模 record 抽出 / 値オブジェクト集約 / DTO 統合などの破壊的変更全般

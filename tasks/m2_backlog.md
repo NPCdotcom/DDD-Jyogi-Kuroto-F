@@ -8,9 +8,9 @@
 
 ---
 
-## 2026-05-23 セッション最終アップデート + Wave 1 / Wave 2 / Wave 3 / Wave 4 完了
+## 2026-05-23 セッション最終アップデート + Wave 1 / Wave 2 / Wave 3 / Wave 4 / Wave 5 完了
 
-本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1 (4 タスク) + M2 Wave 2 (3 タスク) + M2 Wave 3 (3 タスク) + M2 Wave 4 (5 段階 α/β/γ/δ/ε) を完了。テスト 545 → 644 件 (+99)。残った M2 着手項目:
+本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1 (4 タスク) + M2 Wave 2 (3 タスク) + M2 Wave 3 (3 タスク) + M2 Wave 4 (5 段階 α/β/γ/δ/ε) + M2 Wave 5 (5 段階 γ/α-1/α-2/α-3/β) を完了。テスト 545 → 655 件 (+110)。残った M2 着手項目:
 
 - **完了 (P2-P4)**: JSON 欠損 graceful、セーブ後ドロー仕様確認、Texture リーク、ダメージ計算 DRY 集約、
   BuffKindLabels 集約、HAND_DETAIL_TEXT_Y 文字数上限、EnemyKind isElite/isBoss、Optional 可読性、
@@ -27,9 +27,13 @@
 - **完了 (M2 Wave 4)**: DungeonScreen 697 → 463 行責務分割 (EnemyKindMemory / ScreenEffects /
   EliteRewardOrchestrator の 3 クラス切り出し、~34% 削減)、BestiaryScreen 新規 (タイトル B キー
   で撃破済敵一覧)、装備テーマ変動 UI (UiTheme + UiThemeResolver、equipment.json themeName 5 件設定)
+- **完了 (M2 Wave 5)**: SoulTree.allNodes() Supplier 注入で依存方向違反解消 (W5-γ)、
+  TurnEngine 663 → 330 行を 3 クラス分離 (TurnEngineMovement / TurnEngineCardResolver
+  / TurnEngineSkillResolver、計約 50% 削減、checkAndTriggerTrap は共通ヘルパとして TurnEngine 残置、
+  W5-α-1/2/3)、PlayerProgress record 新規追加 (ラン外進捗 7 要素を集約、内部リファクタは Wave 6 で実施、W5-β)
+- **M2 送り (Wave 5 残置)**: DddGame の PlayerProgress 内部統合 (フィールド統合、影響範囲広いため Wave 6)、
+  TurnEngineHelpers クラス追加分離 (resolveDamageToEnemy 等の共通ヘルパ集約、Wave 6+)
 - **M2 送り**: 階段専用テクスチャ (チームメイト素材待ち)、
-  domain → infrastructure 依存方向違反 (SoulTree.allNodes → InitialStateFactory.soulTreeNodes、
-  Wave 5 で Supplier 注入パターン再検討)、
   Bestiary 次行動の点線予告 (AI 戦術絡み、M2 送り)、
   装備テーマのセット装備複合 / 漸進的アニメーション (M2 送り)
 
@@ -40,11 +44,11 @@
 | 項目 | 出所 | 規模 | 備考 |
 |---|---|---|---|
 | ~~**DungeonScreen 697 行の責務分割**~~ → **Wave 4 W4-α/β/γ で完了** (commit 40a4cff / 9a24c01 / 53c4cb3、697 → 463 行 ~34% 削減) | final-architect 2026-05-23 | L | God Object 化 |
-| **DddGame の PlayerProgress 集約抽出** (Soul / runCount / obtainedCards / bestiary / loadout / tutorialSeen を 1 つの record に) | final-architect 2026-05-23 | M | God Object 化 |
+| **DddGame の PlayerProgress 内部統合** (record は W5-β 完了、フィールド統合は Wave 6 で段階的に) | final-architect 2026-05-23 | M | God Object 化 |
 | ~~**LayerEndNode.Shop vs NodeEffect.CardGrantEffect の Card/CardId 表現統一**~~ → **Wave 3 Task A で完了** (commit 20aff7a、NodeResolveContext 導入で将来拡張耐性も確保) | final-architect 2026-05-23 | M | 驚き最小 |
 | ~~**EquipmentScreen / Fonts.java の InitialStateFactory 直接参照を game.cardCatalog 経由化**~~ → **Wave 1 Task 1 で完了** (commit cacb7ec) | A7 multi-perspective Must | S | static rowText / glyphs 階層が深い |
 | ~~**SoulTree ノード定義の JSON 化**~~ → **Wave 2 Task A で完了** (commit fe0febf、tree.json + SoulTreeCatalog) | final-architect | M | 保守性向上 |
-| **TurnEngine 671 行の分割** (カード解決 / 敵解決へ) | final-architect | M〜L | 商品化前リファクタ |
+| ~~**TurnEngine 671 行の分割**~~ → **Wave 5 W5-α-1/2/3 で完了** (commit 7fa67a0 / 406232b / 5b352fe、663 → 330 行、Movement / CardResolver / SkillResolver の 3 クラス分離 ~50% 削減) | final-architect | M〜L | 商品化前リファクタ |
 | **LayerEndNode 日本語 displayName のドメイン汚染解消** (i18n 移行時) | domain-architect | M | i18n 全面対応とセットで |
 | **presentation / infrastructure テスト補強** (Screen 群のヘッドレス可能部分、LibGDX 非依存の純粋ロジック) | devils-advocate | M | カバレッジ偏在 |
 | **SaveData v2 migration** (現状は破損時 graceful「セーブなし扱い」のみ) | multi-perspective-reviewer | M | 後方互換 |
