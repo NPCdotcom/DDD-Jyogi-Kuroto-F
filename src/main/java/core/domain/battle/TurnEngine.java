@@ -10,7 +10,6 @@ import core.domain.common.Direction;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonState;
 import core.domain.dungeon.PlacedTrap;
-import core.domain.dungeon.Tile;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
 import core.domain.entity.Player;
@@ -60,7 +59,7 @@ public final class TurnEngine {
       return reject(state, state.player().id(), "プレイヤーのターンではない");
     }
     return switch (action) {
-      case BattleAction.Move move -> applyPlayerMove(state, move.direction());
+      case BattleAction.Move move -> TurnEngineMovement.applyPlayerMove(state, move.direction());
       case BattleAction.UseSkill use -> applyPlayerSkill(state, use.slotIndex());
       case BattleAction.UseCard use -> applyPlayerUseCard(state, use);
       case BattleAction.Wait ignored -> applyPlayerWait(state);
@@ -142,7 +141,8 @@ public final class TurnEngine {
     }
     Enemy enemy = enemyOpt.get();
     return switch (action) {
-      case BattleAction.Move move -> applyEnemyMove(state, enemy, move.direction());
+      case BattleAction.Move move ->
+          TurnEngineMovement.applyEnemyMove(state, enemy, move.direction());
       case BattleAction.UseSkill use -> applyEnemySkill(state, enemy, use.slotIndex());
       // §15-3 / ADR-18: 敵はカードを使わない (Skill ベース)。誤って UseCard が渡されたら reject。
       case BattleAction.UseCard ignored -> reject(state, enemy.id(), "敵はカードを使えない");
@@ -172,41 +172,7 @@ public final class TurnEngine {
   //  プレイヤー個別アクション
   // ===================================================================================
 
-  /**
-   * プレイヤー移動 (§15-5 / ADR-21)。{@code pendingMoveCount > 0} なら AP 消費なし (移動権使用)、それ以外は AP 1 消費 (通常移動)。
-   *
-   * <p>ADR-20 / ADR-21 「移動カード切る → distance ぶん AWSD で連続移動」を本メソッドで実装。
-   */
-  private static StepResult applyPlayerMove(DungeonState state, Direction direction) {
-    Player player = state.player();
-    boolean usingPendingMove = player.pendingMoveCount() > 0;
-    if (!usingPendingMove && !player.actionPoints().canSpend(1)) {
-      return reject(state, player.id(), "AP 不足");
-    }
-    Position next = player.position().move(direction);
-    if (!state.map().isWalkable(next) || state.findEnemyAt(next).isPresent()) {
-      return reject(state, player.id(), "そこへは移動できない");
-    }
-    Player moved;
-    if (usingPendingMove) {
-      // 移動権消費: AP 据置、pendingMoveCount を 1 減らす。
-      moved = player.withPosition(next).withPendingMoveCount(player.pendingMoveCount() - 1);
-    } else {
-      // 通常移動: AP 1 消費。
-      moved = player.withPosition(next).withActionPoints(player.actionPoints().spend(1));
-    }
-    DungeonState afterMove = state.withPlayer(moved);
-    List<BattleEvent> events = new ArrayList<>();
-    events.add(new BattleEvent.Moved(player.id(), player.position(), next));
-    // 階段に到達したら踏破 = CLEARED (層末ノード選択へ)。敵全滅では遷移しない (§15-6)。
-    if (state.map().tileAt(next) == Tile.STAIRS_DOWN) {
-      afterMove = afterMove.withPhase(TurnPhase.CLEARED);
-      events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.CLEARED));
-    }
-    // ADR-22: 罠踏み判定 (Player が罠タイルに進入したか)。CLEARED 時もダメージは入る (踏破直前の罠で死亡もあり得る)。
-    afterMove = checkAndTriggerTrap(afterMove, moved.id(), next, true, events);
-    return new StepResult(afterMove, events);
-  }
+  // Wave 5 W5-α-1: applyPlayerMove は {@link TurnEngineMovement#applyPlayerMove} に切り出し済。
 
   private static StepResult applyPlayerSkill(DungeonState state, int slotIndex) {
     Player player = state.player();
@@ -403,22 +369,7 @@ public final class TurnEngine {
   //  敵個別アクション
   // ===================================================================================
 
-  private static StepResult applyEnemyMove(DungeonState state, Enemy enemy, Direction direction) {
-    if (!enemy.actionPoints().canSpend(1)) {
-      return reject(state, enemy.id(), "AP 不足");
-    }
-    Position next = enemy.position().move(direction);
-    if (!state.map().isWalkable(next) || state.isPositionOccupied(next)) {
-      return reject(state, enemy.id(), "そこへは移動できない");
-    }
-    Enemy moved = enemy.withPosition(next).withActionPoints(enemy.actionPoints().spend(1));
-    DungeonState afterMove = state.withEnemyReplaced(moved);
-    List<BattleEvent> events = new ArrayList<>();
-    events.add(new BattleEvent.Moved(enemy.id(), enemy.position(), next));
-    // ADR-22: 罠踏み判定 (Enemy が罠タイルに進入したか)。
-    afterMove = checkAndTriggerTrap(afterMove, moved.id(), next, false, events);
-    return new StepResult(afterMove, events);
-  }
+  // Wave 5 W5-α-1: applyEnemyMove は {@link TurnEngineMovement#applyEnemyMove} に切り出し済。
 
   private static StepResult applyEnemySkill(DungeonState state, Enemy enemy, int slotIndex) {
     Optional<Skill> skillOpt = enemy.skillSlot().at(slotIndex);
@@ -550,7 +501,12 @@ public final class TurnEngine {
   //  Helpers
   // ===================================================================================
 
-  private static StepResult reject(DungeonState state, ActorId who, String reason) {
+  /**
+   * 失敗アクションを {@link BattleEvent.ActionRejected} で表現する共通ヘルパ。
+   *
+   * <p>Wave 5 W5-α-1 以降、同パッケージの {@link TurnEngineMovement} 等から呼べるよう package-private。
+   */
+  static StepResult reject(DungeonState state, ActorId who, String reason) {
     return new StepResult(state, List.of(new BattleEvent.ActionRejected(who, reason)));
   }
 
@@ -565,7 +521,7 @@ public final class TurnEngine {
    *   <li>victim 死亡時は ActorDied + プレイヤーなら GAME_OVER、敵なら撃破報酬 + 除去
    * </ol>
    */
-  private static DungeonState checkAndTriggerTrap(
+  static DungeonState checkAndTriggerTrap(
       DungeonState state,
       ActorId victimId,
       Position at,
