@@ -166,6 +166,8 @@ public final class TitleScreen extends ScreenAdapter {
     if (tutorial != null) {
       tutorial.render(delta);
       if (Gdx.input.isKeyJustPressed(Keys.ENTER) || Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
+        // Wave 10 W10-β-2: チュートリアル overlay を閉じる時に決定 SE
+        game.soundManager().playSe(SeKind.BUTTON_DECISION);
         tutorial.dispose();
         tutorial = null;
         game.markTutorialSeen();

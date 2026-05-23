@@ -111,6 +111,9 @@ public final class EquipmentScreen extends ScreenAdapter {
     } else {
       game.equipInLoadout(eq); // 未装着 → 装着 (同スロットの既存装備は置き換わる)
     }
+    // Wave 10 W10-β-2: 装着/解除クリック確定時に BUTTON_DECISION SE
+    // (項目移動 SE は scrollOffset 連続値のためカウンタ境界が定義できず、連続爆音回避で省略)
+    game.soundManager().playSe(core.infrastructure.audio.SeKind.BUTTON_DECISION);
   }
 
   private void drawList(SpriteBatch batch) {

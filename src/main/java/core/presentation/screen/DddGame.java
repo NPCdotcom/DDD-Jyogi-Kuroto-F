@@ -233,9 +233,9 @@ public final class DddGame extends Game {
   public void unlockTreeNode(NodeId nodeId) {
     SoulTree.UnlockResult result = progress.soulTree().unlock(nodeId, progress.playerSoul());
     progress = progress.withSoulTree(result.newTree()).withPlayerSoul(result.newSoul());
-    // Wave 10 W10-α: ノード解放成功時に LEVEL_UP SE を発火
+    // Wave 10 W10-β-2: ノード解放成功時に STATUS_UP SE (旧 LEVEL_UP からユーザー判断で変更、体感整合)
     if (resources != null) {
-      resources.soundManager().playSe(core.infrastructure.audio.SeKind.LEVEL_UP);
+      resources.soundManager().playSe(core.infrastructure.audio.SeKind.STATUS_UP);
     }
   }
 

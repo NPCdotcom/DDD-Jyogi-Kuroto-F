@@ -682,6 +682,8 @@ public final class SoulTreeScreen extends ScreenAdapter {
     NodeEffect effect = node.effect();
     Texture iconTex = nodeIconFor(bestId, effect);
     boolean isCardGrant = effect instanceof NodeEffect.CardGrantEffect;
+    // Wave 10 W10-β-2: ノードクリックで確認ダイアログが開く瞬間に BUTTON_SELECTION SE
+    game.soundManager().playSe(core.infrastructure.audio.SeKind.BUTTON_SELECTION);
     this.pendingUnlock =
         new SoulNodeUnlockDialog(
             game.fonts().title(),

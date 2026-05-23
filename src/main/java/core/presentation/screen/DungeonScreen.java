@@ -102,6 +102,12 @@ public final class DungeonScreen extends ScreenAdapter {
   /** マップタイル: 床テクスチャ (チームメイト素材、ピクセルアート、Nearest filter)。 */
   private com.badlogic.gdx.graphics.Texture floorTexture;
 
+  /**
+   * HP_LOW SE の連続発火防止フラグ (Wave 10 W10-β-2)。HP > 30% → ≤ 30% 遷移時のみ発火、 30%
+   * 超に回復した瞬間にリセット。毎フレーム鳴り続けるのを防ぐ。
+   */
+  private boolean lowHpSeFired = false;
+
   /** プレイヤースプライト (Wave 10 W10-β、チームメイト素材)。 */
   private com.badlogic.gdx.graphics.Texture playerTexture;
 
@@ -145,10 +151,11 @@ public final class DungeonScreen extends ScreenAdapter {
     com.badlogic.gdx.graphics.Texture slimeTex = loadPixelTexture("sprites/slime.png");
     enemyTextures = new java.util.EnumMap<>(core.domain.entity.EnemyKind.class);
     enemyTextures.put(core.domain.entity.EnemyKind.SLIME, slimeTex);
+    // Wave 10 W10-β-2: 速い = スケルトン、頑強 = ゴブリンに割当 (ユーザー意図に合わせて入れ替え)
     enemyTextures.put(
-        core.domain.entity.EnemyKind.SWIFT_SLIME, loadPixelTexture("sprites/goblin.png"));
+        core.domain.entity.EnemyKind.SWIFT_SLIME, loadPixelTexture("sprites/skeleton.png"));
     enemyTextures.put(
-        core.domain.entity.EnemyKind.TOUGH_SLIME, loadPixelTexture("sprites/skeleton.png"));
+        core.domain.entity.EnemyKind.TOUGH_SLIME, loadPixelTexture("sprites/goblin.png"));
     // ELITE_SLIME は SLIME と同じ Texture を流用、DungeonRenderer 側で SpriteBatch.setColor の赤ティント
     enemyTextures.put(core.domain.entity.EnemyKind.ELITE_SLIME, slimeTex);
     enemyTextures.put(
@@ -456,7 +463,14 @@ public final class DungeonScreen extends ScreenAdapter {
         game.soundManager().playSe(SeKind.FLOOR_ADVANCE);
       } else if (e instanceof BattleEvent.EliteDefeated) {
         // §15-3 / §15-6: 強化個体撃破時にカード追加 UI を発火 (二重生成は EliteRewardOrchestrator 内で防止)
+        // Wave 10 W10-β-2: 達成感演出のため LEVEL_UP 素材を Elite 撃破に流用 (新規 SeKind 追加せず KISS)
+        game.soundManager().playSe(SeKind.LEVEL_UP);
         eliteReward.triggerOnEliteDefeat();
+      } else if (e instanceof BattleEvent.TurnPhaseChanged tpc
+          && tpc.newPhase() == TurnPhase.PLAYER_TURN) {
+        // Wave 10 W10-β-2: プレイヤーターン開始 = 毎ターン頭のドロー演出として CARD_DRAW_C を発火
+        // レアリティ別 (C/U/R) 音分けは Card に rarity field 追加が必要で Wave 11+ 送り
+        game.soundManager().playSe(SeKind.CARD_DRAW_C);
       } else if (e instanceof BattleEvent.Moved m && !m.who().equals(playerId)) {
         // §UI 改善: 敵が画面外で動いた時、flash で「どこかで敵が動いているようだ」を表示。
         // 可視範囲 = camera.position ± (SCREEN_WIDTH/HEIGHT * camera.zoom / 2) (LibGDX
@@ -476,6 +490,18 @@ public final class DungeonScreen extends ScreenAdapter {
       }
     }
     lastSeenEventCount = current;
+
+    // Wave 10 W10-β-2: HP_LOW SE の境界線管理 (連続発火防止)。
+    // HP > 30% → ≤ 30% の遷移時のみ発火、回復したらフラグリセット。
+    var stats = game.requireRunSession().context().state().player().stats();
+    boolean isLow =
+        core.presentation.effect.LowHpWarning.shouldDraw(stats.currentHp(), stats.maxHp());
+    if (isLow && !lowHpSeFired) {
+      game.soundManager().playSe(SeKind.HP_LOW);
+      lowHpSeFired = true;
+    } else if (!isLow && lowHpSeFired) {
+      lowHpSeFired = false;
+    }
   }
 
   /**
