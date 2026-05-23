@@ -264,7 +264,12 @@ public final class DungeonScreen extends ScreenAdapter {
                   && before.gold().amount() == after.gold().amount()
                   && before.cardPileState().drawPile().size()
                       == after.cardPileState().drawPile().size()) {
-                showFlash("金貨が足りません (必要 " + shop.goldCost() + ")");
+                boolean jp = game.fonts().isJapaneseAvailable();
+                showFlash(
+                    (jp
+                            ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
+                            : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
+                        .formatted(shop.goldCost()));
               }
               nodeChoice.dispose();
               nodeChoice = null;
@@ -292,7 +297,12 @@ public final class DungeonScreen extends ScreenAdapter {
               eliteCardChoice.dispose();
               eliteCardChoice = null;
               if (choice instanceof LayerEndNode.Shop shop) {
-                showFlash("カード獲得: " + shop.grantedCard().displayName());
+                boolean jp = game.fonts().isJapaneseAvailable();
+                showFlash(
+                    (jp
+                            ? Strings.Ja.CARD_REWARD_GAINED_FORMAT
+                            : Strings.En.CARD_REWARD_GAINED_FORMAT)
+                        .formatted(shop.grantedCard().displayName()));
               }
             });
   }
@@ -333,7 +343,8 @@ public final class DungeonScreen extends ScreenAdapter {
     for (int i = 0; i < n; i++) {
       choices.add(new LayerEndNode.Shop(0, rewards.get(i)));
     }
-    String title = "強化個体撃破: カード追加";
+    boolean jp = game.fonts().isJapaneseAvailable();
+    String title = jp ? Strings.Ja.ELITE_CARD_REWARD_TITLE : Strings.En.ELITE_CARD_REWARD_TITLE;
     // large(32px) 等倍。hud(16px)+setFontScale(2f) は Scene2D で漢字が黒四角化するため使えない。
     return new NodeChoicePopup(game.fonts().large(), title, List.copyOf(choices));
   }

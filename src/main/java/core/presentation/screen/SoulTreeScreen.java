@@ -550,7 +550,11 @@ public final class SoulTreeScreen extends ScreenAdapter {
         // 防衛的 null チェック: pendingUnlockId は tryUnlockAt 由来で allNodes() に必ず存在するため
         // 実際には null にならないが、SoulTree の API 変更で取りこぼした場合の NPE を回避する。
         TreeNode unlocked = SoulTree.allNodes().get(pendingUnlockId);
-        showFlash("解放: " + (unlocked != null ? unlocked.displayName() : pendingUnlockId.value()));
+        boolean jp = game.fonts().isJapaneseAvailable();
+        String displayName = unlocked != null ? unlocked.displayName() : pendingUnlockId.value();
+        showFlash(
+            (jp ? Strings.Ja.SOUL_TREE_UNLOCKED_FORMAT : Strings.En.SOUL_TREE_UNLOCKED_FORMAT)
+                .formatted(displayName));
       } catch (IllegalStateException ex) {
         boolean jp = game.fonts().isJapaneseAvailable();
         // SoulTree.unlock は「ソウル不足」「前提未解放」「解放済み」の 3 種を IllegalStateException

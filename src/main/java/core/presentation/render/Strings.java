@@ -175,6 +175,12 @@ public final class Strings {
     // §UI 改善: 敵のターン中の常時表示 + 画面外で敵が動いた時の通知
     public static final String HINT_ENEMY_TURN_IN_PROGRESS = "敵のターン進行中…";
     public static final String LOG_DISTANT_ENEMY_MOVE = "どこかで敵が動いているようだ";
+
+    // §UI 改善 (Wave 1 Task 4): ソウルツリー以外の通知/フラッシュメッセージ i18n
+    public static final String SHOP_INSUFFICIENT_GOLD_FORMAT = "金貨が足りません (必要 %d)";
+    public static final String CARD_REWARD_GAINED_FORMAT = "カード獲得: %s";
+    public static final String ELITE_CARD_REWARD_TITLE = "強化個体撃破: カード追加";
+    public static final String SOUL_TREE_UNLOCKED_FORMAT = "解放: %s";
   }
 
   /** 英語版 (フォント未配置時の fallback)。 */
@@ -345,5 +351,11 @@ public final class Strings {
     // §UI: Enemy-turn always-on indicator + off-screen enemy move notification
     public static final String HINT_ENEMY_TURN_IN_PROGRESS = "Enemy turn in progress…";
     public static final String LOG_DISTANT_ENEMY_MOVE = "An enemy is moving somewhere";
+
+    // §UI improvement (Wave 1 Task 4): Non-SoulTree notification / flash i18n
+    public static final String SHOP_INSUFFICIENT_GOLD_FORMAT = "Not enough gold (need %d)";
+    public static final String CARD_REWARD_GAINED_FORMAT = "Card gained: %s";
+    public static final String ELITE_CARD_REWARD_TITLE = "Elite defeated: Card reward";
+    public static final String SOUL_TREE_UNLOCKED_FORMAT = "Unlocked: %s";
   }
 }
