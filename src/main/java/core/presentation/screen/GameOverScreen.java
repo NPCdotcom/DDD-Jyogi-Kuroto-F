@@ -10,6 +10,8 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import core.infrastructure.audio.BgmKind;
+import core.infrastructure.audio.SeKind;
 import core.presentation.render.Fonts;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
@@ -41,6 +43,8 @@ public final class GameOverScreen extends ScreenAdapter {
     // 周回数を +1 する。これにより獲得ソウルがソウルツリーで使えるようになる。
     game.onRunEnded();
     soulSnapshot = game.playerSoul().amount();
+    // §15-5: ゲームオーバー / クリア時にタイトル BGM へ切替 (ダンジョン BGM を停止して引継)
+    game.soundManager().playBgm(BgmKind.TITLE);
     camera = new OrthographicCamera();
     viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
     batch = new SpriteBatch();
@@ -94,7 +98,8 @@ public final class GameOverScreen extends ScreenAdapter {
     if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
       // §15-7 / E-2: ラン終了後はソウルツリーへ遷移し、獲得ソウルを永続強化に使う。
       // startNewRun() はここでは呼ばない (次ラン開始は TitleScreen の ENTER 時)。
-      game.setScreen(new SoulTreeScreen(game));
+      game.soundManager().playSe(SeKind.BUTTON);
+      game.changeScreen(new SoulTreeScreen(game));
     }
   }
 

@@ -1,5 +1,6 @@
 package core.infrastructure.bootstrap;
 
+import com.badlogic.gdx.Gdx;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonMap;
 import java.util.ArrayList;
@@ -229,6 +230,9 @@ public final class DungeonGenerator {
   /**
    * 敵出現座標を選ぶ。床タイルから spawn 近接 ({@link #MIN_ENEMY_DISTANCE} 未満) と最遠点を除外、シャッフルして 先頭 N 個。ボス層 ({@code
    * !placeStairs}) では先頭を最遠部屋中心に固定する (ボスを spawn から遠ざける)。
+   *
+   * <p>フォールバック: 候補不足で要求数に満たない場合は {@link #MIN_ENEMY_DISTANCE} 制約を緩和 (距離 1 以上まで広げる) して再収集する。 それでも
+   * 不足する場合は {@code Gdx.app.log} で警告を出し、見つかった分だけ返す。
    */
   private static List<Position> pickEnemies(
       char[][] grid,
@@ -246,6 +250,7 @@ public final class DungeonGenerator {
     if (!placeStairs) {
       result.add(far); // ボス層: 先頭 = 最遠部屋中心 (ボス配置用)
     }
+    // 通常収集 (MIN_ENEMY_DISTANCE 制約あり)
     List<Position> candidates = new ArrayList<>();
     for (int y = 0; y < gridH; y++) {
       for (int x = 0; x < gridW; x++) {
@@ -264,6 +269,37 @@ public final class DungeonGenerator {
         break;
       }
       result.add(c);
+    }
+    // フォールバック: 不足分を距離制約なしで補充 (spawn と far 自体は除外)
+    if (result.size() < enemyCount) {
+      List<Position> fallback = new ArrayList<>();
+      for (int y = 0; y < gridH; y++) {
+        for (int x = 0; x < gridW; x++) {
+          if (grid[y][x] != '.') {
+            continue;
+          }
+          Position p = new Position(x, y);
+          if (!p.equals(spawn) && !p.equals(far) && !result.contains(p)) {
+            fallback.add(p);
+          }
+        }
+      }
+      Collections.shuffle(fallback, rng);
+      for (Position c : fallback) {
+        if (result.size() >= enemyCount) {
+          break;
+        }
+        result.add(c);
+      }
+    }
+    if (result.size() < enemyCount) {
+      Gdx.app.log(
+          "DungeonGenerator",
+          "pickEnemies: requested "
+              + enemyCount
+              + " but only "
+              + result.size()
+              + " positions found (map may be too small)");
     }
     return result;
   }

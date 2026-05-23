@@ -175,4 +175,36 @@ class DungeonGeneratorTest {
         IllegalArgumentException.class,
         () -> DungeonGenerator.generate(14, 12, -1, true, new Random(0)));
   }
+
+  // Phase 1 回帰: pickEnemies フォールバック (MIN_ENEMY_DISTANCE 緩和による再収集)
+
+  @Test
+  void minimumGridFulfillsEnemyCountAcrossSeeds() {
+    // §15-6 フォールバック: 最小グリッド (12x12) でも要求敵数が必ず配置されることを多シードで確認。
+    // 通常候補 (MIN_ENEMY_DISTANCE 制約あり) で不足する場合、フォールバックが距離制約を緩和して
+    // 補充するため、小さいマップでも要求数を満たせる。
+    for (int seed = 0; seed < 20; seed++) {
+      int requested = 6;
+      DungeonGenerator.GeneratedDungeon d =
+          DungeonGenerator.generate(12, 12, requested, true, new Random(seed));
+      assertEquals(
+          requested,
+          d.enemySpawns().size(),
+          "seed " + seed + ": 最小グリッドでも要求数 " + requested + " 体が配置される (フォールバック含む)");
+    }
+  }
+
+  @Test
+  void minimumGridEnemySpawnsAreReachableFromSpawn() {
+    // フォールバックで配置された敵も spawn から到達可能であることを検証 (距離緩和後も到達性を壊さない)
+    for (int seed = 0; seed < 20; seed++) {
+      DungeonGenerator.GeneratedDungeon d =
+          DungeonGenerator.generate(12, 12, 4, true, new Random(seed));
+      for (Position e : d.enemySpawns()) {
+        assertTrue(
+            d.map().reachable(d.spawn(), e),
+            "seed " + seed + ": フォールバック配置の敵 " + e + " も spawn から到達可能");
+      }
+    }
+  }
 }

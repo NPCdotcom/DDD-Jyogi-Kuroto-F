@@ -28,6 +28,8 @@ import core.domain.skill.Skill;
 import core.domain.skill.SkillEffect;
 import core.domain.skill.SkillId;
 import core.domain.skill.SkillSlot;
+import core.infrastructure.save.SaveData;
+import core.infrastructure.save.SaveDataConverter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -266,6 +268,55 @@ public final class InitialStateFactory {
   }
 
   /**
+   * 素早い雑魚個体を生成する (§15-5 敵バリエーション、部分実装)。
+   *
+   * <p>HP が低い代わりに AP が層番号 +1 で手数が多い。能力値は暫定 — バランス確定はチームメイトの敵設計に委ねる。
+   */
+  public static Enemy newSwiftSlimeForLayer(String id, Position spawn, int layerNumber) {
+    if (layerNumber < 1) {
+      throw new IllegalArgumentException("layerNumber must be >= 1: " + layerNumber);
+    }
+    return new Enemy(
+        ActorId.of(id),
+        spawn,
+        new Stats(7, 7, 3, 2, 0, 0, 0),
+        ActionPoints.full(layerNumber + 1),
+        new SkillSlot(List.of(slimeBite()), 4),
+        EnemyKind.SWIFT_SLIME);
+  }
+
+  /**
+   * 頑強な雑魚個体を生成する (§15-5 敵バリエーション、部分実装)。
+   *
+   * <p>HP・物防が高く打たれ強い。AP は層番号どおり。能力値は暫定 — バランス確定はチームメイトの敵設計に委ねる。
+   */
+  public static Enemy newToughSlimeForLayer(String id, Position spawn, int layerNumber) {
+    if (layerNumber < 1) {
+      throw new IllegalArgumentException("layerNumber must be >= 1: " + layerNumber);
+    }
+    return new Enemy(
+        ActorId.of(id),
+        spawn,
+        new Stats(18, 18, 1, 2, 0, 2, 0),
+        ActionPoints.full(layerNumber),
+        new SkillSlot(List.of(slimeBite()), 4),
+        EnemyKind.TOUGH_SLIME);
+  }
+
+  /**
+   * 雑魚敵を spawn index に応じて種別を変えて生成する (§15-5 敵バリエーション、部分実装)。
+   *
+   * <p>index を 3 で割った剰余で 通常 / 素早い / 頑強 を循環させ、1 つの層に複数種を混在させる。 強化個体・ボスは別途生成されるため、本メソッドは雑魚枠のみを担う。
+   */
+  private static Enemy newZakoForLayer(String id, Position spawn, int layerNumber, int index) {
+    return switch (index % 3) {
+      case 1 -> newSwiftSlimeForLayer(id, spawn, layerNumber);
+      case 2 -> newToughSlimeForLayer(id, spawn, layerNumber);
+      default -> newSlimeForLayer(id, spawn, layerNumber);
+    };
+  }
+
+  /**
    * 現在の DungeonState から次の層を生成する (§15-6)。
    *
    * <p>{@link Layer#next()} で層番号 +1。マップは {@link DungeonGenerator} で手続き生成、敵は AP = 層番号で 新規生成 (層 2
@@ -306,7 +357,7 @@ public final class InitialStateFactory {
         // 層 2: 先頭 1 体を強化個体に。撃破で EliteDefeated → カード追加 UI 発火。
         enemies.add(newEliteSlimeForLayer("elite_L" + n, pos, n));
       } else {
-        enemies.add(newSlimeForLayer("slime_L" + n + "_" + i, pos, n));
+        enemies.add(newZakoForLayer("slime_L" + n + "_" + i, pos, n, i));
       }
     }
 
@@ -340,6 +391,89 @@ public final class InitialStateFactory {
       case 2 -> 15;
       default -> 20;
     };
+  }
+
+  /**
+   * セーブデータからランを復元する (§15-11)。
+   *
+   * <p>指定の {@code nextLayerNumber} でマップを新規生成し、{@link SaveData} のプレイヤーステ / デッキ / 装備を復元した {@link
+   * DungeonState} を返す。ソウルツリー効果の再適用は呼出元 ({@link core.presentation.screen.DddGame#loadFromSave}) が 行う
+   * (純粋な組み立てとツリー効果適用の責務を分離)。
+   *
+   * @param data セーブデータ
+   * @param loadout 復元済みの装備ロードアウト (SaveDataConverter.toLoadout で構築したもの)
+   * @param rng マップ生成の乱数源 (ADR-19: 引数注入)
+   */
+  public static DungeonState restoreLayer(
+      core.infrastructure.save.SaveData data, Map<EquipmentSlot, Equipment> loadout, Random rng) {
+    Objects.requireNonNull(data, "data");
+    Objects.requireNonNull(loadout, "loadout");
+    Objects.requireNonNull(rng, "rng");
+
+    Layer layer = new Layer(data.nextLayerNumber(), data.nextLayerNumber() + " 層");
+    DungeonGenerator.GeneratedDungeon dungeon =
+        DungeonGenerator.generate(
+            gridWidthFor(layer.number()),
+            gridHeightFor(layer.number()),
+            enemyCountFor(layer.number()),
+            !isFinalLayer(layer),
+            rng);
+
+    // 敵を新規生成 (マップはリセット扱いなので新鮮な敵を配置)
+    List<Enemy> enemies = new java.util.ArrayList<>();
+    List<Position> spawns = dungeon.enemySpawns();
+    boolean boss = isFinalLayer(layer);
+    boolean hasElite = !boss && layer.number() == 2;
+    for (int i = 0; i < spawns.size(); i++) {
+      Position pos = spawns.get(i);
+      if (boss && i == 0) {
+        enemies.add(newBossForLayer("boss_L" + layer.number(), pos, layer.number()));
+      } else if (hasElite && i == 0) {
+        enemies.add(newEliteSlimeForLayer("elite_L" + layer.number(), pos, layer.number()));
+      } else {
+        enemies.add(newZakoForLayer("slime_L" + layer.number() + "_" + i, pos, layer.number(), i));
+      }
+    }
+
+    // プレイヤーを復元: SaveData の Stats でプレイヤーを組み立て、デッキを注入
+    Stats savedStats =
+        new Stats(
+            data.currentHp(),
+            data.maxHp(),
+            data.speed(),
+            data.physicalAttack(),
+            data.magicalAttack(),
+            data.physicalDefense(),
+            data.magicalDefense());
+    CardPileState cardPileState = SaveDataConverter.toCardPileState(data);
+    // ロード再開でも新規ランと同様の初期手札を引く (手札 0 枚で第 1 ターン開始する不具合を防ぐ、§15-3)。
+    cardPileState = cardPileState.drawN(CardPileState.initialDrawCount(data.deck().size()), rng);
+
+    // 装備マップを構築
+    Map<EquipmentSlot, Equipment> equipmentMap = new HashMap<>(loadout);
+
+    Player restoredPlayer =
+        new Player(
+            ActorId.of("player"),
+            dungeon.spawn(),
+            Soul.zero(),
+            Gold.zero(),
+            new PlayerStatuses(
+                savedStats,
+                ActionPoints.full(savedStats.speed()),
+                new SkillSlot(List.of(lightSlash(), heavySlash()), 4),
+                equipmentMap,
+                List.of()),
+            cardPileState,
+            0);
+
+    return new DungeonState(
+        dungeon.map(),
+        restoredPlayer,
+        List.copyOf(enemies),
+        TurnPhase.PLAYER_TURN,
+        List.of(),
+        layer);
   }
 
   /**

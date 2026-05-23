@@ -67,10 +67,10 @@ core/
 │   ├── battle/     # ActionPoints, TurnPhase, BattleAction (sealed), TurnEngine, EnemyAi
 │   ├── dungeon/    # Tile, DungeonMap, DungeonState
 │   ├── meta/       # Soul, Gold (§15-2)
-│   ├── card/       # Card, Deck, Hand (§15-3, 未実装)
-│   ├── tree/       # SoulTree, TreeNode (§15-7, 未実装)
-│   ├── equipment/  # Equipment (§15-9, 未実装)
-│   └── layer/      # Layer, Node (§15-6, 未実装)
+│   ├── card/       # Card, Deck, Hand (§15-3)
+│   ├── tree/       # SoulTree, TreeNode (§15-7)
+│   ├── equipment/  # Equipment (§15-9)
+│   └── layer/      # Layer, Node (§15-6)
 ├── application/    # 状態保持と orchestration (LibGDX 非依存)
 │   ├── GameContext     # ラン 1 回ぶんの可変状態
 │   └── TurnDirector    # TurnEngine / EnemyAi のオーケストレータ
@@ -82,8 +82,8 @@ core/
     ├── screen/     # DddGame, TitleScreen, DungeonScreen, GameOverScreen
     ├── render/     # Fonts, Strings, RenderLayout, DungeonRenderer, HudRenderer
     ├── input/      # PlayerInputs
-    ├── window/     # ポップアップ式 UI (§15-1, §15-8, 未実装)
-    └── effect/     # HP 警告演出、装備テーマ変動 (§7-2, §15-9, 未実装)
+    ├── window/     # ポップアップ式 UI (§15-1, §15-8)
+    └── effect/     # DamagePopup のみ実装 (HP 警告演出・装備テーマ変動は未実装) (§7-2, §15-9)
 ```
 
 **依存方向ルール**:

@@ -82,6 +82,44 @@ public record Stats(
   }
 
   /**
+   * 最大 HP を {@code amount} 引き上げ、現在 HP も同量加算した新 Stats を返す純関数 (§15-8 層末ノード HP 強化用)。
+   *
+   * <p>「上限上昇分が即座に空きスロットを埋める」恒常強化の体験を表現する。引数順ミスをコンパイラが防げるよう、 呼出側の手組み {@code new Stats(...)} を置き換える。
+   */
+  public Stats withMaxHpRaised(int amount) {
+    if (amount < 0) {
+      throw new IllegalArgumentException("amount must be non-negative: " + amount);
+    }
+    return new Stats(
+        currentHp + amount,
+        maxHp + amount,
+        speed,
+        physicalAttack,
+        magicalAttack,
+        physicalDefense,
+        magicalDefense);
+  }
+
+  /**
+   * 速度を {@code amount} 引き上げた新 Stats を返す純関数 (§15-8 層末ノード 速度強化用)。
+   *
+   * <p>速度 = 1 ターンの最大 AP (§15-4)。引数順ミスをコンパイラが防げるよう、呼出側の手組み {@code new Stats(...)} を置き換える。
+   */
+  public Stats withSpeedRaised(int amount) {
+    if (amount < 0) {
+      throw new IllegalArgumentException("amount must be non-negative: " + amount);
+    }
+    return new Stats(
+        currentHp,
+        maxHp,
+        speed + amount,
+        physicalAttack,
+        magicalAttack,
+        physicalDefense,
+        magicalDefense);
+  }
+
+  /**
    * 装備 / Buff の {@link StatsBonus} を加算した新 Stats を返す純関数 (§15-4 / ADR-25)。
    *
    * <p>{@code maxHp} は最低 1 を保証 (装備の負補正で 0 以下にならない)。{@code currentHp} は新 maxHp でクランプ (max

@@ -17,8 +17,8 @@ import java.util.Objects;
  * <p>本 PR では「最終層クリア」概念がない段階の最小スコープとして、固定 3 提示 (HP 上限 +5 / 速度 +1 / HP 全回復) のみ実装する。 §15-8 仕様の「4 種
  * (ステ強化 / 休憩 / イベント / ショップ) から 3 提示 → 1 選択」のフル抽選ロジックは M2 送り (Event / Shop は未実装)。
  *
- * <p>各実装は純関数 {@link #apply(Player)} で新 Player を返す (副作用分離)。{@link Stats} 自体は with* メソッドを持たないため
- * (YAGNI)、 本 record 内で {@code new Stats(...)} を組み立てて up cast する。
+ * <p>各実装は純関数 {@link #apply(Player)} で新 Player を返す (副作用分離)。ステ強化は {@link Stats} の不変ヘルパ ({@code
+ * withMaxHpRaised} / {@code withSpeedRaised} / {@code healed}) に委譲し、引数順ミスをコンパイラで防ぐ。
  *
  * <p>{@link #displayName()} はノード選択 UI (NodeChoicePopup) で表示する短い和文。i18n 対応は Plan Part 2 C-3 を反映する形で
  * M2 に持ち越す (ドメイン層に表示文字列を置く負債は意図的)。
@@ -50,17 +50,7 @@ public sealed interface LayerEndNode
 
     @Override
     public Player apply(Player player) {
-      Stats s = player.stats();
-      Stats upgraded =
-          new Stats(
-              s.currentHp() + amount,
-              s.maxHp() + amount,
-              s.speed(),
-              s.physicalAttack(),
-              s.magicalAttack(),
-              s.physicalDefense(),
-              s.magicalDefense());
-      return player.withStats(upgraded);
+      return player.withStats(player.stats().withMaxHpRaised(amount));
     }
 
     @Override
@@ -83,17 +73,7 @@ public sealed interface LayerEndNode
 
     @Override
     public Player apply(Player player) {
-      Stats s = player.stats();
-      Stats upgraded =
-          new Stats(
-              s.currentHp(),
-              s.maxHp(),
-              s.speed() + amount,
-              s.physicalAttack(),
-              s.magicalAttack(),
-              s.physicalDefense(),
-              s.magicalDefense());
-      return player.withStats(upgraded);
+      return player.withStats(player.stats().withSpeedRaised(amount));
     }
 
     @Override

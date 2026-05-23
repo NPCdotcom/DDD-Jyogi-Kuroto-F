@@ -18,11 +18,12 @@ import java.util.function.Function;
  * <p>構成: 23 ノード (中央 root + 6 ステ軸 Lv1 + 6 ステ軸 Lv2 + 派生軸 1 カード獲得 5 ノード + 派生軸 2 枠拡張 5 ノード)。 段階的開示
  * ({@link #isVisible}): 前提ノードを解放すると次のノードが画面に現れる。
  *
- * <p>ノードコスト (§15-7 仕様):
+ * <p>ノードコスト ({@link #buildAllNodes()} の実装値と同期):
  *
  * <ul>
  *   <li>root: 0 (初期解放、入口)
- *   <li>HP +5: 20、速度 +1: 35、物攻 +1: 25、魔攻 +1: 25、物防 +1: 20、魔防 +1: 20
+ *   <li>Lv1 ステ軸: HP +5: 6、速度 +1: 22、物攻 +1: 5、魔攻 +1: 5、物防 +1: 4、魔防 +1: 4
+ *   <li>Lv2 ステ軸: HP +10: 14、速度 +2: 30、物攻 +2: 12、魔攻 +2: 12、物防 +2: 10、魔防 +2: 10
  *   <li>カード獲得: 30〜50
  *   <li>枠拡張: 40
  * </ul>
@@ -73,9 +74,9 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
     nodes.put(ROOT, new TreeNode(ROOT, "中央", 0, NodeEffect.None.INSTANCE, Set.of()));
 
     // 6 ステ軸 (root から放射状、§15-7 のメイン軸)
-    // §15-7 仕様値 (ADR-30 で修正): HP+5 = 6 / 速度+1 = 35 / 物攻+1 = 5 / 魔攻+1 = 5 /
+    // §15-7 仕様値 (ADR-30 で修正): HP+5 = 6 / 速度+1 = 22 / 物攻+1 = 5 / 魔攻+1 = 5 /
     // 物防+1 = 4 / 魔防+1 = 4 ソウル。雑魚撃破 Soul 1 (ADR-30) と組み合わせて 1 ラン 10〜15 ソウル
-    // で 1〜2 ノード解放できるバランスを目指す。
+    // で 1〜2 ノード解放できるバランスを目指す。速度は最強ステのため他軸より高コスト。
     nodes.put(
         NodeId.of("hp_up_1"),
         new TreeNode(
@@ -89,7 +90,7 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
         new TreeNode(
             NodeId.of("speed_up_1"),
             "速度 +1",
-            35,
+            22,
             new NodeEffect.StatsBonusEffect(new StatsBonus(0, 1, 0, 0, 0, 0)),
             Set.of(ROOT)));
     nodes.put(
@@ -222,9 +223,9 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
         NodeId.of("speed_up_2"),
         new TreeNode(
             NodeId.of("speed_up_2"),
-            "速度 +1",
-            60,
-            new NodeEffect.StatsBonusEffect(new StatsBonus(0, 1, 0, 0, 0, 0)),
+            "速度 +2",
+            30,
+            new NodeEffect.StatsBonusEffect(new StatsBonus(0, 2, 0, 0, 0, 0)),
             Set.of(NodeId.of("speed_up_1"))));
     nodes.put(
         NodeId.of("phys_atk_up_2"),

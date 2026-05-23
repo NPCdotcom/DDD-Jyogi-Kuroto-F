@@ -2,6 +2,7 @@ package core.domain.equipment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
@@ -65,5 +66,13 @@ class StatsBonusTest {
     StatsBonus curse = new StatsBonus(-5, -1, -1, 0, 0, 0);
     assertEquals(-5, curse.maxHp());
     assertEquals(-1, curse.speed());
+  }
+
+  // Phase 1 回帰: plus(null) で NPE (メッセージ "other" 付き) を投げる
+  @Test
+  void plusNullThrowsNullPointerExceptionWithMessage() {
+    StatsBonus a = new StatsBonus(1, 1, 1, 1, 1, 1);
+    NullPointerException ex = assertThrows(NullPointerException.class, () -> a.plus(null));
+    assertEquals("other", ex.getMessage(), "Objects.requireNonNull の引数名がメッセージに現れる");
   }
 }

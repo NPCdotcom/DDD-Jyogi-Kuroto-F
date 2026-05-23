@@ -387,8 +387,7 @@ public final class SoulTreeScreen extends ScreenAdapter {
       }
     }
     if (Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
-      dispose(); // setScreen は旧 Screen を dispose しないため明示的に解放 (LibGDX 規約)
-      game.setScreen(new TitleScreen(game));
+      game.changeScreen(new TitleScreen(game));
       return;
     }
     if (Gdx.input.isKeyJustPressed(Keys.R)) {

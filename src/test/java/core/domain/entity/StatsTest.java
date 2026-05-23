@@ -166,4 +166,98 @@ class StatsTest {
     Stats base = new Stats(5, 10, 2, 1, 1, 0, 0);
     assertThrows(NullPointerException.class, () -> base.plus(null));
   }
+
+  // ---------------- withMaxHpRaised (§15-8 層末ノード HP 強化用) ----------------
+
+  @Test
+  void withMaxHpRaisedIncreasesMaxHpAndCurrentHpByAmount() {
+    // §15-8: 上限上昇分が即座に空きスロットを埋める体験
+    Stats s = new Stats(5, 10, 2, 0, 0, 0, 0);
+    Stats raised = s.withMaxHpRaised(5);
+    assertEquals(15, raised.maxHp(), "maxHp が amount 分増加する");
+    assertEquals(10, raised.currentHp(), "currentHp も amount 分増加する");
+  }
+
+  @Test
+  void withMaxHpRaisedByZeroIsIdentity() {
+    Stats s = new Stats(5, 10, 2, 0, 0, 0, 0);
+    Stats unchanged = s.withMaxHpRaised(0);
+    assertEquals(10, unchanged.maxHp());
+    assertEquals(5, unchanged.currentHp());
+  }
+
+  @Test
+  void withMaxHpRaisedPreservesOtherFields() {
+    Stats s = new Stats(5, 10, 3, 7, 6, 5, 4);
+    Stats raised = s.withMaxHpRaised(3);
+    assertEquals(3, raised.speed());
+    assertEquals(7, raised.physicalAttack());
+    assertEquals(6, raised.magicalAttack());
+    assertEquals(5, raised.physicalDefense());
+    assertEquals(4, raised.magicalDefense());
+  }
+
+  @Test
+  void withMaxHpRaisedReturnsNewInstanceLeavingOriginalIntact() {
+    Stats original = new Stats(5, 10, 2, 0, 0, 0, 0);
+    Stats raised = original.withMaxHpRaised(10);
+    assertEquals(10, original.maxHp(), "元 Stats は変化しない");
+    assertEquals(5, original.currentHp(), "元 currentHp は変化しない");
+    assertEquals(20, raised.maxHp());
+    assertEquals(15, raised.currentHp());
+  }
+
+  @Test
+  void withMaxHpRaisedNegativeAmountRejected() {
+    Stats s = new Stats(5, 10, 2, 0, 0, 0, 0);
+    assertThrows(IllegalArgumentException.class, () -> s.withMaxHpRaised(-1));
+  }
+
+  // ---------------- withSpeedRaised (§15-8 層末ノード速度強化用) ----------------
+
+  @Test
+  void withSpeedRaisedIncreasesSpeedByAmount() {
+    // §15-8: 速度 = 1 ターンの最大 AP (§15-4)
+    Stats s = new Stats(5, 10, 3, 0, 0, 0, 0);
+    Stats raised = s.withSpeedRaised(2);
+    assertEquals(5, raised.speed(), "speed が amount 分増加する");
+  }
+
+  @Test
+  void withSpeedRaisedByZeroIsIdentity() {
+    Stats s = new Stats(5, 10, 3, 0, 0, 0, 0);
+    assertEquals(3, s.withSpeedRaised(0).speed());
+  }
+
+  @Test
+  void withSpeedRaisedDoesNotChangeHpFields() {
+    Stats s = new Stats(5, 10, 3, 0, 0, 0, 0);
+    Stats raised = s.withSpeedRaised(1);
+    assertEquals(5, raised.currentHp(), "currentHp は変化しない");
+    assertEquals(10, raised.maxHp(), "maxHp は変化しない");
+  }
+
+  @Test
+  void withSpeedRaisedPreservesAttackAndDefenseFields() {
+    Stats s = new Stats(5, 10, 3, 7, 6, 5, 4);
+    Stats raised = s.withSpeedRaised(1);
+    assertEquals(7, raised.physicalAttack());
+    assertEquals(6, raised.magicalAttack());
+    assertEquals(5, raised.physicalDefense());
+    assertEquals(4, raised.magicalDefense());
+  }
+
+  @Test
+  void withSpeedRaisedReturnsNewInstanceLeavingOriginalIntact() {
+    Stats original = new Stats(5, 10, 3, 0, 0, 0, 0);
+    Stats raised = original.withSpeedRaised(2);
+    assertEquals(3, original.speed(), "元 Stats は変化しない");
+    assertEquals(5, raised.speed());
+  }
+
+  @Test
+  void withSpeedRaisedNegativeAmountRejected() {
+    Stats s = new Stats(5, 10, 3, 0, 0, 0, 0);
+    assertThrows(IllegalArgumentException.class, () -> s.withSpeedRaised(-1));
+  }
 }

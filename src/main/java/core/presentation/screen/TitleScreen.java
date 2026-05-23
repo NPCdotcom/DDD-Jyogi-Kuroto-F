@@ -10,6 +10,8 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import core.infrastructure.audio.BgmKind;
+import core.infrastructure.audio.SeKind;
 import core.presentation.render.Fonts;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
@@ -35,6 +37,8 @@ public final class TitleScreen extends ScreenAdapter {
     camera = new OrthographicCamera();
     viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
     batch = new SpriteBatch();
+    // §15-5: タイトル BGM を再生 (既に再生中なら no-op)
+    game.soundManager().playBgm(BgmKind.TITLE);
     // §15-10 / E-10: 初回のみチュートリアル overlay を表示
     if (!game.isTutorialSeen()) {
       boolean jp = game.fonts().isJapaneseAvailable();
@@ -82,6 +86,16 @@ public final class TitleScreen extends ScreenAdapter {
         RenderLayout.START_HINT_X,
         RenderLayout.START_HINT_Y);
 
+    // §15-11: セーブデータが存在するときのみ「つづきから」を表示
+    if (game.saveManager().exists()) {
+      large.setColor(0.6f, 0.95f, 0.6f, 1f);
+      large.draw(
+          batch,
+          jp ? Strings.Ja.CONTINUE_HINT : Strings.En.CONTINUE_HINT,
+          RenderLayout.START_HINT_X,
+          RenderLayout.START_HINT_Y - RenderLayout.LARGE_LINE_HEIGHT);
+    }
+
     // §15-7 / E-2: ソウルツリーへの動線。1 周目 (runCount 0) は非表示、
     // 1 周目終了後に解禁する。所持ソウルも表示して解放可能性を示す。
     if (game.runCount() >= 1) {
@@ -103,6 +117,14 @@ public final class TitleScreen extends ScreenAdapter {
             + (jp ? Strings.Ja.TITLE_OPEN_EQUIP_HINT : Strings.En.TITLE_OPEN_EQUIP_HINT),
         RenderLayout.START_HINT_X,
         RenderLayout.TITLE_OPEN_TREE_HINT_Y - RenderLayout.LARGE_LINE_HEIGHT);
+
+    // §15-1 / §15-8: 設定画面への動線 (常時アクセス可)。
+    large.setColor(0.75f, 0.75f, 0.75f, 1f);
+    large.draw(
+        batch,
+        jp ? Strings.Ja.TITLE_OPEN_SETTINGS_HINT : Strings.En.TITLE_OPEN_SETTINGS_HINT,
+        RenderLayout.START_HINT_X,
+        RenderLayout.TITLE_OPEN_TREE_HINT_Y - RenderLayout.LARGE_LINE_HEIGHT * 2);
 
     large.setColor(Color.GRAY);
     large.draw(
@@ -147,17 +169,32 @@ public final class TitleScreen extends ScreenAdapter {
     if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
       // §15-7 / E-2: ラン開始の瞬間にここで startNewRun() を呼ぶ (ソウル消失バグの根治)。
       // ラン外で貯めた playerSoul はこの時点で Player に注入される。
+      game.soundManager().playSe(SeKind.BUTTON);
       game.startNewRun();
-      game.setScreen(new DungeonScreen(game));
+      game.changeScreen(new DungeonScreen(game));
+    } else if (Gdx.input.isKeyJustPressed(Keys.L) && game.saveManager().exists()) {
+      // §15-11: セーブデータが存在するときのみ「つづきから」でロード
+      boolean loaded = game.loadFromSave();
+      if (loaded) {
+        game.soundManager().playSe(SeKind.BUTTON);
+        game.changeScreen(new DungeonScreen(game));
+      }
     } else if (Gdx.input.isKeyJustPressed(Keys.T) && game.runCount() >= 1) {
       // 1 周目 (runCount 0) はソウルツリー非アクセス、1 周目終了後に解禁。
-      game.setScreen(new SoulTreeScreen(game));
+      game.soundManager().playSe(SeKind.BUTTON);
+      game.changeScreen(new SoulTreeScreen(game));
     } else if (Gdx.input.isKeyJustPressed(Keys.C)) {
       // §15-3: カード図鑑はいつでもアクセス可。
-      game.setScreen(new CardCollectionScreen(game));
+      game.soundManager().playSe(SeKind.BUTTON);
+      game.changeScreen(new CardCollectionScreen(game));
     } else if (Gdx.input.isKeyJustPressed(Keys.E)) {
       // §15-9: 装備変更はいつでもアクセス可。
-      game.setScreen(new EquipmentScreen(game));
+      game.soundManager().playSe(SeKind.BUTTON);
+      game.changeScreen(new EquipmentScreen(game));
+    } else if (Gdx.input.isKeyJustPressed(Keys.S)) {
+      // §15-1 / §15-8: 設定画面はいつでもアクセス可。
+      game.soundManager().playSe(SeKind.BUTTON);
+      game.changeScreen(new SettingsScreen(game));
     }
   }
 

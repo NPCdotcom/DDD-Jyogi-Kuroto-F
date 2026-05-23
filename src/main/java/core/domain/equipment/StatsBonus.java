@@ -1,5 +1,7 @@
 package core.domain.equipment;
 
+import java.util.Objects;
+
 /**
  * ステ補正の差分値 (§15-9 / ADR-25)。装備の {@code statsBonus} と Buff 合算結果を表現する共通型。
  *
@@ -25,6 +27,7 @@ public record StatsBonus(
 
   /** 別の {@link StatsBonus} を加算した新インスタンスを返す純関数。 */
   public StatsBonus plus(StatsBonus other) {
+    Objects.requireNonNull(other, "other");
     return new StatsBonus(
         maxHp + other.maxHp,
         speed + other.speed,

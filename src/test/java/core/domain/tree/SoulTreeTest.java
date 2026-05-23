@@ -282,4 +282,57 @@ class SoulTreeTest {
   void isVisibleFalseForUnknownNode() {
     assertFalse(SoulTree.empty().isVisible(NodeId.of("no_such_node")), "未定義 ID は不可視");
   }
+
+  // ---------------- Phase 1 回帰: speed_up_1 / speed_up_2 コスト確認 ----------------
+
+  @Test
+  void speedUp1HasCost22() {
+    // §15-7 ADR-30: speed_up_1 のコストは 22 ソウル
+    TreeNode node = SoulTree.allNodes().get(NodeId.of("speed_up_1"));
+    assertEquals(22, node.soulCost(), "speed_up_1 のコストは 22");
+  }
+
+  @Test
+  void speedUp1CannotBeUnlockedWith21Soul() {
+    // §15-7: 21 ソウルでは speed_up_1 (コスト 22) を解放できない
+    SoulTree tree = SoulTree.empty();
+    assertThrows(
+        IllegalStateException.class, () -> tree.unlock(NodeId.of("speed_up_1"), new Soul(21)));
+  }
+
+  @Test
+  void speedUp1CanBeUnlockedWith22Soul() {
+    // §15-7: ちょうど 22 ソウルで解放可能 (境界値)
+    SoulTree tree = SoulTree.empty();
+    SoulTree.UnlockResult result = tree.unlock(NodeId.of("speed_up_1"), new Soul(22));
+    assertTrue(result.newTree().unlockedNodes().contains(NodeId.of("speed_up_1")));
+    assertEquals(22, result.newTree().totalSpentSoul());
+    assertEquals(0, result.newSoul().amount(), "22 - 22 = 0 ソウル残");
+  }
+
+  @Test
+  void speedUp2HasCost30AndSpeedEffect2() {
+    // §15-7 ADR-30: speed_up_2 のコストは 30 ソウル、効果は速度 +2
+    TreeNode node = SoulTree.allNodes().get(NodeId.of("speed_up_2"));
+    assertEquals(30, node.soulCost(), "speed_up_2 のコストは 30");
+    // NodeEffect.StatsBonusEffect の speed フィールドが 2 であることを applyTo で検証
+    Player base = DomainFixtures.playerAt(new Position(1, 1));
+    int baseSpeed = base.stats().speed();
+    SoulTree tree = SoulTree.empty();
+    tree = tree.unlock(NodeId.of("speed_up_1"), new Soul(100)).newTree();
+    tree = tree.unlock(NodeId.of("speed_up_2"), new Soul(100)).newTree();
+    Player applied = tree.applyTo(base, DUMMY_RESOLVER);
+    assertEquals(
+        baseSpeed + 1 + 2, applied.stats().speed(), "speed_up_1(+1) + speed_up_2(+2) = +3 合計");
+  }
+
+  @Test
+  void speedUp2CannotBeUnlockedWith29Soul() {
+    // §15-7: 29 ソウルでは speed_up_2 (コスト 30) を解放できない
+    SoulTree tree = SoulTree.empty();
+    tree = tree.unlock(NodeId.of("speed_up_1"), new Soul(100)).newTree();
+    final SoulTree finalTree = tree;
+    assertThrows(
+        IllegalStateException.class, () -> finalTree.unlock(NodeId.of("speed_up_2"), new Soul(29)));
+  }
 }

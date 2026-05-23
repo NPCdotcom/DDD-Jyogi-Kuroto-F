@@ -13,9 +13,11 @@ import core.domain.dungeon.PlacedTrap;
 import core.domain.dungeon.Tile;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
+import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
 import core.domain.entity.PlayerStatuses;
 import core.domain.entity.Stats;
+import core.domain.meta.Gold;
 import core.domain.meta.Soul;
 import core.domain.skill.Skill;
 import core.domain.skill.SkillEffect;
@@ -510,14 +512,11 @@ public final class TurnEngine {
       int goldReward = target.kind().goldReward();
       // §15-2: 撃破時に Soul + Gold を加算 (敵種ごとのレート)。
       Player rewardedPlayer =
-          state
-              .player()
-              .addSoul(new Soul(soulReward))
-              .addGold(new core.domain.meta.Gold(goldReward));
+          state.player().addSoul(new Soul(soulReward)).addGold(new Gold(goldReward));
       events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), soulReward));
       events.add(new BattleEvent.GoldGained(rewardedPlayer.id(), goldReward));
       // §15-3 / §15-6: 強化個体撃破時にプレゼン層でカード追加 UI を発火するためのトリガ。
-      if (target.kind() == core.domain.entity.EnemyKind.ELITE_SLIME) {
+      if (target.kind() == EnemyKind.ELITE_SLIME) {
         events.add(new BattleEvent.EliteDefeated(target.id()));
       }
       DungeonState ns = state.withEnemyRemoved(target.id()).withPlayer(rewardedPlayer);
@@ -525,7 +524,7 @@ public final class TurnEngine {
       // (敵 1 体撃破で即クリアになるのを避けるため)。
       // §15-6 例外: ボス撃破 = ラン勝利 (RUN_CLEARED)。ボスは最終層・最終部屋にのみ配置され、
       // そのフロアに階段は無いため、ボス撃破が唯一の進行手段となる。
-      if (target.kind() == core.domain.entity.EnemyKind.BOSS) {
+      if (target.kind() == EnemyKind.BOSS) {
         ns = ns.withPhase(TurnPhase.RUN_CLEARED);
         events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.RUN_CLEARED));
       }
@@ -625,18 +624,16 @@ public final class TurnEngine {
         int goldReward = victimEnemy.kind().goldReward();
         // §15-2: 罠撃破でも通常撃破と同じレートで Soul + Gold を加算。
         Player rewardedPlayer =
-            ns.player()
-                .addSoul(new Soul(soulReward))
-                .addGold(new core.domain.meta.Gold(goldReward));
+            ns.player().addSoul(new Soul(soulReward)).addGold(new Gold(goldReward));
         events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), soulReward));
         events.add(new BattleEvent.GoldGained(rewardedPlayer.id(), goldReward));
         // §15-3 / §15-6: Elite が罠で死亡した場合もカード追加 UI を発火。
-        if (victimEnemy.kind() == core.domain.entity.EnemyKind.ELITE_SLIME) {
+        if (victimEnemy.kind() == EnemyKind.ELITE_SLIME) {
           events.add(new BattleEvent.EliteDefeated(victimId));
         }
         ns = ns.withEnemyRemoved(victimId).withPlayer(rewardedPlayer);
         // §15-6 例外: 罠でボスを倒した場合もラン勝利 (resolveDamageToEnemy と同じ扱い)。
-        if (victimEnemy.kind() == core.domain.entity.EnemyKind.BOSS) {
+        if (victimEnemy.kind() == EnemyKind.BOSS) {
           ns = ns.withPhase(TurnPhase.RUN_CLEARED);
           events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.RUN_CLEARED));
         }

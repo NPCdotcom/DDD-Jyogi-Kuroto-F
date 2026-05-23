@@ -18,10 +18,6 @@ class InitialStateFactoryEliteTest {
     return state.enemies().stream().filter(e -> e.kind() == EnemyKind.ELITE_SLIME).count();
   }
 
-  private static long slimeCount(DungeonState state) {
-    return state.enemies().stream().filter(e -> e.kind() == EnemyKind.SLIME).count();
-  }
-
   /** 層 2 の DungeonState。firstFloor → advanceLayer。 */
   private static DungeonState layer2() {
     DungeonState layer1 = InitialStateFactory.firstFloor(new Random(42));
@@ -38,7 +34,8 @@ class InitialStateFactoryEliteTest {
     // §15-3 / §15-6: 層 2 に Elite 1 体 + 雑魚 5 体 (enemyCountFor(2)=6)。撃破でカード追加 UI が発火する。
     DungeonState layer2 = layer2();
     assertEquals(1, eliteCount(layer2), "層 2 に Elite 1 体出現");
-    assertEquals(5, slimeCount(layer2), "残りは雑魚スライム 5 体");
+    // §15-5 敵バリエーション以降、雑魚枠は通常/素早い/頑強が混在する。Elite を除いた残り 5 体を雑魚枠として検証。
+    assertEquals(5, layer2.enemies().size() - eliteCount(layer2), "Elite を除く雑魚枠は 5 体");
     assertEquals(6, layer2.enemies().size(), "総敵数は 6 (雑魚 5 + Elite 1)");
   }
 

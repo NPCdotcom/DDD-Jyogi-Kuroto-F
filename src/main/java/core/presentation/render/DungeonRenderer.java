@@ -23,6 +23,8 @@ public final class DungeonRenderer {
   private static final Color STAIRS_COLOR = new Color(0.85f, 0.75f, 0.25f, 1f);
   private static final Color PLAYER_COLOR = new Color(0.30f, 0.65f, 1.00f, 1f);
   private static final Color ENEMY_COLOR = new Color(0.40f, 0.85f, 0.40f, 1f);
+  private static final Color SWIFT_COLOR = new Color(0.40f, 0.85f, 0.80f, 1f);
+  private static final Color TOUGH_COLOR = new Color(0.45f, 0.55f, 0.62f, 1f);
   private static final Color ELITE_COLOR = new Color(0.85f, 0.55f, 0.20f, 1f);
   private static final Color BOSS_COLOR = new Color(0.85f, 0.25f, 0.30f, 1f);
   private static final Color TRAP_PHYSICAL_COLOR = new Color(0.95f, 0.55f, 0.15f, 1f);
@@ -65,18 +67,22 @@ public final class DungeonRenderer {
 
   private static void drawEnemies(ShapeRenderer shapes, DungeonState state) {
     for (Enemy e : state.enemies()) {
-      // §15-6 視認性: ボスは赤・大きめ、強化個体は橙・中、雑魚は緑・小で描き分ける。
+      // §15-6 / §15-5 視認性: ボス=赤大 / 頑強=灰 / 強化個体=橙 / 雑魚=緑 / 素早い=水色小 で描き分ける。
       int inset =
           switch (e.kind()) {
             case BOSS -> 1;
+            case TOUGH_SLIME -> 2;
             case ELITE_SLIME -> 3;
             case SLIME -> 4;
+            case SWIFT_SLIME -> 5;
           };
       shapes.setColor(
           switch (e.kind()) {
             case BOSS -> BOSS_COLOR;
             case ELITE_SLIME -> ELITE_COLOR;
             case SLIME -> ENEMY_COLOR;
+            case SWIFT_SLIME -> SWIFT_COLOR;
+            case TOUGH_SLIME -> TOUGH_COLOR;
           });
       int sx = RenderLayout.MAP_ORIGIN_X + e.position().x() * RenderLayout.TILE_SIZE + inset;
       int sy = RenderLayout.MAP_ORIGIN_Y + e.position().y() * RenderLayout.TILE_SIZE + inset;

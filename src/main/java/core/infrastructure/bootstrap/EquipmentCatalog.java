@@ -84,8 +84,11 @@ public final class EquipmentCatalog {
             sb.get("physicalDefense").asInt(),
             sb.get("magicalDefense").asInt());
     List<CardId> granted = new ArrayList<>();
-    for (JsonNode c : n.get("grantedCards")) {
-      granted.add(CardId.of(c.asText()));
+    JsonNode grantedCardsNode = n.get("grantedCards");
+    if (grantedCardsNode != null && grantedCardsNode.isArray()) {
+      for (JsonNode c : grantedCardsNode) {
+        granted.add(CardId.of(c.asText()));
+      }
     }
     return new Equipment(
         EquipmentId.of(text(n, "id")),

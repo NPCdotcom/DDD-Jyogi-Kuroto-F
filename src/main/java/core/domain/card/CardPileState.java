@@ -12,8 +12,8 @@ import java.util.Random;
  */
 public record CardPileState(DrawPile drawPile, Hand hand, DiscardPile discardPile) {
 
-  /** 手札の最大枚数 (Hand.MAX_SIZE と一致させる、§15-3)。 */
-  public static final int MAX_HAND_SIZE = 9;
+  /** 手札の最大枚数。{@link Hand#MAX_SIZE} を単一ソースとして参照する (二重定義の解消、§15-3)。 */
+  public static final int MAX_HAND_SIZE = Hand.MAX_SIZE;
 
   /** 小規模デッキ時の初期ドロー上限 (デッキ <= 5 枚なら最大 3 枚)。 */
   public static final int INITIAL_DRAW_CAP = 3;
@@ -30,7 +30,7 @@ public record CardPileState(DrawPile drawPile, Hand hand, DiscardPile discardPil
   /**
    * 空の状態 (山札 / 手札 / 捨て札すべて空) を返す。
    *
-   * <p>Player record 初期化時のプレースホルダや、テスト fixture で使う (ADR-18)。 戦闘開始時に Deck からシャッフルして山札を構築する手前の状態。
+   * <p>Player record 初期化時のプレースホルダや、テスト fixture で使う (ADR-18)。 戦闘開始時に持ち込みカードをシャッフルして山札を構築する手前の状態。
    */
   public static CardPileState empty() {
     return new CardPileState(DrawPile.empty(), Hand.empty(), DiscardPile.empty());

@@ -131,4 +131,13 @@ AP を使い切ると自動でターン終了。階段 `>` に到達すると CL
 
 ## ライセンス
 
-提出時に決定。
+### コード本体
+
+**TBD (チーム決定)** — ハッカソン提出時にチームで確定する。
+
+### 同梱素材
+
+- **DotGothic16** (`assets/fonts/DotGothic16-Regular.ttf`): SIL Open Font License 1.1 / © Fontworks Inc.
+  ライセンス原文は [LICENSES/DotGothic16_OFL.txt](LICENSES/DotGothic16_OFL.txt) に同梱。
+
+取り込み済み非自作素材の一覧と出典・改変履歴は [LICENSES/INDEX.md](LICENSES/INDEX.md) を参照。

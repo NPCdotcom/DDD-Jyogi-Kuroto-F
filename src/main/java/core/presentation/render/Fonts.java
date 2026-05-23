@@ -87,13 +87,22 @@ public final class Fonts implements Disposable {
   private final FreeTypeFontGenerator generator;
   private final boolean japaneseAvailable;
 
+  /** {@link #generate(int)} が生成する PixmapPacker を保持する (dispose 対象)。 */
+  private PixmapPacker hudPacker;
+
+  private PixmapPacker largePacker;
+  private PixmapPacker titlePacker;
+
   public Fonts() {
     FileHandle jp = Gdx.files.internal(JP_FONT_PATH);
     if (jp.exists()) {
       generator = new FreeTypeFontGenerator(jp);
-      hud = generate(HUD_SIZE);
-      large = generate(LARGE_SIZE);
-      title = generate(TITLE_SIZE);
+      hudPacker = new PixmapPacker(2048, 2048, Pixmap.Format.RGBA8888, 2, false);
+      largePacker = new PixmapPacker(2048, 2048, Pixmap.Format.RGBA8888, 2, false);
+      titlePacker = new PixmapPacker(2048, 2048, Pixmap.Format.RGBA8888, 2, false);
+      hud = generate(HUD_SIZE, hudPacker);
+      large = generate(LARGE_SIZE, largePacker);
+      title = generate(TITLE_SIZE, titlePacker);
       japaneseAvailable = true;
     } else {
       generator = null;
@@ -112,7 +121,7 @@ public final class Fonts implements Disposable {
     }
   }
 
-  private BitmapFont generate(int size) {
+  private BitmapFont generate(int size, PixmapPacker packer) {
     FreeTypeFontParameter param = new FreeTypeFontParameter();
     param.size = size;
     // JDK 25 + LibGDX 1.14 互換: incremental グリフ生成は層遷移時 (NodeChoicePopup 生成) に
@@ -127,7 +136,8 @@ public final class Fonts implements Disposable {
     // §UI: Scene2D Label のページ切替バグを回避するため、PixmapPacker を 2048×2048 で明示し
     // 全グリフを 1 texture page に収める。デフォルト packer (512×512) では 16px × 500+ 文字で
     // 複数 page に分割され、 Scene2D Window 内の Label 描画でアトラス参照が破綻する (黒四角化)。
-    param.packer = new PixmapPacker(2048, 2048, Pixmap.Format.RGBA8888, 2, false);
+    // packer はフィールドに保持し dispose() で解放する (VRAM リーク防止)。
+    param.packer = packer;
     BitmapFont font = generator.generateFont(param);
     Gdx.app.log("Fonts", "generated size=" + size + " pages=" + font.getRegions().size);
     return font;
@@ -243,6 +253,15 @@ public final class Fonts implements Disposable {
     title.dispose();
     if (generator != null) {
       generator.dispose();
+    }
+    if (hudPacker != null) {
+      hudPacker.dispose();
+    }
+    if (largePacker != null) {
+      largePacker.dispose();
+    }
+    if (titlePacker != null) {
+      titlePacker.dispose();
     }
   }
 }

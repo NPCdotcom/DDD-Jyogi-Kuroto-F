@@ -1,5 +1,7 @@
 package core.presentation.render;
 
+import core.infrastructure.save.UiPreset;
+
 /**
  * 画面レイアウトの座標定数。マップ・HUD・ログ領域の配置を 1 か所にまとめる。
  *
@@ -11,6 +13,34 @@ package core.presentation.render;
 public final class RenderLayout {
 
   private RenderLayout() {}
+
+  // =========================================================================
+  // §15-1 / §15-8 UI プリセット参照ヘルパー
+  // =========================================================================
+
+  /**
+   * 指定プリセットで HP / AP 以外の HUD 行 (Soul / Phase / Gold) を表示すべきかを返す。
+   *
+   * <p>MINIMAL では非表示、STANDARD / INFO_RICH では表示する。
+   *
+   * @param preset 現在の UI プリセット
+   * @return true なら Soul / Phase / Gold を描画する
+   */
+  public static boolean showExtendedHud(UiPreset preset) {
+    return preset != UiPreset.MINIMAL;
+  }
+
+  /**
+   * 指定プリセットで操作ヒント行を常時表示すべきかを返す。
+   *
+   * <p>INFO_RICH のみ常時表示。MINIMAL / STANDARD はゲーム内状態に応じた動的表示に委ねる。
+   *
+   * @param preset 現在の UI プリセット
+   * @return true なら操作ヒントを常時描画する
+   */
+  public static boolean showPersistentHint(UiPreset preset) {
+    return preset == UiPreset.INFO_RICH;
+  }
 
   public static final int SCREEN_WIDTH = 1920;
   public static final int SCREEN_HEIGHT = 1080;
@@ -142,6 +172,44 @@ public final class RenderLayout {
 
   /** コントロール行間隔 (px)。 large フォント前提。 */
   public static final int CONTROLS_LINE_HEIGHT = LARGE_LINE_HEIGHT;
+
+  // --- SettingsScreen / FirstRunPresetScreen 用 ---
+
+  /** 設定画面タイトルの X 座標。 */
+  public static final int SETTINGS_TITLE_X = 820;
+
+  /** 設定画面タイトルの Y 座標。 */
+  public static final int SETTINGS_TITLE_Y = (int) (SCREEN_HEIGHT * 0.85f);
+
+  /** 設定項目の X 座標 (ラベル)。 */
+  public static final int SETTINGS_LABEL_X = 560;
+
+  /** 設定項目の X 座標 (値)。 */
+  public static final int SETTINGS_VALUE_X = 960;
+
+  /** 設定項目リスト先頭の Y 座標。 */
+  public static final int SETTINGS_ROW_TOP_Y = (int) (SCREEN_HEIGHT * 0.70f);
+
+  /** 設定項目の行間隔 (px)。 */
+  public static final int SETTINGS_ROW_HEIGHT = LARGE_LINE_HEIGHT + 16;
+
+  /** 設定画面操作ヒントの Y 座標。 */
+  public static final int SETTINGS_HINT_Y = (int) (SCREEN_HEIGHT * 0.12f);
+
+  /** 初回プリセット選択タイトルの X 座標。 */
+  public static final int PRESET_TITLE_X = 560;
+
+  /** 初回プリセット選択タイトルの Y 座標。 */
+  public static final int PRESET_TITLE_Y = (int) (SCREEN_HEIGHT * 0.78f);
+
+  /** 初回プリセット選択肢の X 座標。 */
+  public static final int PRESET_CHOICE_X = 560;
+
+  /** 初回プリセット選択肢の先頭 Y 座標。 */
+  public static final int PRESET_CHOICE_TOP_Y = (int) (SCREEN_HEIGHT * 0.62f);
+
+  /** 初回プリセット選択肢の行間隔 (px)。 */
+  public static final int PRESET_CHOICE_HEIGHT = LARGE_LINE_HEIGHT * 2 + 8;
 
   // --- GameOverScreen 用 ---
 

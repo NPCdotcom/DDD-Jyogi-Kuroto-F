@@ -21,6 +21,8 @@ import core.domain.dungeon.DungeonState;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
 import core.domain.layer.LayerEndNode;
+import core.infrastructure.audio.BgmKind;
+import core.infrastructure.audio.SeKind;
 import core.presentation.effect.DamagePopup;
 import core.presentation.input.PlayerInputs;
 import core.presentation.render.DungeonRenderer;
@@ -69,6 +71,9 @@ public final class DungeonScreen extends ScreenAdapter {
 
   private final DddGame game;
 
+  /** 乱数源 (ADR-19: 引数注入)。カード抽選 / 層末ノード抽選 / Elite 報酬シャッフルに使う。 */
+  private final Random rng;
+
   /** ダメージポップアップ群 (§15-5 / E-8)。BattleEvent.DamageDealt 発火で push、isExpired で除去。 */
   private final List<DamagePopup> popups = new ArrayList<>();
 
@@ -112,6 +117,7 @@ public final class DungeonScreen extends ScreenAdapter {
 
   public DungeonScreen(DddGame game) {
     this.game = game;
+    this.rng = game.runRng();
   }
 
   @Override
@@ -124,6 +130,8 @@ public final class DungeonScreen extends ScreenAdapter {
     shapes = new ShapeRenderer();
     playerInputs = new PlayerInputs();
     statusPopup = new StatusPopup(game.fonts().large(), game.fonts().isJapaneseAvailable());
+    // §15-5: ダンジョン BGM を開始 (既に再生中なら no-op)
+    game.soundManager().playBgm(BgmKind.DUNGEON);
   }
 
   @Override
@@ -272,7 +280,7 @@ public final class DungeonScreen extends ScreenAdapter {
             core.infrastructure.bootstrap.InitialStateFactory.cardCatalog().all().stream()
                 .filter(c -> c.tag() == core.domain.card.CardTag.ATTACK)
                 .toList());
-    Collections.shuffle(allRewards, new Random());
+    Collections.shuffle(allRewards, rng);
     List<LayerEndNode> choices = new ArrayList<>();
     for (int i = 0; i < NodeChoicePopup.CHOICE_COUNT; i++) {
       choices.add(new LayerEndNode.Shop(0, allRewards.get(i)));
@@ -283,10 +291,10 @@ public final class DungeonScreen extends ScreenAdapter {
   }
 
   /** カードマスタ (cards.json) からランダムに 1 枚返す (層末ショップノードのカード抽選用)。 */
-  private static core.domain.card.Card randomCatalogCard() {
+  private core.domain.card.Card randomCatalogCard() {
     List<core.domain.card.Card> all =
         new ArrayList<>(core.infrastructure.bootstrap.InitialStateFactory.cardCatalog().all());
-    Collections.shuffle(all, new Random());
+    Collections.shuffle(all, rng);
     return all.get(0);
   }
 
@@ -311,7 +319,7 @@ public final class DungeonScreen extends ScreenAdapter {
                 new LayerEndNode.Rest(),
                 new LayerEndNode.Shop(5, randomCatalogCard()),
                 new LayerEndNode.Event(30, -5, 0, "ソウルの祠 (ソウル +30 / HP -5)")));
-    Collections.shuffle(allCandidates, new Random());
+    Collections.shuffle(allCandidates, rng);
     List<LayerEndNode> choices =
         List.copyOf(allCandidates.subList(0, NodeChoicePopup.CHOICE_COUNT));
 
@@ -388,10 +396,26 @@ public final class DungeonScreen extends ScreenAdapter {
     }
     int delta = (int) Math.min(current - lastSeenEventCount, 64L);
     List<BattleEvent> newEvents = game.context().latestEvents(delta);
+    ActorId playerId = game.context().state().player().id();
     for (BattleEvent e : newEvents) {
       if (e instanceof BattleEvent.DamageDealt d) {
         spawnPopup(d);
         triggerShake(d);
+        // §15-5: 与ダメ / 被ダメ SE
+        if (d.to().equals(playerId)) {
+          game.soundManager().playSe(SeKind.PLAYER_DAMAGED);
+        } else {
+          game.soundManager().playSe(SeKind.DEAL_DAMAGE);
+        }
+      } else if (e instanceof BattleEvent.ActorDied died && !died.who().equals(playerId)) {
+        // §15-5: 敵撃破 SE (プレイヤー死亡は除外)
+        game.soundManager().playSe(SeKind.ENEMY_DEFEATED);
+      } else if (e instanceof BattleEvent.SkillUsed) {
+        // §15-5: カード使用 SE
+        game.soundManager().playSe(SeKind.CARD_USED);
+      } else if (e instanceof BattleEvent.FloorAdvanced) {
+        // §15-5: 層遷移 SE
+        game.soundManager().playSe(SeKind.FLOOR_ADVANCE);
       } else if (e instanceof BattleEvent.EliteDefeated && eliteCardChoice == null) {
         // §15-3 / §15-6: 強化個体撃破時にカード追加 UI を発火
         eliteCardChoice = createEliteCardChoicePopup();
@@ -529,10 +553,10 @@ public final class DungeonScreen extends ScreenAdapter {
   private void transitionIfGameOver() {
     TurnPhase phase = game.context().state().phase();
     if (phase == TurnPhase.GAME_OVER) {
-      game.setScreen(new GameOverScreen(game, false));
+      game.changeScreen(new GameOverScreen(game, false));
     } else if (phase == TurnPhase.RUN_CLEARED) {
       // §15-6: 最終層ボス撃破 = ラン勝利。クリア表示の GameOverScreen へ。
-      game.setScreen(new GameOverScreen(game, true));
+      game.changeScreen(new GameOverScreen(game, true));
     }
     // CLEARED は層末ノード選択待ち。updateState() で処理し、本メソッドでは画面遷移しない。
   }

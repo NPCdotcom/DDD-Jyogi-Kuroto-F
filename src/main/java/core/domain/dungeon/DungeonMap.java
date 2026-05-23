@@ -3,6 +3,7 @@ package core.domain.dungeon;
 import core.domain.common.Direction;
 import core.domain.common.Position;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
 import java.util.Objects;
@@ -150,5 +151,28 @@ public final class DungeonMap {
       }
     }
     return Optional.empty();
+  }
+
+  /**
+   * 値等価性: width / height / 全タイル内容が一致すれば等しい (record ではないため明示実装)。
+   *
+   * <p>2 次元配列の比較は {@link Arrays#deepEquals} を使う (要素の {@code Tile} まで再帰比較)。
+   */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof DungeonMap other)) {
+      return false;
+    }
+    return width == other.width
+        && height == other.height
+        && Arrays.deepEquals(tilesByYx, other.tilesByYx);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(width, height, Arrays.deepHashCode(tilesByYx));
   }
 }

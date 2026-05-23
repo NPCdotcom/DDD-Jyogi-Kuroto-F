@@ -133,6 +133,9 @@ public final class Strings {
     public static final String EQUIP_EQUIPPED_MARK = "★装備中";
     public static final String TITLE_OPEN_EQUIP_HINT = "[E] 装備を変更する";
 
+    // §15-11 セーブ / ロード
+    public static final String CONTINUE_HINT = "[L] つづきから";
+
     // §15-10 / E-10 チュートリアル
     public static final String TUTORIAL_TITLE = "操作説明";
     public static final String TUTORIAL_BODY =
@@ -147,6 +150,21 @@ public final class Strings {
         敵を倒すとソウル + 金貨を獲得。
         層末でステ強化 / ショップ / イベント のノードを選択。""";
     public static final String TUTORIAL_CLOSE_HINT = "ENTER または ESC で閉じる";
+
+    // §15-1 / §15-8 設定画面
+    public static final String SETTINGS_TITLE = "設定";
+    public static final String SETTINGS_BGM_VOLUME = "BGM 音量";
+    public static final String SETTINGS_SE_VOLUME = "SE 音量";
+    public static final String SETTINGS_FULLSCREEN = "フルスクリーン";
+    public static final String SETTINGS_UI_PRESET = "UI プリセット";
+    public static final String SETTINGS_ON = "ON";
+    public static final String SETTINGS_OFF = "OFF";
+    public static final String SETTINGS_HINT = "↑↓ / WS: 項目選択   ←→ / AD: 値変更   ESC: 戻る";
+    public static final String TITLE_OPEN_SETTINGS_HINT = "[S] 設定";
+
+    // §15-1 初回 UI プリセット選択
+    public static final String FIRST_RUN_PRESET_TITLE = "UI プリセットを選択してください";
+    public static final String FIRST_RUN_PRESET_HINT = "1 / 2 / 3 キーで選択";
   }
 
   /** 英語版 (フォント未配置時の fallback)。 */
@@ -274,6 +292,9 @@ public final class Strings {
     public static final String EQUIP_EQUIPPED_MARK = "[equipped]";
     public static final String TITLE_OPEN_EQUIP_HINT = "[E] Change Equipment";
 
+    // §15-11 Save / Load
+    public static final String CONTINUE_HINT = "[L] Continue";
+
     // §15-10 / E-10 Tutorial
     public static final String TUTORIAL_TITLE = "How to Play";
     public static final String TUTORIAL_BODY =
@@ -288,5 +309,21 @@ public final class Strings {
         Defeat enemies to earn Soul + Gold.
         At each layer end, pick a node: stat / shop / event.""";
     public static final String TUTORIAL_CLOSE_HINT = "Press ENTER or ESC to close";
+
+    // §15-1 / §15-8 Settings screen
+    public static final String SETTINGS_TITLE = "Settings";
+    public static final String SETTINGS_BGM_VOLUME = "BGM Volume";
+    public static final String SETTINGS_SE_VOLUME = "SE Volume";
+    public static final String SETTINGS_FULLSCREEN = "Fullscreen";
+    public static final String SETTINGS_UI_PRESET = "UI Preset";
+    public static final String SETTINGS_ON = "ON";
+    public static final String SETTINGS_OFF = "OFF";
+    public static final String SETTINGS_HINT =
+        "Up/Down / WS: navigate   Left/Right / AD: change value   ESC: back";
+    public static final String TITLE_OPEN_SETTINGS_HINT = "[S] Settings";
+
+    // §15-1 First-run UI preset selection
+    public static final String FIRST_RUN_PRESET_TITLE = "Choose a UI preset";
+    public static final String FIRST_RUN_PRESET_HINT = "Press 1 / 2 / 3 to select";
   }
 }

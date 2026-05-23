@@ -135,4 +135,65 @@ class DungeonMapTest {
     DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
     assertTrue(m.firstStepToward(new Position(2, 2), new Position(2, 2)).isEmpty());
   }
+
+  // Phase 1 回帰: equals / hashCode (値等価性の明示実装)
+
+  @Test
+  void equalMapsAreEqual() {
+    // 同じ行リストから生成した 2 つの DungeonMap は値等価
+    DungeonMap a = DungeonMap.of(THREE_BY_THREE);
+    DungeonMap b = DungeonMap.of(THREE_BY_THREE);
+    assertEquals(a, b, "同じ行リストから生成した DungeonMap は等しい");
+  }
+
+  @Test
+  void equalMapsHaveSameHashCode() {
+    DungeonMap a = DungeonMap.of(THREE_BY_THREE);
+    DungeonMap b = DungeonMap.of(THREE_BY_THREE);
+    assertEquals(a.hashCode(), b.hashCode(), "等しい DungeonMap は同一の hashCode を持つ");
+  }
+
+  @Test
+  void equalityIsSymmetric() {
+    DungeonMap a = DungeonMap.of(THREE_BY_THREE);
+    DungeonMap b = DungeonMap.of(THREE_BY_THREE);
+    assertEquals(a, b);
+    assertEquals(b, a, "equals は対称的");
+  }
+
+  @Test
+  void mapsWithDifferentWidthAreNotEqual() {
+    // 幅が異なる → 非等価
+    DungeonMap wide = DungeonMap.of(List.of("####", "#..#", "####"));
+    DungeonMap narrow = DungeonMap.of(List.of("###", "#.#", "###"));
+    assertFalse(wide.equals(narrow), "幅が異なる DungeonMap は等しくない");
+  }
+
+  @Test
+  void mapsWithDifferentHeightAreNotEqual() {
+    // 高さが異なる → 非等価
+    DungeonMap tall = DungeonMap.of(List.of("###", "#.#", "#.#", "###"));
+    DungeonMap short_ = DungeonMap.of(List.of("###", "#.#", "###"));
+    assertFalse(tall.equals(short_), "高さが異なる DungeonMap は等しくない");
+  }
+
+  @Test
+  void mapsWithDifferentTileContentAreNotEqual() {
+    // タイル内容が 1 つでも違う → 非等価
+    DungeonMap withFloor = DungeonMap.of(List.of("###", "#.#", "###"));
+    DungeonMap withStairs = DungeonMap.of(List.of("###", "#>#", "###"));
+    assertFalse(withFloor.equals(withStairs), "タイル内容が異なる DungeonMap は等しくない");
+  }
+
+  @Test
+  void mapDoesNotEqualNull() {
+    DungeonMap m = DungeonMap.of(THREE_BY_THREE);
+    assertFalse(m.equals(null), "DungeonMap は null と等しくない");
+  }
+
+  @Test
+  void mapDoesNotEqualOtherType() {
+    DungeonMap m = DungeonMap.of(THREE_BY_THREE);
+    assertFalse(m.equals("not a DungeonMap"), "DungeonMap は異なる型のオブジェクトと等しくない");
+  }
 }

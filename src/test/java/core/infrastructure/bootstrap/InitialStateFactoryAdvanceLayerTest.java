@@ -99,9 +99,13 @@ class InitialStateFactoryAdvanceLayerTest {
     assertEquals(4, state.layer().number());
 
     int expectedAp = 4;
-    boolean allEnemiesHaveLayer4Ap =
-        state.enemies().stream().allMatch(e -> e.actionPoints().current() == expectedAp);
-    assertTrue(allEnemiesHaveLayer4Ap, "4 層の全敵は current AP = 4 でなければならない");
+    // §15-5 敵バリエーション: 素早い個体は AP = 層番号 +1 のため、ADR-06 基準どおりの
+    // 通常スライム (AP = 層番号) のみを検証対象とする。
+    boolean baseSlimesHaveLayer4Ap =
+        state.enemies().stream()
+            .filter(e -> e.kind() == core.domain.entity.EnemyKind.SLIME)
+            .allMatch(e -> e.actionPoints().current() == expectedAp);
+    assertTrue(baseSlimesHaveLayer4Ap, "4 層の通常スライムは current AP = 4 でなければならない");
   }
 
   // 例外パス

@@ -83,9 +83,8 @@ core/
 
 ### AP 制 (GAME_DESIGN §5-2)
 
-- AP 上限は固定 (Player 5 / Slime 3)
-- 毎ターン開始時に **速度ステ分** 回復 (上限超えはしない)
-- AP は **蓄積可能** ([0, max] の範囲を `ActionPoints` 不変値で保持)
+- AP は **使い切り型** (Slay the Spire 風)。毎ターン開始時に **速度ステ分まで全リセット** し、前ターンの残 AP は **蓄積しない**
+- プレイヤー AP = 速度ステ。敵 AP = **層番号** (1 層 = AP 1、2 層 = AP 2、…、強化個体・ボスは +α)
 
 ### コスト表 (MVP)
 
@@ -96,7 +95,7 @@ core/
 | 強攻撃 | 3 | `Skill(heavy_slash, Damage 15)` |
 | スライムの噛みつき | 1 | `Skill(slime_bite, Damage 4)` |
 | 待機 | 1 | `BattleAction.Wait` |
-| ターン終了 | 0 | `BattleAction.EndTurn` (AP を持ち越して敵ターン) |
+| ターン終了 | 0 | `BattleAction.EndTurn` (残 AP は破棄して敵ターンへ) |
 
 ### フェーズ遷移
 
@@ -120,7 +119,7 @@ PLAYER_TURN ──(階段に乗る Move)──────────→ CLEARE
 
 | 操作 | 実装 |
 |---|---|
-| ソウル獲得 | 敵撃破時に `EnemyKind.SLIME.soulReward() = 5` を `Player.addSoul` で加算 |
+| ソウル獲得 | 敵撃破時に `EnemyKind.SLIME.soulReward() = 1` を `Player.addSoul` で加算 |
 | 死亡時の保持 | 死亡しても `Player.soul` は不変 (TurnEngine がフェーズだけ GAME_OVER にする) |
 | 階段踏破時 | ソウル・装備すべて持ち帰り (現状装備は未実装) |
 | ソウル消費 | **MVP 後** — スキル習得・枠拡張・ステ強化の UI を編成画面で実装する |
