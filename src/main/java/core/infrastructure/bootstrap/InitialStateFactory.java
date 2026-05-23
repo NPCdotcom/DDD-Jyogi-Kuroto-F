@@ -90,6 +90,17 @@ public final class InitialStateFactory {
     return EQUIPMENT_CATALOG;
   }
 
+  /** ソウルツリーマスタ。クラスパスの {@code tree.json} から起動時に 1 度ロードする (§15-7 / E-2)。 */
+  private static final SoulTreeCatalog SOUL_TREE_CATALOG = SoulTreeCatalog.load();
+
+  /**
+   * ソウルツリー全ノード定義を返す (id → TreeNode、登録順保持の不変マップ)。{@link core.domain.tree.SoulTree#allNodes()}
+   * の唯一の供給元。
+   */
+  public static Map<core.domain.tree.NodeId, core.domain.tree.TreeNode> soulTreeNodes() {
+    return SOUL_TREE_CATALOG.allNodes();
+  }
+
   // ----------------------------- 装備マスタ (§15-9 / ADR-26) -----------------------------
 
   /**
