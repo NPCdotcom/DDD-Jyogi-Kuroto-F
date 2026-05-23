@@ -30,15 +30,60 @@ public final class DungeonRenderer {
   private static final Color TRAP_PHYSICAL_COLOR = new Color(0.95f, 0.55f, 0.15f, 1f);
   private static final Color TRAP_MAGICAL_COLOR = new Color(0.70f, 0.35f, 0.95f, 1f);
 
+  /** 壁と床の境界エッジに描く黒線の太さ (px、視認性向上 / チームメイト要望)。 */
+  private static final float WALL_BORDER_WIDTH = 4f;
+
+  /** 壁と床の境界エッジ色。 */
+  private static final Color WALL_BORDER_COLOR = new Color(0f, 0f, 0f, 1f);
+
   private DungeonRenderer() {}
 
   public static void draw(ShapeRenderer shapes, DungeonState state) {
     shapes.begin(ShapeType.Filled);
     drawMap(shapes, state.map());
+    drawWallFloorBorders(shapes, state.map());
     drawTraps(shapes, state);
     drawEnemies(shapes, state);
     drawPlayer(shapes, state.player().position());
     shapes.end();
+  }
+
+  /**
+   * 壁と床の境界エッジに黒線を描画する (チームメイト要望: 視認性向上)。
+   *
+   * <p>各 WALL タイルの 4 辺について、隣接タイルが WALL 以外 (FLOOR / STAIRS_DOWN) なら そのエッジに {@link
+   * #WALL_BORDER_WIDTH} 太さの黒矩形を描く。壁同士の境界には線が 出ないので、ユーザーは壁の塊と床を即座に区別できる。
+   *
+   * <p>マップ端 (隣接タイルがマップ外) はスキップ。要望に応じて 1 行修正で「マップ外 = 床扱い」 に切り替え可能 (plan 参照)。
+   */
+  private static void drawWallFloorBorders(ShapeRenderer shapes, DungeonMap map) {
+    shapes.setColor(WALL_BORDER_COLOR);
+    int tile = RenderLayout.TILE_SIZE;
+    for (int y = 0; y < map.height(); y++) {
+      for (int x = 0; x < map.width(); x++) {
+        if (map.tileAt(new Position(x, y)) != Tile.WALL) {
+          continue;
+        }
+        int sx = RenderLayout.MAP_ORIGIN_X + x * tile;
+        int sy = RenderLayout.MAP_ORIGIN_Y + y * tile;
+        // 下辺: 下隣が床
+        if (y > 0 && map.tileAt(new Position(x, y - 1)) != Tile.WALL) {
+          shapes.rect(sx, sy, tile, WALL_BORDER_WIDTH);
+        }
+        // 上辺: 上隣が床
+        if (y < map.height() - 1 && map.tileAt(new Position(x, y + 1)) != Tile.WALL) {
+          shapes.rect(sx, sy + tile - WALL_BORDER_WIDTH, tile, WALL_BORDER_WIDTH);
+        }
+        // 左辺: 左隣が床
+        if (x > 0 && map.tileAt(new Position(x - 1, y)) != Tile.WALL) {
+          shapes.rect(sx, sy, WALL_BORDER_WIDTH, tile);
+        }
+        // 右辺: 右隣が床
+        if (x < map.width() - 1 && map.tileAt(new Position(x + 1, y)) != Tile.WALL) {
+          shapes.rect(sx + tile - WALL_BORDER_WIDTH, sy, WALL_BORDER_WIDTH, tile);
+        }
+      }
+    }
   }
 
   /** 設置済みの罠を小マーカーで描画する (§15-3、物理 = 橙 / 魔法 = 紫)。空タイル上の罠を可視化する。 */
