@@ -3,10 +3,8 @@ package core.presentation.screen;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.ScreenAdapter;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
@@ -23,7 +21,6 @@ import core.domain.entity.Enemy;
 import core.domain.layer.LayerEndNode;
 import core.infrastructure.audio.BgmKind;
 import core.infrastructure.audio.SeKind;
-import core.presentation.effect.DamagePopup;
 import core.presentation.input.PlayerInputs;
 import core.presentation.render.DungeonRenderer;
 import core.presentation.render.HudRenderer;
@@ -54,18 +51,6 @@ import java.util.Random;
  */
 public final class DungeonScreen extends ScreenAdapter {
 
-  /** 画面シェイクの継続時間 (秒、§15-5)。被弾 / 与ダメ共通。 */
-  private static final float SHAKE_DURATION = 0.18f;
-
-  /** 与ダメ時のシェイク振幅 (px)。 */
-  private static final float SHAKE_AMP_DEAL = 6f;
-
-  /** 被弾時のシェイク振幅 (px)。プレイヤーへのフィードバックを強調するため与ダメより大きい。 */
-  private static final float SHAKE_AMP_RECEIVE = 14f;
-
-  /** ダメージポップアップの最大同時表示数 (古いものから破棄、§15-5 描画コスト上限)。 */
-  private static final int MAX_POPUPS = 16;
-
   /** 敵 1 アクションごとの表示間隔 (秒)。敵ターンをこの間隔で 1 体ずつ進め、行動を視認できるようにする (§15-5)。 */
   private static final float ENEMY_STEP_INTERVAL = 0.10f;
 
@@ -74,23 +59,14 @@ public final class DungeonScreen extends ScreenAdapter {
   /** 乱数源 (ADR-19: 引数注入)。カード抽選 / 層末ノード抽選 / Elite 報酬シャッフルに使う。 */
   private final Random rng;
 
-  /** ダメージポップアップ群 (§15-5 / E-8)。BattleEvent.DamageDealt 発火で push、isExpired で除去。 */
-  private final List<DamagePopup> popups = new ArrayList<>();
+  /** Wave 4 W4-β: 副作用エフェクト (popup / shake / flash / lowHpAnim) を集約。 */
+  private final ScreenEffects effects = new ScreenEffects();
 
   /** GameContext.totalEventsEmitted の前回観測値。新規 DamageDealt 検知のカーソル。 */
   private long lastSeenEventCount = 0;
 
-  /** 画面シェイクの残り秒数 (0 で停止)。 */
-  private float shakeRemaining = 0f;
-
-  /** 画面シェイクの振幅 (px、被弾 / 与ダメで切替)。 */
-  private float shakeAmplitude = 0f;
-
   /** 敵ターンの 1 アクション刻みタイマー (§15-5、ENEMY_STEP_INTERVAL ごとに 1 アクション進める)。 */
   private float enemyStepTimer = 0f;
-
-  /** §7-2 / C-2: HP 低下警告フレームの脈動アニメ累積時間 (秒)。 */
-  private float lowHpAnimTime = 0f;
 
   /**
    * §15-5 / E-7: 撃破時に Bestiary へ EnemyKind を記録するためのメモリ。 Wave 4 W4-α で純粋データクラスに切り出し
@@ -112,11 +88,6 @@ public final class DungeonScreen extends ScreenAdapter {
 
   /** §15-3 / §15-6: 強化個体撃破時のカード追加 UI (1 ノード選択 = 1 枚 DrawPile 追加)。 */
   private NodeChoicePopup eliteCardChoice;
-
-  /** §15-9 / Shop silent fail 通知: 一時的なフラッシュメッセージ (~2 秒で消える)。 */
-  private String flashMessage;
-
-  private float flashTimer;
 
   /** §15-4: ステータス確認ポップアップ (Tab で開閉)。show() で 1 度だけ生成。 */
   private StatusPopup statusPopup;
@@ -170,7 +141,7 @@ public final class DungeonScreen extends ScreenAdapter {
       // ステータスポップアップ表示中はゲーム進行を凍結する (モーダル)。
       updateState(delta);
       processNewEvents(); // §15-5 / E-8: 新規 DamageDealt → popup + shake / EliteDefeated → カード追加 UI
-      advanceEffects(delta); // popup の age 加算 + 期限切れ除去 + shake デクリメント + flash デクリメント
+      effects.advanceEffects(delta); // popup の age 加算 + 期限切れ除去 + shake デクリメント + flash デクリメント
       handleEliteCardChoice(); // §15-3 / §15-6: Elite 撃破 popup の入力処理
     }
     drawFrame();
@@ -380,9 +351,9 @@ public final class DungeonScreen extends ScreenAdapter {
     return all.get(rng.nextInt(all.size())).id();
   }
 
+  /** フラッシュメッセージを表示する (effects への委譲)。 */
   private void showFlash(String message) {
-    this.flashMessage = message;
-    this.flashTimer = 2.5f;
+    effects.showFlash(message);
   }
 
   /**
@@ -441,7 +412,7 @@ public final class DungeonScreen extends ScreenAdapter {
     shapes.setProjectionMatrix(camera.combined);
     DungeonRenderer.draw(batch, shapes, game.context().state(), wallTexture, floorTexture);
     batch.begin();
-    drawPopups(batch);
+    effects.drawPopups(batch, game.fonts().large());
     batch.end();
 
     // HUD 層: 固定カメラで描画。マップが画面全体を覆うため、HUD テキストの背後に半透明パネルを
@@ -455,12 +426,8 @@ public final class DungeonScreen extends ScreenAdapter {
     shapes.setColor(0f, 0f, 0f, 1f);
     shapes.rect(0f, 0f, RenderLayout.SCREEN_WIDTH, 300f);
     // §7-2 / C-2: HP <= 30% で画面端を脈動する赤フレームで警告表示。
-    lowHpAnimTime += com.badlogic.gdx.Gdx.graphics.getDeltaTime();
     core.domain.entity.Stats playerStats = game.context().state().player().stats();
-    if (core.presentation.effect.LowHpWarning.shouldDraw(
-        playerStats.currentHp(), playerStats.maxHp())) {
-      core.presentation.effect.LowHpWarning.draw(shapes, lowHpAnimTime);
-    }
+    effects.drawLowHpWarning(shapes, playerStats);
     shapes.end();
 
     batch.setProjectionMatrix(hudCamera.combined);
@@ -472,20 +439,8 @@ public final class DungeonScreen extends ScreenAdapter {
         playerInputs.pendingCardIndex(),
         game.cardImageRegistry(),
         game.settings().uiPreset());
-    drawFlash(batch);
+    effects.drawFlash(batch, game.fonts().large());
     batch.end();
-  }
-
-  /** フラッシュメッセージを画面中央上部に描画 (Shop 失敗通知 / Elite カード獲得通知)。 */
-  private void drawFlash(SpriteBatch batch) {
-    if (flashMessage == null || flashTimer <= 0f) {
-      return;
-    }
-    com.badlogic.gdx.graphics.g2d.BitmapFont font = game.fonts().large();
-    float alpha = Math.min(1f, flashTimer / 0.5f); // 最後 0.5 秒でフェードアウト
-    font.setColor(1f, 0.85f, 0.3f, alpha);
-    font.draw(batch, flashMessage, 80f, RenderLayout.SCREEN_HEIGHT - 200f);
-    font.setColor(Color.WHITE);
   }
 
   /**
@@ -507,8 +462,7 @@ public final class DungeonScreen extends ScreenAdapter {
     ActorId playerId = game.context().state().player().id();
     for (BattleEvent e : newEvents) {
       if (e instanceof BattleEvent.DamageDealt d) {
-        spawnPopup(d);
-        triggerShake(d);
+        effects.spawnPopup(d, playerId, game.context().state());
         // §15-5: 与ダメ / 被ダメ SE
         if (d.to().equals(playerId)) {
           game.soundManager().playSe(SeKind.PLAYER_DAMAGED);
@@ -549,81 +503,6 @@ public final class DungeonScreen extends ScreenAdapter {
       }
     }
     lastSeenEventCount = current;
-  }
-
-  /** popup の age 加算 + 期限切れ除去 + shake デクリメント + flash デクリメント (毎フレーム呼出)。 */
-  private void advanceEffects(float delta) {
-    if (!popups.isEmpty()) {
-      popups.replaceAll(p -> p.advanced(delta));
-      popups.removeIf(DamagePopup::isExpired);
-    }
-    if (shakeRemaining > 0f) {
-      shakeRemaining = Math.max(0f, shakeRemaining - delta);
-    }
-    if (flashTimer > 0f) {
-      flashTimer = Math.max(0f, flashTimer - delta);
-      if (flashTimer <= 0f) {
-        flashMessage = null;
-      }
-    }
-  }
-
-  /** DamageDealt から target タイル座標を逆引きして popup を spawn する。 */
-  private void spawnPopup(BattleEvent.DamageDealt d) {
-    DungeonState s = game.context().state();
-    int tileX;
-    int tileY;
-    boolean toPlayer = d.to().equals(s.player().id());
-    if (toPlayer) {
-      tileX = s.player().position().x();
-      tileY = s.player().position().y();
-    } else {
-      Optional<Enemy> enemyOpt = s.findEnemy(d.to());
-      if (enemyOpt.isEmpty()) {
-        return; // 既に死亡で除去された敵 → popup スキップ
-      }
-      tileX = enemyOpt.get().position().x();
-      tileY = enemyOpt.get().position().y();
-    }
-    float worldX =
-        RenderLayout.MAP_ORIGIN_X
-            + tileX * RenderLayout.TILE_SIZE
-            + RenderLayout.TILE_SIZE / 2f
-            - 12f;
-    float worldY =
-        RenderLayout.MAP_ORIGIN_Y
-            + tileY * RenderLayout.TILE_SIZE
-            + RenderLayout.TILE_SIZE / 2f
-            + 4f;
-    Color color = colorForDamage(toPlayer, d.damage());
-    if (popups.size() >= MAX_POPUPS) {
-      popups.remove(0);
-    }
-    popups.add(new DamagePopup(worldX, worldY, d.damage(), 0f, color));
-  }
-
-  /** 被弾は強シェイク、与ダメは弱シェイクをセット。残り時間は最大値で上書き (連続ヒット時の強調)。 */
-  private void triggerShake(BattleEvent.DamageDealt d) {
-    ActorId playerId = game.context().state().player().id();
-    boolean toPlayer = d.to().equals(playerId);
-    shakeAmplitude = toPlayer ? SHAKE_AMP_RECEIVE : SHAKE_AMP_DEAL;
-    shakeRemaining = SHAKE_DURATION;
-  }
-
-  /**
-   * §15-5 色分け方針: 被弾=赤、暴力的 (>=8) =黄、それ以外=白。
-   *
-   * <p>閾値 8 は ADR-30 修正後の物攻 2 (素 1 + 装備 +1) で「斬撃 (基礎値 5) → ダメ 7」が 通常、「強打 (基礎値 4) + Buff 物攻 +2 → ダメ
-   * 6」程度、「Elite 物攻 3 + 斬撃 → 8」が 暴力的ヒットの閾値になるよう設定。初期実装の 10 では装備 + Buff 込みでも届かなかった。
-   */
-  private static Color colorForDamage(boolean toPlayer, int amount) {
-    if (toPlayer) {
-      return new Color(1f, 0.4f, 0.35f, 1f);
-    }
-    if (amount >= 8) {
-      return new Color(1f, 0.9f, 0.2f, 1f);
-    }
-    return new Color(1f, 1f, 1f, 1f);
   }
 
   /**
@@ -673,28 +552,12 @@ public final class DungeonScreen extends ScreenAdapter {
     float hudPanelHalfWorld = (RenderLayout.HUD_BOTTOM_PANEL_HEIGHT / 2f) * camera.zoom;
     camera.position.set(px, py - hudPanelHalfWorld, 0f);
     // §15-6 UI/UX: 端クランプ撤廃 — プレイヤー常に可視範囲中央、マップ外領域が見えても許容する設計。
-    if (shakeRemaining > 0f) {
-      float intensity = shakeAmplitude * (shakeRemaining / SHAKE_DURATION);
-      // ADR-19 整合: 静的 Math.random() の代わりに注入済 rng を使う (同一シードでシェイク方向も再現可)。
-      float angle = (float) (rng.nextDouble() * Math.PI * 2.0);
-      camera.position.x += (float) (Math.cos(angle) * intensity);
-      camera.position.y += (float) (Math.sin(angle) * intensity);
+    // ADR-19 整合: 注入済 rng を ScreenEffects 経由に渡す (同一シードでシェイク方向も再現可)。
+    if (effects.isShaking()) {
+      camera.position.x += effects.currentShakeOffsetX(rng);
+      camera.position.y += effects.currentShakeOffsetY(rng);
     }
     camera.update();
-  }
-
-  /** popup 群を large フォントで描画 (HUD の上)。 */
-  private void drawPopups(SpriteBatch batch) {
-    if (popups.isEmpty()) {
-      return;
-    }
-    BitmapFont font = game.fonts().large();
-    for (DamagePopup p : popups) {
-      Color c = p.baseColor();
-      font.setColor(c.r, c.g, c.b, p.alpha());
-      font.draw(batch, String.valueOf(p.amount()), p.worldX(), p.currentY());
-    }
-    font.setColor(Color.WHITE); // 後続描画への影響を避ける
   }
 
   private void transitionIfGameOver() {
