@@ -111,13 +111,15 @@ public final class TitleScreen extends ScreenAdapter {
           RenderLayout.TITLE_OPEN_TREE_HINT_Y);
     }
 
-    // §15-3 / §15-9: カード図鑑・装備変更への動線 (周回数に関わらず常時アクセス可)。
+    // §15-3 / §15-9: カード図鑑・装備変更・敵図鑑への動線 (周回数に関わらず常時アクセス可)。
     large.setColor(0.6f, 0.8f, 0.95f, 1f);
     large.draw(
         batch,
         (jp ? Strings.Ja.TITLE_OPEN_COLLECTION_HINT : Strings.En.TITLE_OPEN_COLLECTION_HINT)
             + "    "
-            + (jp ? Strings.Ja.TITLE_OPEN_EQUIP_HINT : Strings.En.TITLE_OPEN_EQUIP_HINT),
+            + (jp ? Strings.Ja.TITLE_OPEN_EQUIP_HINT : Strings.En.TITLE_OPEN_EQUIP_HINT)
+            + "    "
+            + (jp ? Strings.Ja.TITLE_OPEN_BESTIARY_HINT : Strings.En.TITLE_OPEN_BESTIARY_HINT),
         RenderLayout.START_HINT_X,
         RenderLayout.TITLE_OPEN_TREE_HINT_Y - RenderLayout.LARGE_LINE_HEIGHT);
 
@@ -204,6 +206,10 @@ public final class TitleScreen extends ScreenAdapter {
       // M2 提出: クレジット画面はいつでもアクセス可。
       game.soundManager().playSe(SeKind.BUTTON);
       game.changeScreen(new CreditsScreen(game));
+    } else if (Gdx.input.isKeyJustPressed(Keys.B)) {
+      // W4-δ: 敵図鑑はいつでもアクセス可。
+      game.soundManager().playSe(SeKind.BUTTON);
+      game.changeScreen(new BestiaryScreen(game));
     }
   }
 

@@ -181,6 +181,12 @@ public final class Strings {
     public static final String CARD_REWARD_GAINED_FORMAT = "カード獲得: %s";
     public static final String ELITE_CARD_REWARD_TITLE = "強化個体撃破: カード追加";
     public static final String SOUL_TREE_UNLOCKED_FORMAT = "解放: %s";
+
+    // W4-δ 敵図鑑画面 (BestiaryScreen)
+    public static final String BESTIARY_TITLE = "敵 図鑑";
+    public static final String BESTIARY_LOCKED = "??? (未撃破)";
+    public static final String BESTIARY_HINT = "[↑↓ / WS] スクロール   [ESC] タイトルへ戻る";
+    public static final String TITLE_OPEN_BESTIARY_HINT = "[B] 図鑑";
   }
 
   /** 英語版 (フォント未配置時の fallback)。 */
@@ -357,5 +363,11 @@ public final class Strings {
     public static final String CARD_REWARD_GAINED_FORMAT = "Card gained: %s";
     public static final String ELITE_CARD_REWARD_TITLE = "Elite defeated: Card reward";
     public static final String SOUL_TREE_UNLOCKED_FORMAT = "Unlocked: %s";
+
+    // W4-δ Bestiary screen (BestiaryScreen)
+    public static final String BESTIARY_TITLE = "Bestiary";
+    public static final String BESTIARY_LOCKED = "??? (locked)";
+    public static final String BESTIARY_HINT = "[Up/Down / WS] Scroll   [ESC] Back to title";
+    public static final String TITLE_OPEN_BESTIARY_HINT = "[B] Bestiary";
   }
 }
