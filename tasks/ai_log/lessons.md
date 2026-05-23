@@ -124,3 +124,20 @@
 - **判断 (受け入れ)**: Task A の段階で `NodeResolveContext(Function<CardId, Card> cards, Function<EquipmentId, Equipment> equipments)` を新設し、すべての LayerEndNode variant が `apply(Player, NodeResolveContext)` を受ける設計に変更。これにより Task B (ShopEquipment) で context.equipments() を読むだけで本物の装備名表示ができ、追加引数の連鎖修正を避けられた
 - **学び**: **Resolver / Service が複数になる予感があるなら、最初から Context record でラップする**。「今は 1 つだから Function でいい」と思って単体注入すると、2 つ目を追加する時に全箇所書き換えが必要になる (OCP 違反)。Context record にしておけば「フィールド追加 + null チェック追加」だけで済む。これは Wave 3 Task A → Task B の連続実装で実際に効果を確認 (Task B では引数 signature を一切変えずに displayName が完璧に解決できた)
 - **適用範囲**: domain layer の純関数 API で「外部リソース解決のための Function 引数」を複数渡したくなる場面全般 (cardResolver / equipmentResolver / itemResolver / buffResolver 等)。「1 つでも将来 2 つになる予感があるなら Context record」をデフォルトに
+
+### 2026-05-23: God Object の段階的分割 (Wave 4 α/β/γ 5 段階パターン)
+
+- **状況**: M2 Wave 4 で DungeonScreen 697 行 (God Object) を責務分割。最初の plan では「責務 3 つを一気に切り出す」案だったが、ユーザー判断で「α/β/γ と小さく区切りながら全体を通して開発」に変更
+- **判断**: 純粋データ (W4-α: EnemyKindMemory) → 副作用エフェクト (W4-β: ScreenEffects) → 複雑な lifecycle (W4-γ: EliteRewardOrchestrator) の順で段階的に切り出し、各段階で `gradlew check` 緑を維持しながらコミット
+- **効果**: 697 → 615 (W4-α、-12 行) → 533 (W4-β、-82 行) → 463 (W4-γ、-70 行) と 3 段階で計 ~34% 削減。各段階で BUILD SUCCESSFUL を保ち、最終的に大規模リファクタを完成
+- **学び**: **God Object 分割は「一気にやらず段階的に」**。理由 (1) 各段階でテスト緑を確認できる (2) Git の commit 単位で「どこで何を切り出したか」が後から追える (3) 切り出した独立クラスは個別にテスト追加が容易 (W4-α で +7 テスト、W4-β で +9 テスト)。
+- **段階順の原則**: **純粋データ → 副作用集約 → 複雑な lifecycle** の順。純粋データは依存が少なく失敗時の影響が局所的。副作用集約は描画の begin/end ライフサイクル制御が要 (ユーザー指摘で `batch.begin/end` 跨ぎ禁止ルールを記録)。Lifecycle 分離は最も複雑、最後に着手
+- **適用範囲**: 500+ 行の Screen / Manager / Controller クラスの責務分割全般
+
+### 2026-05-23: BitmapFont.setColor / batch.setColor のリーク防止
+
+- **状況**: Wave 4 W4-ε で装備テーマ変動 UI 実装時、HudRenderer / DungeonScreen の各描画メソッドで `font.setColor(theme.textColor())` の後にリセットしていない箇所が複数発覚
+- **指摘 (ユーザー)**: 「LibGDX BitmapFont の color フィールドはミュータブル。setColor 後にリセットしないと他の描画箇所に色がリークして予期せぬバグになる」
+- **判断 (受け入れ)**: 各 draw メソッドの末尾で `font.setColor(Color.WHITE)` (または既定色) にリセットすることを徹底するパターンを採用。Wave 4 W4-ε で drawLog 末尾にリセット追加、W4-δ BestiaryScreen でも徹底
+- **学び**: **LibGDX のミュータブル Color フィールド (BitmapFont.color / SpriteBatch.color / ShapeRenderer.color) は描画メソッドの内側で setColor したら、必ず末尾で reset する**。grep で確認する方法: `grep -n "setColor" <ファイル>` で setColor 直後の対称的な reset があるか目視確認
+- **適用範囲**: LibGDX の BitmapFont / SpriteBatch / ShapeRenderer の color プロパティを使う全描画コード
