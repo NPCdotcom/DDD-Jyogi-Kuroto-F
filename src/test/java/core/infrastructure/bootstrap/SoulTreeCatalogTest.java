@@ -12,15 +12,15 @@ import core.domain.tree.TreeNode;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** {@link SoulTreeCatalog} が tree.json を正しくロードし、23 ノードのマスタ定義を構築することの検証。 */
+/** {@link SoulTreeCatalog} が tree.json を正しくロードし、25 ノードのマスタ定義を構築することの検証。 */
 class SoulTreeCatalogTest {
 
   private static final SoulTreeCatalog CATALOG = SoulTreeCatalog.load();
 
   @Test
-  void loadsExactly23Nodes() {
-    // §15-7 仕様: root + ステ軸 Lv1 (6) + カード獲得 (5) + 枠拡張 (5) + ステ軸 Lv2 (6) = 23 ノード
-    assertEquals(23, CATALOG.allNodes().size(), "tree.json は 23 ノード定義を含む");
+  void loadsExactly25Nodes() {
+    // §15-7 仕様: root + ステ軸 Lv1 (6) + カード獲得 (5) + 枠拡張 (5) + ステ軸 Lv2 (6) + 層数拡張 (2) = 25 ノード
+    assertEquals(25, CATALOG.allNodes().size(), "tree.json は 25 ノード定義を含む");
   }
 
   @Test
@@ -33,7 +33,7 @@ class SoulTreeCatalogTest {
   }
 
   @Test
-  void parsesAllFourNodeEffectTypes() {
+  void parsesAllFiveNodeEffectTypes() {
     Map<NodeId, TreeNode> all = CATALOG.allNodes();
     long none = all.values().stream().filter(n -> n.effect() instanceof NodeEffect.None).count();
     long stats =
@@ -46,11 +46,33 @@ class SoulTreeCatalogTest {
         all.values().stream()
             .filter(n -> n.effect() instanceof NodeEffect.SlotExpandEffect)
             .count();
+    long layerExtend =
+        all.values().stream()
+            .filter(n -> n.effect() instanceof NodeEffect.LayerExtendEffect)
+            .count();
 
     assertEquals(1, none, "None 効果は root の 1 件");
     assertEquals(12, stats, "StatsBonus 効果は 6 ステ軸 × 2 Lv = 12 件");
     assertEquals(5, card, "CardGrant 効果は 5 件");
     assertEquals(5, slot, "SlotExpand 効果は 5 件");
+    assertEquals(2, layerExtend, "LayerExtend 効果は 2 件");
+  }
+
+  @Test
+  void parsesLayerExtendNodesWithCorrectAmount() {
+    // tree.json の layer_extend_4 / layer_extend_5 が LayerExtendEffect として正しくパースされ、
+    // amountToAdd = 1 で読み込まれる (タスク B 仕様)。
+    Map<NodeId, TreeNode> all = CATALOG.allNodes();
+    TreeNode le4 = all.get(NodeId.of("layer_extend_4"));
+    TreeNode le5 = all.get(NodeId.of("layer_extend_5"));
+    assertNotNull(le4, "layer_extend_4 が存在する");
+    assertNotNull(le5, "layer_extend_5 が存在する");
+    assertTrue(le4.effect() instanceof NodeEffect.LayerExtendEffect, "le4 の効果は LayerExtendEffect");
+    assertTrue(le5.effect() instanceof NodeEffect.LayerExtendEffect, "le5 の効果は LayerExtendEffect");
+    assertEquals(1, ((NodeEffect.LayerExtendEffect) le4.effect()).amountToAdd());
+    assertEquals(1, ((NodeEffect.LayerExtendEffect) le5.effect()).amountToAdd());
+    assertEquals(100, le4.soulCost(), "le4 のソウルコストは 100");
+    assertEquals(200, le5.soulCost(), "le5 のソウルコストは 200");
   }
 
   @Test

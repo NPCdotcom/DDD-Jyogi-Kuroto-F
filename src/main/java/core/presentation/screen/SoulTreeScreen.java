@@ -159,6 +159,9 @@ public final class SoulTreeScreen extends ScreenAdapter {
     m.put(NodeId.of("mag_atk_up_2"), polar(180, 700));
     m.put(NodeId.of("phys_def_up_2"), polar(240, 700));
     m.put(NodeId.of("mag_def_up_2"), polar(300, 700));
+    // 層数拡張 (最外周のさらに外、ステ Lv2 の外側に配置、§15 拡張)
+    m.put(NodeId.of("layer_extend_4"), polar(30, 860));
+    m.put(NodeId.of("layer_extend_5"), polar(150, 860));
     return Collections.unmodifiableMap(m);
   }
 

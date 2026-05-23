@@ -127,6 +127,7 @@ public final class SoulTreeCatalog {
                   requiredInt(e, "magicalDefense")));
       case "CardGrant" -> new NodeEffect.CardGrantEffect(CardId.of(text(e, "cardId")));
       case "SlotExpand" -> new NodeEffect.SlotExpandEffect(requiredInt(e, "amount"));
+      case "LayerExtend" -> new NodeEffect.LayerExtendEffect(requiredInt(e, "amountToAdd"));
       default -> throw new IllegalStateException("unknown node effect type: " + type);
     };
   }

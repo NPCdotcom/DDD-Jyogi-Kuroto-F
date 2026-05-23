@@ -142,12 +142,34 @@ public final class InitialStateFactory {
 
   // ----------------------------- ダンジョン構成 -----------------------------
 
-  /** ラン全体の層数 (§15-6「初期 3 層」)。最終層 (= MAX_LAYER) にボスが出現する。 層数拡張 (ソウルツリー) は M2 送り、本セッションは固定 3 層。 */
-  public static final int MAX_LAYER = 3;
+  /**
+   * ラン全体の層数のデフォルト値 (§15-6「初期 3 層」)。最終層 (= DEFAULT_MAX_LAYER) にボスが出現する。
+   *
+   * <p>SoulTree の LayerExtendEffect を解放すると {@code GameContext.maxLayer} が
+   * このデフォルトから増えていく。GameContext が無いコンテキスト (戦闘外のヘルパ等) では 本値を fallback として使う。
+   */
+  public static final int DEFAULT_MAX_LAYER = 3;
 
-  /** 指定の層が最終層か (§15-6 クリア条件 = 最終層ボス撃破)。最終層 (MAX_LAYER) にボスを配置する。 */
+  /**
+   * 指定の層が最終層か (§15-6 クリア条件 = 最終層ボス撃破)。引数 {@code maxLayer} がそのラン固有の 最大層数 (GameContext.maxLayer 経由)
+   * を表す。
+   */
+  public static boolean isFinalLayer(Layer layer, int maxLayer) {
+    return layer.number() == maxLayer;
+  }
+
+  /**
+   * GameContext 経由で最終層か判定するヘルパ (Task B タスク仕様)。context が null の場合は {@link #DEFAULT_MAX_LAYER}
+   * にフォールバック (戦闘開始前など context が未生成のフロー向けの安全弁)。
+   */
+  public static boolean isFinalLayer(Layer layer, core.application.GameContext context) {
+    int max = (context == null) ? DEFAULT_MAX_LAYER : context.maxLayer();
+    return isFinalLayer(layer, max);
+  }
+
+  /** 既存呼出互換 (デフォルト最大層数で判定)。GameContext が取れない場面の fallback として残す。 */
   public static boolean isFinalLayer(Layer layer) {
-    return layer.number() == MAX_LAYER;
+    return isFinalLayer(layer, DEFAULT_MAX_LAYER);
   }
 
   // ----------------------------- ファクトリ -----------------------------
@@ -161,15 +183,25 @@ public final class InitialStateFactory {
   public static DungeonState firstFloor(Random rng) {
     Objects.requireNonNull(rng, "rng");
     Player player = newPlayer(DungeonGenerator.SPAWN, rng);
-    return generateLayerState(Layer.first(), player, rng);
+    return generateLayerState(Layer.first(), player, rng, DEFAULT_MAX_LAYER);
   }
 
   /** 指定ロードアウト (装備スロット → 装備) で 1 層目を組み立てる (§15-9、DddGame が選択ロードアウトを注入)。 */
   public static DungeonState firstFloor(Random rng, Map<EquipmentSlot, Equipment> loadout) {
+    return firstFloor(rng, loadout, DEFAULT_MAX_LAYER);
+  }
+
+  /**
+   * 指定ロードアウト + 最大層数で 1 層目を組み立てる (SoulTree.LayerExtend 反映後の DddGame.startNewRun から呼ぶ)。
+   *
+   * @param maxLayer ラン固有の最大層数 (1 層目では isFinalLayer 判定のみに影響、boss 配置のため重要)
+   */
+  public static DungeonState firstFloor(
+      Random rng, Map<EquipmentSlot, Equipment> loadout, int maxLayer) {
     Objects.requireNonNull(rng, "rng");
     Objects.requireNonNull(loadout, "loadout");
     Player player = newPlayer(DungeonGenerator.SPAWN, rng, loadout);
-    return generateLayerState(Layer.first(), player, rng);
+    return generateLayerState(Layer.first(), player, rng, maxLayer);
   }
 
   /**
@@ -337,9 +369,17 @@ public final class InitialStateFactory {
    * @param rng マップ生成の乱数源 (ADR-19: 引数注入)
    */
   public static DungeonState advanceLayer(DungeonState current, Random rng) {
+    return advanceLayer(current, rng, DEFAULT_MAX_LAYER);
+  }
+
+  /**
+   * 最大層数を明示する advanceLayer overload (Task B、GameContext.maxLayer を渡す)。 SoulTree.LayerExtendEffect
+   * で増えた最大層数を反映するため、DddGame が context.maxLayer() を 渡して呼ぶ。
+   */
+  public static DungeonState advanceLayer(DungeonState current, Random rng, int maxLayer) {
     Objects.requireNonNull(current, "current");
     Objects.requireNonNull(rng, "rng");
-    return generateLayerState(current.layer().next(), current.player(), rng);
+    return generateLayerState(current.layer().next(), current.player(), rng, maxLayer);
   }
 
   /**
@@ -349,9 +389,10 @@ public final class InitialStateFactory {
    * #gridHeightFor})、敵数も増える ({@link #enemyCountFor})。最終層は先頭 1 体をボスに、層 2 は先頭 1
    * 体を強化個体に、残りは雑魚スライムにする。Player は位置を spawn にリセットして持ち越し、罠は持ち越さない (placedTraps 空)。
    */
-  private static DungeonState generateLayerState(Layer layer, Player player, Random rng) {
+  private static DungeonState generateLayerState(
+      Layer layer, Player player, Random rng, int maxLayer) {
     int n = layer.number();
-    boolean boss = isFinalLayer(layer);
+    boolean boss = isFinalLayer(layer, maxLayer);
     // §15-3 / §15-6: 強化個体は層 2 に出現させる (撃破で EliteDefeated → カード追加 UI のデモ用)。
     boolean hasElite = !boss && n == 2;
     DungeonGenerator.GeneratedDungeon dungeon =
@@ -417,6 +458,18 @@ public final class InitialStateFactory {
    */
   public static DungeonState restoreLayer(
       core.infrastructure.save.SaveData data, Map<EquipmentSlot, Equipment> loadout, Random rng) {
+    return restoreLayer(data, loadout, rng, DEFAULT_MAX_LAYER);
+  }
+
+  /**
+   * 最大層数を明示する restoreLayer overload (Task B、GameContext.maxLayer を渡す)。 ロード再開時に
+   * SoulTree.LayerExtendEffect で増えた最大層数を反映する。
+   */
+  public static DungeonState restoreLayer(
+      core.infrastructure.save.SaveData data,
+      Map<EquipmentSlot, Equipment> loadout,
+      Random rng,
+      int maxLayer) {
     Objects.requireNonNull(data, "data");
     Objects.requireNonNull(loadout, "loadout");
     Objects.requireNonNull(rng, "rng");
@@ -427,13 +480,13 @@ public final class InitialStateFactory {
             gridWidthFor(layer.number()),
             gridHeightFor(layer.number()),
             enemyCountFor(layer.number()),
-            !isFinalLayer(layer),
+            !isFinalLayer(layer, maxLayer),
             rng);
 
     // 敵を新規生成 (マップはリセット扱いなので新鮮な敵を配置)
     List<Enemy> enemies = new java.util.ArrayList<>();
     List<Position> spawns = dungeon.enemySpawns();
-    boolean boss = isFinalLayer(layer);
+    boolean boss = isFinalLayer(layer, maxLayer);
     boolean hasElite = !boss && layer.number() == 2;
     for (int i = 0; i < spawns.size(); i++) {
       Position pos = spawns.get(i);

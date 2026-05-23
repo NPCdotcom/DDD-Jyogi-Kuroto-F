@@ -6,8 +6,8 @@ import core.domain.tree.NodeEffect;
 /**
  * {@link NodeEffect} → アイコンファイルパスの解決 (純関数、§15-7 ソウルツリー描画用)。
  *
- * <p>sealed switch で 4 種 (None / StatsBonusEffect / CardGrantEffect / SlotExpandEffect) を網羅する。
- * 新効果型を追加するとコンパイルエラーで全箇所気づける (驚き最小)。
+ * <p>sealed switch で 5 種 (None / StatsBonusEffect / CardGrantEffect / SlotExpandEffect /
+ * LayerExtendEffect) を網羅する。新効果型を追加するとコンパイルエラーで全箇所気づける (驚き最小)。
  *
  * <p>戻り値は {@code Gdx.files.internal(path)} で読むことを想定したアセット相対パス。 ファイル欠損時は呼出側で {@code test.png}
  * へフォールバックする (`CardImageRegistry` と同思想)。
@@ -36,6 +36,8 @@ public final class NodeIconPathResolver {
           STATS_DIR + statFilename(s.bonus().dominantStat()) + ".png";
       case NodeEffect.SlotExpandEffect ignored -> FRAME_PATH;
       case NodeEffect.None ignored -> CENTER_PATH;
+      // LayerExtend は専用素材を持たないため center.png にフォールバック (タスク指定)。
+      case NodeEffect.LayerExtendEffect ignored -> CENTER_PATH;
     };
   }
 

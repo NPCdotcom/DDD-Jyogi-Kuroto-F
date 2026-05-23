@@ -134,4 +134,38 @@ class NodeEffectTest {
     Player after = new NodeEffect.SlotExpandEffect(1).apply(base, DUMMY_RESOLVER);
     assertEquals(before + 1, after.skillSlot().maxSize(), "amount=1 (最小値) で maxSize が 1 増加");
   }
+
+  // ---------------- LayerExtendEffect (Task B) ----------------
+
+  // LayerExtendEffect は Player に副作用を持たない (GameContext.maxLayer 側で集約処理)。
+  @Test
+  void layerExtendEffectDoesNotMutatePlayer() {
+    Player base = basePlayer();
+    Player after = new NodeEffect.LayerExtendEffect(1).apply(base, DUMMY_RESOLVER);
+    assertSame(base, after, "LayerExtendEffect は Player を変えない (副作用は GameContext.maxLayer 側)");
+  }
+
+  @Test
+  void layerExtendEffectWithDifferentAmountStillReturnsSamePlayer() {
+    Player base = basePlayer();
+    Player after = new NodeEffect.LayerExtendEffect(5).apply(base, DUMMY_RESOLVER);
+    assertSame(base, after, "amountToAdd の値に関わらず Player は不変");
+  }
+
+  @Test
+  void layerExtendEffectRejectsZeroOrNegativeAmount() {
+    // amountToAdd <= 0 は compact constructor で弾く (Task B 仕様)。
+    assertThrows(IllegalArgumentException.class, () -> new NodeEffect.LayerExtendEffect(0));
+    assertThrows(IllegalArgumentException.class, () -> new NodeEffect.LayerExtendEffect(-1));
+    assertThrows(IllegalArgumentException.class, () -> new NodeEffect.LayerExtendEffect(-100));
+  }
+
+  @Test
+  void layerExtendEffectAcceptsPositiveAmount() {
+    // 正の amountToAdd は受理される (合計値の集約は GameContext 側責務)。
+    NodeEffect.LayerExtendEffect e1 = new NodeEffect.LayerExtendEffect(1);
+    NodeEffect.LayerExtendEffect e3 = new NodeEffect.LayerExtendEffect(3);
+    assertEquals(1, e1.amountToAdd());
+    assertEquals(3, e3.amountToAdd());
+  }
 }

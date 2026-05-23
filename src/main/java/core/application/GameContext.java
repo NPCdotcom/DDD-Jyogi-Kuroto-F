@@ -18,6 +18,13 @@ public final class GameContext {
 
   private static final int MAX_LOG_LINES = 64;
 
+  /**
+   * ラン全体の最大層数のデフォルト値 (§15-6「初期 3 層」)。SoulTree の LayerExtendEffect を 解放すると {@link #extendMaxLayer} で
+   * +1 ずつ加算される。infrastructure 層の {@code InitialStateFactory.DEFAULT_MAX_LAYER} と同値だが、application 層が
+   * infrastructure に依存しないよう本クラス内に定数として複製する (依存方向: application は domain のみ)。
+   */
+  public static final int DEFAULT_MAX_LAYER = 3;
+
   private DungeonState state;
   private final Deque<BattleEvent> recentEvents = new ArrayDeque<>();
 
@@ -26,6 +33,12 @@ public final class GameContext {
    * monotonic に増加する。DungeonScreen が「未処理 DamageDealt」を検知して popup / shake を発火するためのカーソルとして使う。
    */
   private long totalEventsEmitted = 0;
+
+  /**
+   * ラン全体の最大層数 (§15-6 / SoulTree LayerExtendEffect)。デフォルト = 3、 SoulTree の LayerExtend ノード解放で {@link
+   * #extendMaxLayer} を呼び加算する。 ラン内の可変状態 (ラン跨ぎは SoulTree 経由で間接的に再計算)。
+   */
+  private int maxLayer = DEFAULT_MAX_LAYER;
 
   private GameContext(DungeonState initial) {
     this.state = initial;
@@ -38,6 +51,24 @@ public final class GameContext {
 
   public DungeonState state() {
     return state;
+  }
+
+  /** 現在のラン最大層数 (§15-6 / LayerExtendEffect)。 */
+  public int maxLayer() {
+    return maxLayer;
+  }
+
+  /**
+   * 最大層数を {@code amount} 増やす (SoulTree.LayerExtendEffect の合計を反映する用)。
+   *
+   * @param amount 増加量 (1 以上)
+   * @throws IllegalArgumentException amount が 0 以下
+   */
+  public void extendMaxLayer(int amount) {
+    if (amount <= 0) {
+      throw new IllegalArgumentException("amount must be > 0: " + amount);
+    }
+    this.maxLayer += amount;
   }
 
   /** {@link TurnEngine} の出力を受けて状態を更新し、発生イベントを記録する。 */

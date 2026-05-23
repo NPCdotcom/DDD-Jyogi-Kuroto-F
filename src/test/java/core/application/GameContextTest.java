@@ -125,4 +125,32 @@ class GameContextTest {
     GameContext ctx = GameContext.startNewRun(baseState());
     assertThrows(NullPointerException.class, () -> ctx.applyResult(null));
   }
+
+  // ---------------- maxLayer / extendMaxLayer (Task B: SoulTree LayerExtendEffect)
+  // ----------------
+
+  @Test
+  void maxLayerDefaultsToDefaultMaxLayer() {
+    GameContext ctx = GameContext.startNewRun(baseState());
+    assertEquals(
+        GameContext.DEFAULT_MAX_LAYER, ctx.maxLayer(), "新規 GameContext の maxLayer は DEFAULT (3)");
+    assertEquals(3, ctx.maxLayer(), "DEFAULT_MAX_LAYER の値は 3 (§15-6 初期 3 層)");
+  }
+
+  @Test
+  void extendMaxLayerIncreasesMaxLayer() {
+    GameContext ctx = GameContext.startNewRun(baseState());
+    ctx.extendMaxLayer(1);
+    assertEquals(4, ctx.maxLayer(), "+1 で 4 になる");
+    ctx.extendMaxLayer(2);
+    assertEquals(6, ctx.maxLayer(), "+1 後さらに +2 で 6 になる (累積加算)");
+  }
+
+  @Test
+  void extendMaxLayerRejectsZeroOrNegative() {
+    GameContext ctx = GameContext.startNewRun(baseState());
+    assertThrows(IllegalArgumentException.class, () -> ctx.extendMaxLayer(0));
+    assertThrows(IllegalArgumentException.class, () -> ctx.extendMaxLayer(-1));
+    assertEquals(GameContext.DEFAULT_MAX_LAYER, ctx.maxLayer(), "不正引数では値が変わらない");
+  }
 }

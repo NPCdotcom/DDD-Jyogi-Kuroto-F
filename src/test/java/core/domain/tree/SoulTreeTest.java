@@ -64,8 +64,8 @@ class SoulTreeTest {
 
   @Test
   void allNodesContainsRequiredCount() {
-    // §15-7: 中央 1 + ステ軸 Lv1 (6) + 派生軸 1 カード (5) + 派生軸 2 枠拡張 (5) + ステ軸 Lv2 (6) = 23
-    assertEquals(23, SoulTree.allNodes().size());
+    // §15-7: 中央 1 + ステ軸 Lv1 (6) + 派生軸 1 カード (5) + 派生軸 2 枠拡張 (5) + ステ軸 Lv2 (6) + 層数拡張 (2) = 25
+    assertEquals(25, SoulTree.allNodes().size());
     assertTrue(SoulTree.allNodes().containsKey(SoulTree.ROOT));
   }
 

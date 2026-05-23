@@ -268,16 +268,42 @@ public final class DddGame extends Game {
     // ADR-19: Random は引数注入で再現性を呼出元に委ねる (初期手札シャッフル + 毎ターンドロー)。
     // ラン毎に new Random() で異なるシード = 本番プレイは非再現的 (テストでは固定シードを渡す)。
     runRng = new Random();
-    DungeonState state = InitialStateFactory.firstFloor(runRng, loadout);
+    // §15-6 / SoulTree LayerExtend: 解放済みの LayerExtendEffect の合計値からラン最大層数を算出。
+    // generateLayerState がボス配置のために最大層数を必要とするため、firstFloor 前に計算する。
+    int extendAmount = totalLayerExtendAmount();
+    int maxLayer = InitialStateFactory.DEFAULT_MAX_LAYER + extendAmount;
+    DungeonState state = InitialStateFactory.firstFloor(runRng, loadout, maxLayer);
     // §15-7: ソウルツリーの解放済み効果を Player に適用 (素ステ補正 / カード追加 / 枠拡張)
+    // LayerExtendEffect は Player に副作用がないため、ループは no-op (副作用は GameContext.maxLayer 側で集約済)。
     Player applied = soulTree.applyTo(state.player(), InitialStateFactory::resolveCard);
     // §15-2 / §15-7: ラン外のソウル保持を Player に注入 (前回ランからの持ち越し)
     Player withSoul = applied.addSoul(playerSoul);
     // 注入後は外部保持を 0 に (重複加算防止、preserveSoulFromRun でラン終了時に書き戻る)
     this.playerSoul = Soul.zero();
     this.context = GameContext.startNewRun(state.withPlayer(withSoul));
+    if (extendAmount > 0) {
+      this.context.extendMaxLayer(extendAmount);
+    }
     this.director = new TurnDirector(this.context, runRng);
     recordObtainedCards(); // §15-3: 初期デッキを図鑑に記録
+  }
+
+  /**
+   * 解放済みノードの {@link core.domain.tree.NodeEffect.LayerExtendEffect} の amountToAdd 合計を返す (SoulTree →
+   * GameContext.maxLayer 反映用ヘルパ、Task B)。
+   */
+  private int totalLayerExtendAmount() {
+    int total = 0;
+    for (NodeId id : soulTree.unlockedNodes()) {
+      core.domain.tree.TreeNode node = SoulTree.allNodes().get(id);
+      if (node == null) {
+        continue;
+      }
+      if (node.effect() instanceof core.domain.tree.NodeEffect.LayerExtendEffect le) {
+        total += le.amountToAdd();
+      }
+    }
+    return total;
   }
 
   /**
@@ -299,7 +325,9 @@ public final class DddGame extends Game {
     DungeonState current = context.state();
     Player upgraded = choice.apply(current.player());
     DungeonState withUpgrade = current.withPlayer(upgraded);
-    director.advanceFloor(InitialStateFactory.advanceLayer(withUpgrade, runRng));
+    // GameContext.maxLayer を渡し、SoulTree.LayerExtendEffect で拡張済の最終層番号を反映
+    director.advanceFloor(
+        InitialStateFactory.advanceLayer(withUpgrade, runRng, context.maxLayer()));
     recordObtainedCards(); // §15-3: ショップノードで入手したカードを図鑑に記録
     // §15-11: 層境界 (次層に進入する前) でセーブする。
     saveAtLayerBoundary();
@@ -420,7 +448,10 @@ public final class DddGame extends Game {
 
     // ラン状態を復元: 指定層からの新規マップ生成 + プレイヤーステ / デッキ注入
     runRng = new Random();
-    DungeonState baseState = InitialStateFactory.restoreLayer(data, loadout, runRng);
+    // §15-6 / SoulTree LayerExtend: ロード再開でも最大層数を再計算 (SaveData の SoulTree から派生)。
+    int extendAmount = totalLayerExtendAmount();
+    int maxLayer = InitialStateFactory.DEFAULT_MAX_LAYER + extendAmount;
+    DungeonState baseState = InitialStateFactory.restoreLayer(data, loadout, runRng, maxLayer);
     // §15-7 CRITICAL FIX: ロード時にソウルツリー効果を再適用しない (SaveData は補正済 Stats/Deck/SkillSlot を
     // 保存しているため、再適用すると HP / カード / スキル枠が二重加算される)。
     Player withTree = baseState.player();
@@ -431,6 +462,9 @@ public final class DddGame extends Game {
 
     DungeonState restoredState = baseState.withPlayer(withSoul);
     this.context = GameContext.startNewRun(restoredState);
+    if (extendAmount > 0) {
+      this.context.extendMaxLayer(extendAmount);
+    }
     this.director = new TurnDirector(this.context, runRng);
     // セーブデータは引き継がず: ロードして再開したら次層進入時に上書きセーブされる
     return true;
