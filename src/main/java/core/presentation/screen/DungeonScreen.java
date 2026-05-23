@@ -20,6 +20,7 @@ import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
+import core.domain.entity.EnemyKind;
 import core.domain.layer.LayerEndNode;
 import core.infrastructure.audio.BgmKind;
 import core.infrastructure.audio.SeKind;
@@ -88,6 +89,16 @@ public final class DungeonScreen extends ScreenAdapter {
 
   /** 敵ターンの 1 アクション刻みタイマー (§15-5、ENEMY_STEP_INTERVAL ごとに 1 アクション進める)。 */
   private float enemyStepTimer = 0f;
+
+  /** §7-2 / C-2: HP 低下警告フレームの脈動アニメ累積時間 (秒)。 */
+  private float lowHpAnimTime = 0f;
+
+  /**
+   * §15-5 / E-7: 撃破時に Bestiary へ EnemyKind を記録するための「直近観測時の敵 ID → kind」キャッシュ。 {@code
+   * BattleEvent.ActorDied} は ActorId のみ持ち kind を持たないため、生存中に観測した kind を覚えておく。 SaveData 永続化は M2
+   * 送り、本セッションはラン内のみ有効。
+   */
+  private final java.util.Map<ActorId, EnemyKind> rememberedEnemyKinds = new java.util.HashMap<>();
 
   /** マップ描画用カメラ (プレイヤー追従)。 */
   private OrthographicCamera camera;
@@ -363,11 +374,24 @@ public final class DungeonScreen extends ScreenAdapter {
     shapes.setColor(0f, 0f, 0f, 0.55f);
     shapes.rect(1330f, 770f, 590f, 310f);
     shapes.rect(0f, 0f, RenderLayout.SCREEN_WIDTH, 300f);
+    // §7-2 / C-2: HP <= 30% で画面端を脈動する赤フレームで警告表示。
+    lowHpAnimTime += com.badlogic.gdx.Gdx.graphics.getDeltaTime();
+    core.domain.entity.Stats playerStats = game.context().state().player().stats();
+    if (core.presentation.effect.LowHpWarning.shouldDraw(
+        playerStats.currentHp(), playerStats.maxHp())) {
+      core.presentation.effect.LowHpWarning.draw(shapes, lowHpAnimTime);
+    }
     shapes.end();
 
     batch.setProjectionMatrix(hudCamera.combined);
     batch.begin();
-    HudRenderer.draw(batch, game.fonts(), game.context(), playerInputs.pendingCardIndex());
+    HudRenderer.draw(
+        batch,
+        game.fonts(),
+        game.context(),
+        playerInputs.pendingCardIndex(),
+        game.cardImageRegistry(),
+        game.settings().uiPreset());
     drawFlash(batch);
     batch.end();
   }
@@ -390,6 +414,10 @@ public final class DungeonScreen extends ScreenAdapter {
    * で取得する。
    */
   private void processNewEvents() {
+    // §15-5 / E-7: 生存中の敵 ID → kind を更新 (ActorDied 時の Bestiary 記録に使う、kind は ActorDied 自体に無い)。
+    for (Enemy en : game.context().state().enemies()) {
+      rememberedEnemyKinds.put(en.id(), en.kind());
+    }
     long current = game.context().totalEventsEmitted();
     if (current <= lastSeenEventCount) {
       return;
@@ -408,6 +436,12 @@ public final class DungeonScreen extends ScreenAdapter {
           game.soundManager().playSe(SeKind.DEAL_DAMAGE);
         }
       } else if (e instanceof BattleEvent.ActorDied died && !died.who().equals(playerId)) {
+        // §15-5 / E-7: 撃破済 EnemyKind を Bestiary に記録 (rememberedEnemyKinds は processNewEvents
+        // 冒頭で更新済)
+        EnemyKind defeatedKind = rememberedEnemyKinds.get(died.who());
+        if (defeatedKind != null) {
+          game.recordEnemyDefeated(defeatedKind);
+        }
         // §15-5: 敵撃破 SE (プレイヤー死亡は除外)
         game.soundManager().playSe(SeKind.ENEMY_DEFEATED);
       } else if (e instanceof BattleEvent.SkillUsed) {

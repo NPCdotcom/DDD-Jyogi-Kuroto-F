@@ -1,6 +1,7 @@
 package core.presentation.render;
 
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import core.application.GameContext;
@@ -9,6 +10,8 @@ import core.domain.battle.TurnPhase;
 import core.domain.card.Card;
 import core.domain.card.CardElement;
 import core.domain.entity.Player;
+import core.infrastructure.bootstrap.CardImageRegistry;
+import core.infrastructure.save.UiPreset;
 import java.util.List;
 
 /**
@@ -32,7 +35,12 @@ public final class HudRenderer {
    * @param pendingCardIndex PlayerInputs から取得したカード選択中インデックス (-1 = 未選択)
    */
   public static void draw(
-      SpriteBatch batch, Fonts fonts, GameContext context, int pendingCardIndex) {
+      SpriteBatch batch,
+      Fonts fonts,
+      GameContext context,
+      int pendingCardIndex,
+      CardImageRegistry images,
+      UiPreset preset) {
     // §UI 拡大方針: HUD / 手札 / ログをまとめて large (32px) で描画 (視認性最優先)。
     BitmapFont font = fonts.large();
     boolean jp = fonts.isJapaneseAvailable();
@@ -66,46 +74,68 @@ public final class HudRenderer {
                 bonusSuffix(effStats.speed() - baseStats.speed())),
         RenderLayout.HUD_X,
         RenderLayout.HUD_Y_AP);
-    font.draw(
-        batch,
-        "%s: %d".formatted(jp ? Strings.Ja.HUD_SOUL : Strings.En.HUD_SOUL, p.soul().amount()),
-        RenderLayout.HUD_X,
-        RenderLayout.HUD_Y_SOUL);
-    font.draw(
-        batch,
-        "%s: %d".formatted(jp ? Strings.Ja.HUD_GOLD : Strings.En.HUD_GOLD, p.gold().amount()),
-        RenderLayout.HUD_X,
-        RenderLayout.HUD_Y_GOLD);
-    font.draw(
-        batch,
-        "%s: %s"
-            .formatted(
-                jp ? Strings.Ja.HUD_PHASE : Strings.En.HUD_PHASE,
-                phaseLabel(jp, context.state().phase())),
-        RenderLayout.HUD_X,
-        RenderLayout.HUD_Y_PHASE);
+
+    // §15-1 / §15-8: 拡張 HUD (Soul / Gold / Phase) は MINIMAL プリセットで抑制する。
+    // HP / AP は essential のため preset に関わらず常時表示。
+    if (RenderLayout.showExtendedHud(preset)) {
+      font.draw(
+          batch,
+          "%s: %d".formatted(jp ? Strings.Ja.HUD_SOUL : Strings.En.HUD_SOUL, p.soul().amount()),
+          RenderLayout.HUD_X,
+          RenderLayout.HUD_Y_SOUL);
+      font.draw(
+          batch,
+          "%s: %d".formatted(jp ? Strings.Ja.HUD_GOLD : Strings.En.HUD_GOLD, p.gold().amount()),
+          RenderLayout.HUD_X,
+          RenderLayout.HUD_Y_GOLD);
+      font.draw(
+          batch,
+          "%s: %s"
+              .formatted(
+                  jp ? Strings.Ja.HUD_PHASE : Strings.En.HUD_PHASE,
+                  phaseLabel(jp, context.state().phase())),
+          RenderLayout.HUD_X,
+          RenderLayout.HUD_Y_PHASE);
+    }
 
     // 移動権保持中のみ CYAN で「移動権 残 N 歩」を表示 (ADR-21 §15-5)
     drawMoveToken(batch, font, jp, p.pendingMoveCount());
 
     drawControlsHint(
-        batch, fonts, jp, pendingCardIndex, p.pendingMoveCount() > 0, context.state().phase());
+        batch,
+        fonts,
+        jp,
+        pendingCardIndex,
+        p.pendingMoveCount() > 0,
+        context.state().phase(),
+        preset);
     drawLog(batch, font, jp, context.latestEvents(RenderLayout.LOG_LINES_VISIBLE));
-    drawHand(batch, font, jp, p, pendingCardIndex);
+    drawHand(batch, font, jp, p, pendingCardIndex, images);
   }
 
   /**
-   * 後方互換オーバーロード。{@code pendingCardIndex = -1} で呼ぶ (カード選択ハイライトなし)。
+   * 後方互換オーバーロード。{@code pendingCardIndex = -1} で呼ぶ (カード選択ハイライトなし)、 サムネイル無し、プリセットは STANDARD。
    *
    * <p>既存の static 呼び出しがある場合に備えて残す。
    */
   public static void draw(SpriteBatch batch, Fonts fonts, GameContext context) {
-    draw(batch, fonts, context, -1);
+    draw(batch, fonts, context, -1, null, UiPreset.STANDARD);
   }
 
-  /** 手札を画面下部に描画する。 */
+  /** サムネイル寸法 (手札カード画像、§15-3)。BitmapFont 32px と並ぶように縦幅を合わせる。 */
+  private static final float HAND_THUMB_WIDTH = 24f;
+
+  private static final float HAND_THUMB_HEIGHT = 32f;
+  private static final float HAND_THUMB_GAP = 4f; // テキストとの隙間
+
+  /** 手札を画面下部に描画する (§15-3 カード画像サムネイル付き)。 */
   private static void drawHand(
-      SpriteBatch batch, BitmapFont font, boolean jp, Player p, int pendingCardIndex) {
+      SpriteBatch batch,
+      BitmapFont font,
+      boolean jp,
+      Player p,
+      int pendingCardIndex,
+      CardImageRegistry images) {
     List<Card> cards = p.cardPileState().hand().cards();
     if (cards.isEmpty()) {
       return;
@@ -119,14 +149,27 @@ public final class HudRenderer {
         RenderLayout.HUD_X,
         RenderLayout.HAND_Y + RenderLayout.LARGE_LINE_HEIGHT);
 
-    // カード一覧 (1 行に並べる、最大 9 枚)
+    // カード一覧 (1 行に並べる、最大 9 枚)。各カードは [サムネイル] + [テキストラベル] の構成。
     int x = RenderLayout.HUD_X;
     for (int i = 0; i < cards.size(); i++) {
       Card card = cards.get(i);
       boolean selected = (i == pendingCardIndex);
 
+      // §15-3: カード画像のサムネイル (テキストラベルの左に配置)。
+      if (images != null) {
+        Texture tex = images.get(card.id());
+        if (tex != null) {
+          if (selected) {
+            batch.setColor(1f, 1f, 0.6f, 1f); // 選択中は薄い黄色ティント
+          } else {
+            batch.setColor(Color.WHITE);
+          }
+          batch.draw(tex, x, RenderLayout.HAND_Y - 4f, HAND_THUMB_WIDTH, HAND_THUMB_HEIGHT);
+          batch.setColor(Color.WHITE);
+        }
+      }
+
       if (selected) {
-        // 選択中カードを黄色でハイライト
         font.setColor(Color.YELLOW);
       } else {
         font.setColor(Color.WHITE);
@@ -138,10 +181,12 @@ public final class HudRenderer {
       String text =
           "%s[%d]%s AP:%d %s  "
               .formatted(prefix, i + 1, card.displayName(), card.apCost(), elemLabel);
-      font.draw(batch, text, x, RenderLayout.HAND_Y);
+      font.draw(batch, text, x + HAND_THUMB_WIDTH + HAND_THUMB_GAP, RenderLayout.HAND_Y);
 
-      // 次のカードの X 座標を文字幅分ずらす (RenderLayout.HAND_CARD_GLYPH_WIDTH px/文字で概算)
-      x += text.length() * RenderLayout.HAND_CARD_GLYPH_WIDTH;
+      // 次のカードの X 座標をサムネイル幅 + 隙間 + テキスト幅分ずらす
+      x +=
+          (int) (HAND_THUMB_WIDTH + HAND_THUMB_GAP)
+              + text.length() * RenderLayout.HAND_CARD_GLYPH_WIDTH;
     }
 
     // §15-3: 選択中カードの効果説明を 1 行表示する (ユーザー要望: カード説明の確認手段)。
@@ -212,7 +257,13 @@ public final class HudRenderer {
       boolean jp,
       int pendingCardIndex,
       boolean inMovementTokenMode,
-      TurnPhase phase) {
+      TurnPhase phase,
+      UiPreset preset) {
+    // §15-1 / §15-8 プリセット連動: CLEARED 状態は最重要のため常時表示。
+    // それ以外で MINIMAL プリセット (showExtendedHud=false) ならヒントを抑制する。
+    if (phase != TurnPhase.CLEARED && !RenderLayout.showExtendedHud(preset)) {
+      return;
+    }
     // 優先度: CLEARED (層踏破) > 移動権保持中 > カード選択中 > 通常
     // ヒントは large() (32px) で描画 (プロジェクタ視聴対応、§UI 拡大方針)
     BitmapFont font = fonts.large();

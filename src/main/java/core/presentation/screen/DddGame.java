@@ -9,10 +9,12 @@ import core.domain.card.Card;
 import core.domain.card.CardId;
 import core.domain.card.CardPileState;
 import core.domain.dungeon.DungeonState;
+import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
 import core.domain.equipment.Equipment;
 import core.domain.equipment.EquipmentSlot;
 import core.domain.layer.LayerEndNode;
+import core.domain.meta.Bestiary;
 import core.domain.meta.Soul;
 import core.domain.tree.NodeId;
 import core.domain.tree.SoulTree;
@@ -96,6 +98,12 @@ public final class DddGame extends Game {
   private final Set<CardId> obtainedCards = new HashSet<>();
 
   /**
+   * 撃破済み敵種の Bestiary (§15-5 / E-7、ラン内記憶)。次行動予告 UI は M2 送りだが、撃破記録は本セッションで通す。 SaveData への永続化は未対応 (M2
+   * 申し送り)。
+   */
+  private Bestiary bestiary = Bestiary.empty();
+
+  /**
    * 装備ロードアウト (§15-9)。装備スロット → 装備。EquipmentScreen で編集し、{@link #startNewRun()} で Player に
    * 反映する。デフォルトはぼろい短剣のみ。E-9 セーブ未実装のため JVM 終了でリセット。
    */
@@ -139,6 +147,20 @@ public final class DddGame extends Game {
   /** これまでに入手したカード ID の集合 (カード図鑑の解放判定用、防御コピー)。 */
   public Set<CardId> obtainedCards() {
     return Set.copyOf(obtainedCards);
+  }
+
+  /** 撃破済敵種の Bestiary (§15-5、不変 record、防御コピー不要)。 */
+  public Bestiary bestiary() {
+    return bestiary;
+  }
+
+  /**
+   * 敵を撃破したことを Bestiary に記録する (§15-5 / E-7、DungeonScreen の ActorDied ハンドラから呼ぶ)。
+   *
+   * @param kind 撃破した敵の種別
+   */
+  public void recordEnemyDefeated(EnemyKind kind) {
+    this.bestiary = bestiary.withDefeated(kind);
   }
 
   /** 現在の Player が保持する全カード (山札 + 手札 + 捨て札) の ID を入手済として記録する。 */
