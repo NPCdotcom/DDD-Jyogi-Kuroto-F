@@ -167,3 +167,31 @@
 - **学び**: **集約 record の導入は 2 段階に分ける**。(1) 第 1 段階: record + テスト追加で「集約の形」を確立 (低リスク、テスト 0 件追加なら破壊しようがない) (2) 第 2 段階: 既存コードの内部統合 (中リスク、setter / getter を順次中継メソッドに置き換え)。Plan に「両方同 Wave」と書かれていても、テスト破壊リスクが高ければ 2 Wave に分割するのが安全
 - **判断基準**: 影響範囲が 5 ファイル以上 / 既存テスト 100 件以上を経由するなら段階分割を検討。1 Wave で完了せず複数 Wave に渡る場合は m2_backlog に明示しておくと後追いが容易
 - **適用範囲**: 大規模 record 抽出 / 値オブジェクト集約 / DTO 統合などの破壊的変更全般
+
+### 2026-05-24: i18n 段階的移管の収束パターン
+
+- **状況**: Wave 1 Task 4 で 4 ペア (例外/通知メッセージ) を i18n 化したあと、Screen 内に少量のハードコード日本語が残存。Wave 6 W6-α で完了させた
+- **判断**: 残ハードコードを「Strings.java の Ja / En 両エントリに追加 → Screen で `jp ? Strings.Ja.FOO : Strings.En.FOO` 経由」に書き換え。9 箇所を 1 コミットでクリア
+- **学び**: **i18n 化は「一度で全部」を狙わず、Wave をまたいで段階的に収束させる**。理由 (1) コード全体を 1 度に書き換えると差分が膨大で review しにくい (2) 各 Wave で「残ハードコードを数える → 移管」のミニループを回すと、Strings.java のキー命名規約が育って一貫性が高まる (Wave 6 では `BONUS_STAT_*_SHORT` のような短縮形カテゴリを命名できた)
+- **収束判定**: `grep "[一-龯ぁ-んァ-ヶ]+"` で Screen ディレクトリを scan して「該当箇所 0」になれば収束。例外メッセージ (throw new) は domain 層に残しても OK (IllegalArgumentException 等はログ用、ユーザー目に触れない)
+- **適用範囲**: i18n / l10n の段階的導入全般。「全面移行」は coredump 級の差分を生むので、機能単位 / 画面単位 / 例外単位の分割が必須
+
+### 2026-05-24: SaveData migration の graceful pattern (v1 → v2 で確立)
+
+- **状況**: Wave 6 W6-β で SaveData に `defeatedEnemyKinds: List<String>` と `tutorialSeen: boolean` を追加。`schemaVersion=1` の旧セーブを読み込めるよう v2 化
+- **判断**: 3 層の防御で graceful migration を実現:
+  - **層 1 (Jackson レベル)**: 欠落フィールドは null (List) / false (boolean default) で来る。`@JsonProperty` で命名すれば自動で対応
+  - **層 2 (compact constructor レベル)**: `defeatedEnemyKinds = defeatedEnemyKinds != null ? List.copyOf(defeatedEnemyKinds) : List.of();` で null → empty 正規化。compact constructor は record の中央集権ゲートなので、ここで完結
+  - **層 3 (Converter レベル)**: 未知の Enum 名 (将来削除された敵種) は `EnumKind.valueOf(name)` の `IllegalArgumentException` を try-catch + WARN + graceful skip。`toLoadout` / `toObtainedCards` と同型パターン
+- **学び**: **永続データの schema migration は「3 層 graceful」を必ず備える**。1 層だけでは将来の field 追加 / 削除 / typo を吸収しきれない。3 層 = (a) Jackson default、(b) compact constructor normalize、(c) Converter で valueOf catch。これで「旧セーブを開いてクラッシュ」を構造的に排除できる
+- **CTO レビュー (ユーザー指摘) 反映**: `Set<EnemyKind>` → `List<String>` 直列化は **必ず `.name()` を使う** (既存 `unlockedNodeIds` / `obtainedCardIds` と同型パターン)。`Enum.toString()` は override 可能なので避ける
+- **適用範囲**: あらゆる永続データの schema migration (SaveData / Settings / Catalog 系 JSON)。新フィールド追加時は必ず 3 層を組む
+
+### 2026-05-24: タイガーリリー戦略 — 集約 record の内部統合
+
+- **状況**: Wave 6 W6-γ で Wave 5 残置の DddGame PlayerProgress 内部統合を実施。7 ラン外フィールド (soulTree / playerSoul / tutorialSeen / runCount / obtainedCards / bestiary / loadout) を 1 record に集約
+- **判断**: 「タイガーリリー戦略」を採用 = **1 フィールドずつ progress.withXxx(...) 化し、各段階で `gradlew check` 緑を確認する**ミニループ。1 度に全置換せず、フィールドごとに修正 → check → 次のフィールド、と繰り返す。実際は 7 フィールド + 関連箇所 (startNewRun / save / load) を 1 ファイル 1 コミット相当の差分で完成
+- **CTO レビュー (ユーザー指摘) 反映**: `progress = progress.withSoulTree(...).withPlayerSoul(...)` のような **メソッドチェインで書ききる**。一時 PlayerProgress インスタンスは複数生成されるが、JVM の Escape Analysis により Young Generation / Stack 上で高速 GC される (パフォーマンス懸念なし)。「withFoo してから一時変数に入れて withBar する」と冗長に書くより、チェインで意図が明瞭になる
+- **公開 API 互換維持**: Screen 側の `game.playerSoul()` / `game.loadout()` 等の呼出は変えない。内部で `return progress.playerSoul();` の中継メソッドにすることで、影響範囲を「DddGame 1 ファイルのみ」に閉じ込める。Screen 側の `game.progress()` 直接公開化は Wave 7 以降に breaking change として段階的に
+- **学び**: **大規模な集約 record 内部統合は (a) タイガーリリー戦略 (1 フィールドずつ置換 + check) + (b) 中継 getter で公開 API 互換維持 + (c) チェインメソッドで美しく書ききる、の 3 セットで進める**。これで影響範囲を最小化しつつ、テスト破壊リスクなく完了できる
+- **適用範囲**: God Object の集約 record 化全般。3 件以上のラン外永続フィールドを 1 record に統合するとき
