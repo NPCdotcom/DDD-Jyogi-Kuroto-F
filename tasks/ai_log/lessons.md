@@ -195,3 +195,37 @@
 - **公開 API 互換維持**: Screen 側の `game.playerSoul()` / `game.loadout()` 等の呼出は変えない。内部で `return progress.playerSoul();` の中継メソッドにすることで、影響範囲を「DddGame 1 ファイルのみ」に閉じ込める。Screen 側の `game.progress()` 直接公開化は Wave 7 以降に breaking change として段階的に
 - **学び**: **大規模な集約 record 内部統合は (a) タイガーリリー戦略 (1 フィールドずつ置換 + check) + (b) 中継 getter で公開 API 互換維持 + (c) チェインメソッドで美しく書ききる、の 3 セットで進める**。これで影響範囲を最小化しつつ、テスト破壊リスクなく完了できる
 - **適用範囲**: God Object の集約 record 化全般。3 件以上のラン外永続フィールドを 1 record に統合するとき
+
+### 2026-05-24: 同パッケージ package-private + Helpers クラスの分離パターン (2 段階リファクタの完了形)
+
+- **状況**: Wave 5 W5-α 系で TurnEngine を Movement / CardResolver / SkillResolver に分割した際、共通ヘルパ (reject / resolveDamageToEnemy / checkAndTriggerTrap) は package-private で TurnEngine 本体に残置していた。Wave 7 W7-α で独立クラス TurnEngineHelpers に集約
+- **判断**: 2 段階リファクタの完了形を採用:
+  - **第 1 段階 (Wave 5)**: 主要責務 (Movement / Card / Skill) を切り出し、共通ヘルパは元クラスに package-private 化して残置 → 「同パッケージから呼べる + 外部 API は変えない」中間状態
+  - **第 2 段階 (Wave 7)**: 残置していた共通ヘルパも独立クラスに集約 → 「全責務が分離 + 元クラスはフロー制御だけに絞られる」完了形
+- **削減効果**: TurnEngine 663 → 330 (Wave 5) → 197 (Wave 7) 行、計約 70% 削減
+- **学び**: **大規模クラス分割は 1 Wave で完璧を目指さず、2 段階リファクタで段階的に進める**。理由 (1) 第 1 段階で「主要責務分離」を完了 → 第 2 段階で「ヘルパ集約」、と分けると各 Wave のコミット粒度が小さく review しやすい (2) 第 1 段階で package-private 残置にすると「依存方向が崩れない」中間状態が保てる (Movement → Helpers のような変な依存が出ない) (3) 第 2 段階のタイミングは「共通ヘルパが 3 つ以上たまったら」を目安にする
+- **判断基準**: 元クラスが 200 行を切ったら第 2 段階のリファクタは打ち切る (それ以上分割するとオーバー engineering)
+- **適用範囲**: 500+ 行の utility / engine クラスの責務分割全般、Wave またぎの段階的リファクタが許容される場合
+
+### 2026-05-24: 中継 getter からの卒業 (機械的置換による breaking change の完遂)
+
+- **状況**: Wave 6 W6-γ で DddGame の 7 ラン外フィールドを PlayerProgress に集約した際、Screen 公開 API は中継 getter (game.playerSoul() 等) で互換維持にした。Wave 7 W7-β で完全撤去し、game.progress() 1 メソッドに集約
+- **判断**: 4 ステップを 1 コミット内で実施:
+  - (1) `progress()` 公開メソッド追加
+  - (2) Screen / テストコードの呼出 16 箇所を機械的置換 (`game.xxx()` → `game.progress().xxx()`)
+  - (3) 全 grep で残無し確認 (`grep "game\.playerSoul(" src` 等)
+  - (4) 中継 getter 7 件を削除
+- **CTO レビュー反映**: 中継 getter 撤去前に **grep でテストコード側の呼出を一網打尽**に列挙すること。今回はテストコード呼出ゼロだったが、確認は必須。「Screen メインコードだけ」のつもりがテストにも呼出があると、コンパイルエラーで気づくまで時間ロス
+- **学び**: **breaking change の機械的置換は 4 ステップを 1 コミットに収める**。理由 (1) 中継残置 + コール置換が混在する中間状態は「意図不明」になりがち (2) 1 コミット 4 ステップなら git revert で元に戻せる安全性 (3) `grep` で 0 件を確認してから中継削除する手順を踏むと安心 (4) Screen 公開 API の縮小 (7 メソッド → 1 メソッド) で「DddGame は何を持っているか」が明示的になる
+- **適用範囲**: 互換維持中継パターンの最終撤去全般 (record 直接公開化 / Builder pattern 解消 / DTO 中継削除 等)
+
+### 2026-05-24: presentation 層テストの境界 (純粋関数のみ対象、LibGDX 描画は対象外)
+
+- **状況**: Wave 7 W7-γ で presentation 層テスト補強。HudRenderer / RenderLayout / UiThemeResolver / BuffKindLabels / NodeIconPathResolver から純粋関数を抽出してテスト追加
+- **判断**: テスト対象は **以下の条件を全て満たすメソッドのみ**:
+  - LibGDX オブジェクト (`batch.draw(...)` / `font.setColor(...)` / `Texture` / `Stage`) を呼ばない純関数
+  - 引数と戻り値だけで動作が決まる (副作用なし、static 純関数)
+  - Color の比較は `r` / `g` / `b` フィールド値で代替 (`assertEquals(expected.r, actual.r, 0.001f)`)、`Color.equals()` は ε 比較できないので避ける
+- **対象外**: `font.draw(batch, text, x, y)` 等の LibGDX 描画呼出を含むメソッドはヘッドレス LibGDX が必要 = テストコスト overkill。Mockito で SpriteBatch を mock するのも検証価値が低い (描画呼出の引数を assert しても何の品質保証にもならない)
+- **学び**: **presentation 層テストは「純粋関数のラインを明確に分ける」**。具体的には: (1) LibGDX 描画呼出 = 視覚的 QA で確認 (テスト不要) (2) 文字列フォーマット / 色解決 / レイアウト計算 = 単体テスト対象 (Wave 7 で +22 件追加) (3) Screen ライフサイクル (show / render / dispose) = ヘッドレス LibGDX 環境で必要なら別途。これで「テストカバレッジを上げるためだけのコスト」を避け、本当に回帰防止になるテストだけが残る
+- **適用範囲**: LibGDX / Unity / その他 GUI フレームワーク依存の presentation 層全般。純粋関数の比率が低い場合は「Screen 群はテスト不可」と明示的に M2 送りにする選択も OK
