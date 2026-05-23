@@ -8,9 +8,9 @@
 
 ---
 
-## 2026-05-23 セッション最終アップデート + Wave 1 完了
+## 2026-05-23 セッション最終アップデート + Wave 1 / Wave 2 完了
 
-本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1 (4 タスク) を完了。残った M2 着手項目を以下に整理:
+本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1 (4 タスク) + M2 Wave 2 (3 タスク) を完了。テスト 545 → 590 件 (+45)。残った M2 着手項目:
 
 - **完了 (P2-P4)**: JSON 欠損 graceful、セーブ後ドロー仕様確認、Texture リーク、ダメージ計算 DRY 集約、
   BuffKindLabels 集約、HAND_DETAIL_TEXT_Y 文字数上限、EnemyKind isElite/isBoss、Optional 可読性、
@@ -18,8 +18,13 @@
 - **完了 (M2 Wave 1)**: Fonts/EquipmentScreen の InitialStateFactory 経由化 (P4-8 残り)、
   CreditsScreen 拡充 (素材クレジット表示)、汎用 ConfirmationDialog 新設 + R キー確認ダイアログ、
   ソウルツリー以外の例外/通知メッセージ i18n 移管 (4 ペア)
+- **完了 (M2 Wave 2)**: SoulTree マスタの JSON 化 (tree.json + SoulTreeCatalog、23 → 25 ノード)、
+  層数拡張 (NodeEffect.LayerExtendEffect 新設 + GameContext.maxLayer + tree.json に layer_extend_4/5)、
+  スキル枠 2→4 常時表示 (HudRenderer.drawSkillSlots + F1-F4 キーバインド)
 - **M2 送り**: LayerEndNode.Shop の Card/CardId 統一 (record signature 変更で広範囲影響)、
-  階段専用テクスチャ (チームメイト素材待ち)
+  階段専用テクスチャ (チームメイト素材待ち)、
+  domain → infrastructure 依存方向違反 (SoulTree.allNodes → InitialStateFactory.soulTreeNodes、
+  Wave 5 で Supplier 注入パターン再検討)
 
 ---
 
@@ -31,12 +36,12 @@
 | **DddGame の PlayerProgress 集約抽出** (Soul / runCount / obtainedCards / bestiary / loadout / tutorialSeen を 1 つの record に) | final-architect 2026-05-23 | M | God Object 化 |
 | **LayerEndNode.Shop vs NodeEffect.CardGrantEffect の Card/CardId 表現統一** (cardResolver 注入パターン) | final-architect 2026-05-23 | M | 驚き最小 |
 | ~~**EquipmentScreen / Fonts.java の InitialStateFactory 直接参照を game.cardCatalog 経由化**~~ → **Wave 1 Task 1 で完了** (commit cacb7ec) | A7 multi-perspective Must | S | static rowText / glyphs 階層が深い |
-| **SoulTree ノード定義の JSON 化** (現在 Java ハードコード、カード/装備は JSON 化済で非対称) | final-architect | M | 保守性向上 |
+| ~~**SoulTree ノード定義の JSON 化**~~ → **Wave 2 Task A で完了** (commit fe0febf、tree.json + SoulTreeCatalog) | final-architect | M | 保守性向上 |
 | **TurnEngine 671 行の分割** (カード解決 / 敵解決へ) | final-architect | M〜L | 商品化前リファクタ |
 | **LayerEndNode 日本語 displayName のドメイン汚染解消** (i18n 移行時) | domain-architect | M | i18n 全面対応とセットで |
 | **presentation / infrastructure テスト補強** (Screen 群のヘッドレス可能部分、LibGDX 非依存の純粋ロジック) | devils-advocate | M | カバレッジ偏在 |
 | **SaveData v2 migration** (現状は破損時 graceful「セーブなし扱い」のみ) | multi-perspective-reviewer | M | 後方互換 |
-| **スキル枠 2 → 4 の常時表示** (`HudRenderer` / `PlayerInputs`、ソウルツリーの `slot_expand_*` で増えた枠も 4 まで描画する) | tasks/todo.md Phase 7-3 | M | 4 枠あるが MVP は 2 個のみ使用 |
+| ~~**スキル枠 2 → 4 の常時表示**~~ → **Wave 2 Task C で完了** (commit 38a10a3、HudRenderer.drawSkillSlots + F1-F4) | tasks/todo.md Phase 7-3 | M | 4 枠あるが MVP は 2 個のみ使用 |
 
 ---
 
@@ -46,7 +51,7 @@
 |---|---|---|
 | **Bestiary フル UI** (画面 + 次行動の点線予告、§15-5) — Phase C で record スタブのみ着手 | E-7 | M |
 | **Android 対応** (「Doko-demo」スローガンの核、Phase D) | D-4 | L |
-| **層数拡張** (ソウルツリーノード経由で MAX_LAYER を増やす、現在 3 固定) | Phase A | M |
+| ~~**層数拡張**~~ → **Wave 2 Task B で完了** (commit ee78190、NodeEffect.LayerExtendEffect + GameContext.maxLayer + layer_extend_4/5) | Phase A | M |
 | **ショップノードの装備購入機能** (現状カード追加報酬のみ) | §15-9 / E-5 | M |
 | **イベントノード多様化** (現状「ソウルの祠」固定 1 種) | §15-6 | M |
 | **装備テーマ変動 UI** (§7-2 / §15-9、装備で UI 色テーマが変わる) | Phase A | M |

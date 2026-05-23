@@ -108,3 +108,11 @@
 - **指摘 / 失敗**: ハッカソン本番前日 (5/23) に record signature を変更すると、シリアライズパス・既存テスト・複数 callsite の連鎖修正が大規模になりリスクが大きい
 - **学び**: ハッカソン本番直前 (T-24h 以内) の **record signature 変更 / sealed permit 追加 / コンストラクタ引数追加** は原則 M2 送り。すでに動いているテスト 545 件を緑に保つ方が優先。「驚き最小」の整合性は M2 で取る
 - **適用範囲**: ハッカソン / 提出締切前の最終リファクタフェーズ全般
+
+### 2026-05-23: domain 層のマスタ JSON 化で「依存方向違反」と「static API 互換」のトレードオフ
+
+- **状況**: M2 Wave 2 Task A で SoulTree.allNodes() (23 ノード Java ハードコード) を tree.json + SoulTreeCatalog (infrastructure 層) に分離。新実装で `SoulTree.allNodes()` が `InitialStateFactory.soulTreeNodes()` を呼ぶ形になった
+- **指摘 / 失敗**: 技術的には CLAUDE.md ルール「domain は他層に依存しない」の違反。ただし代替案 (Supplier 注入 / instance method 化) は既存 callsite 5+ 箇所 (SoulTree.unlock / SaveDataConverter / SoulTreeScreen / Fonts) を全て変更する大規模リファクタになる
+- **判断**: 現状の static API 互換性 + 既存テスト 579 件互換を優先し、依存方向違反を**意図的に許容**。Wave 5 (DddGame 集約抽出時) で Supplier 注入パターン (`SoulTree.setNodeProvider(Supplier)` を `DddGame.create()` で呼ぶ) に置換する流れを M2 backlog に記録
+- **学び**: 設計原則違反は「全部直す or 全部我慢」ではなく「コストと範囲を計算して段階的に解消」が正解。Wave 単位で「今やる / 後で」を明確化することで進捗と品質を両立できる。違反は lessons.md と m2_backlog.md に記録して忘却防止
+- **適用範囲**: 大規模リファクタで静的 API の透過置換 vs 依存注入のいずれかを選ぶ判断全般 (特に Tier 1 ルール違反だが Tier 2 互換性を優先する状況)
