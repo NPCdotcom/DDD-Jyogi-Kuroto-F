@@ -1,7 +1,6 @@
 package core.domain.battle;
 
 import core.domain.card.ActiveBuff;
-import core.domain.card.CardElement;
 import core.domain.card.TrapLifetime;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonState;
@@ -13,8 +12,6 @@ import core.domain.entity.PlayerStatuses;
 import core.domain.entity.Stats;
 import core.domain.meta.Gold;
 import core.domain.meta.Soul;
-import core.domain.skill.Skill;
-import core.domain.skill.SkillEffect;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -35,9 +32,10 @@ import java.util.Random;
  *   <li>switch 式の網羅性で全アクションを処理する (sealed の意義)
  * </ul>
  *
- * <p>§15-3 / ADR-18 で `BattleAction.UseCard` を追加、プレイヤーがカードを使って敵を殴れる。カードダメージ計算は
- * `CardEffect.Damage.resolve(Stats, Stats, CardElement)` に委譲する。スキルダメージは ADR-17 改訂で固定値をやめ、 {@link
- * #resolveSkillDamage} で被弾側の防御 (物防/魔防) を通す。
+ * <p>§15-3 / ADR-18 で `BattleAction.UseCard` を追加、プレイヤーがカードを使って敵を殴れる。カードダメージ計算は {@link
+ * TurnEngineCardResolver} (Wave 5 W5-α-2 切り出し) に委譲する。スキルダメージは ADR-17 改訂で固定値をやめ、 {@link
+ * TurnEngineSkillResolver} (Wave 5 W5-α-3 切り出し) で被弾側の防御 (物防/魔防) を通す。 移動 / 罠踏みは {@link
+ * TurnEngineMovement} (Wave 5 W5-α-1 切り出し) に分離。
  */
 public final class TurnEngine {
 
@@ -56,7 +54,8 @@ public final class TurnEngine {
     }
     return switch (action) {
       case BattleAction.Move move -> TurnEngineMovement.applyPlayerMove(state, move.direction());
-      case BattleAction.UseSkill use -> applyPlayerSkill(state, use.slotIndex());
+      case BattleAction.UseSkill use ->
+          TurnEngineSkillResolver.applyPlayerSkill(state, use.slotIndex());
       case BattleAction.UseCard use -> TurnEngineCardResolver.applyPlayerUseCard(state, use);
       case BattleAction.Wait ignored -> applyPlayerWait(state);
       case BattleAction.EndTurn ignored -> endPlayerTurn(state);
@@ -139,7 +138,8 @@ public final class TurnEngine {
     return switch (action) {
       case BattleAction.Move move ->
           TurnEngineMovement.applyEnemyMove(state, enemy, move.direction());
-      case BattleAction.UseSkill use -> applyEnemySkill(state, enemy, use.slotIndex());
+      case BattleAction.UseSkill use ->
+          TurnEngineSkillResolver.applyEnemySkill(state, enemy, use.slotIndex());
       // §15-3 / ADR-18: 敵はカードを使わない (Skill ベース)。誤って UseCard が渡されたら reject。
       case BattleAction.UseCard ignored -> reject(state, enemy.id(), "敵はカードを使えない");
       case BattleAction.Wait ignored -> applyEnemyWait(state, enemy);
@@ -169,28 +169,8 @@ public final class TurnEngine {
   // ===================================================================================
 
   // Wave 5 W5-α-1: applyPlayerMove は {@link TurnEngineMovement#applyPlayerMove} に切り出し済。
-
-  private static StepResult applyPlayerSkill(DungeonState state, int slotIndex) {
-    Player player = state.player();
-    Optional<Skill> skillOpt = player.skillSlot().at(slotIndex);
-    if (skillOpt.isEmpty()) {
-      return reject(state, player.id(), "スキル枠が空");
-    }
-    Skill skill = skillOpt.get();
-    if (!player.actionPoints().canSpend(skill.apCost())) {
-      return reject(state, player.id(), "AP 不足");
-    }
-    Optional<Enemy> targetOpt = findAdjacentEnemy(state, player.position());
-    if (targetOpt.isEmpty()) {
-      return reject(state, player.id(), "対象がいない");
-    }
-    Player afterCost = player.withActionPoints(player.actionPoints().spend(skill.apCost()));
-    DungeonState afterCostState = state.withPlayer(afterCost);
-    return applyEffectByPlayer(afterCostState, skill, targetOpt.get());
-  }
-
-  // Wave 5 W5-α-2: applyPlayerUseCard / resolveCardDamage / resolveCardMove / resolveCardBuff /
-  // resolveCardTrap は {@link TurnEngineCardResolver} に切り出し済。
+  // Wave 5 W5-α-2: applyPlayerUseCard 系 5 メソッドは {@link TurnEngineCardResolver} に切り出し済。
+  // Wave 5 W5-α-3: applyPlayerSkill は {@link TurnEngineSkillResolver#applyPlayerSkill} に切り出し済。
 
   private static StepResult applyPlayerWait(DungeonState state) {
     Player player = state.player();
@@ -206,23 +186,7 @@ public final class TurnEngine {
   // ===================================================================================
 
   // Wave 5 W5-α-1: applyEnemyMove は {@link TurnEngineMovement#applyEnemyMove} に切り出し済。
-
-  private static StepResult applyEnemySkill(DungeonState state, Enemy enemy, int slotIndex) {
-    Optional<Skill> skillOpt = enemy.skillSlot().at(slotIndex);
-    if (skillOpt.isEmpty()) {
-      return reject(state, enemy.id(), "スキル枠が空");
-    }
-    Skill skill = skillOpt.get();
-    if (!enemy.actionPoints().canSpend(skill.apCost())) {
-      return reject(state, enemy.id(), "AP 不足");
-    }
-    if (!enemy.position().isAdjacentTo(state.player().position())) {
-      return reject(state, enemy.id(), "対象がいない");
-    }
-    Enemy afterCost = enemy.withActionPoints(enemy.actionPoints().spend(skill.apCost()));
-    DungeonState afterCostState = state.withEnemyReplaced(afterCost);
-    return applyEffectByEnemy(afterCostState, skill, enemy.id());
-  }
+  // Wave 5 W5-α-3: applyEnemySkill は {@link TurnEngineSkillResolver#applyEnemySkill} に切り出し済。
 
   private static StepResult applyEnemyWait(DungeonState state, Enemy enemy) {
     if (!enemy.actionPoints().canSpend(1)) {
@@ -236,44 +200,8 @@ public final class TurnEngine {
   //  効果適用 (Damage etc.)
   // ===================================================================================
 
-  private static StepResult applyEffectByPlayer(DungeonState state, Skill skill, Enemy target) {
-    List<BattleEvent> events = new ArrayList<>();
-    events.add(new BattleEvent.SkillUsed(state.player().id(), skill.displayName()));
-    return switch (skill.effect()) {
-      // ADR-17 改訂: スキルダメージも被弾側 (敵) の防御を通す。
-      case SkillEffect.Damage dmg ->
-          resolveDamageToEnemy(
-              state,
-              resolveSkillDamage(dmg.amount(), target.stats(), dmg.element()),
-              target,
-              events);
-    };
-  }
-
-  private static StepResult applyEffectByEnemy(
-      DungeonState state, Skill skill, ActorId attackerId) {
-    List<BattleEvent> events = new ArrayList<>();
-    events.add(new BattleEvent.SkillUsed(attackerId, skill.displayName()));
-    return switch (skill.effect()) {
-      // ADR-17 改訂: 敵スキルもプレイヤーの実効防御 (装備/Buff 込み) を通す。
-      case SkillEffect.Damage dmg ->
-          resolveDamageToPlayer(
-              state,
-              resolveSkillDamage(dmg.amount(), state.player().effectiveStats(), dmg.element()),
-              attackerId,
-              events);
-    };
-  }
-
-  /**
-   * スキルダメージに被弾側の防御を適用する (ADR-17 改訂)。
-   *
-   * <p>計算は {@link DamageFormula#resolveWithoutAttacker} に委譲。スキルは攻撃側ステを加算せず 固定 {@code amount}
-   * を基準値とするため、カード経路の {@link DamageFormula#resolve} ではなく {@code resolveWithoutAttacker} を使う。
-   */
-  private static int resolveSkillDamage(int amount, Stats victim, CardElement element) {
-    return DamageFormula.resolveWithoutAttacker(amount, victim, element);
-  }
+  // Wave 5 W5-α-3: applyEffectByPlayer / applyEffectByEnemy / resolveSkillDamage
+  // / resolveDamageToPlayer は {@link TurnEngineSkillResolver} に切り出し済。
 
   /**
    * 敵にダメージを適用する共通ヘルパ (ADR-18 で int finalDamage 受け取りに統一)。
@@ -313,24 +241,6 @@ public final class TurnEngine {
     }
     Enemy hit = target.withStats(damagedStats);
     return new StepResult(state.withEnemyReplaced(hit), events);
-  }
-
-  /** プレイヤーにダメージを適用する共通ヘルパ (int finalDamage 受け取り、Skill / Card 両経路兼用)。 */
-  private static StepResult resolveDamageToPlayer(
-      DungeonState state, int finalDamage, ActorId attackerId, List<BattleEvent> events) {
-    Player player = state.player();
-    Stats damagedStats = player.stats().damaged(finalDamage);
-    events.add(
-        new BattleEvent.DamageDealt(
-            attackerId, player.id(), finalDamage, damagedStats.currentHp()));
-    Player hit = player.withStats(damagedStats);
-    if (!damagedStats.isAlive()) {
-      events.add(new BattleEvent.ActorDied(player.id()));
-      DungeonState ns = state.withPlayer(hit).withPhase(TurnPhase.GAME_OVER);
-      events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.GAME_OVER));
-      return new StepResult(ns, events);
-    }
-    return new StepResult(state.withPlayer(hit), events);
   }
 
   // ===================================================================================
@@ -428,15 +338,6 @@ public final class TurnEngine {
       }
     }
     return ns;
-  }
-
-  private static Optional<Enemy> findAdjacentEnemy(DungeonState state, Position from) {
-    for (Enemy e : state.enemies()) {
-      if (from.isAdjacentTo(e.position())) {
-        return Optional.of(e);
-      }
-    }
-    return Optional.empty();
   }
 
   /** 1 ステップの解決結果。state は常に有効で、accepted 判定は events 側の有無で行う。 */
