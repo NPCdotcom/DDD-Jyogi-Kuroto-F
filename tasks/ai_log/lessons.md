@@ -229,3 +229,20 @@
 - **対象外**: `font.draw(batch, text, x, y)` 等の LibGDX 描画呼出を含むメソッドはヘッドレス LibGDX が必要 = テストコスト overkill。Mockito で SpriteBatch を mock するのも検証価値が低い (描画呼出の引数を assert しても何の品質保証にもならない)
 - **学び**: **presentation 層テストは「純粋関数のラインを明確に分ける」**。具体的には: (1) LibGDX 描画呼出 = 視覚的 QA で確認 (テスト不要) (2) 文字列フォーマット / 色解決 / レイアウト計算 = 単体テスト対象 (Wave 7 で +22 件追加) (3) Screen ライフサイクル (show / render / dispose) = ヘッドレス LibGDX 環境で必要なら別途。これで「テストカバレッジを上げるためだけのコスト」を避け、本当に回帰防止になるテストだけが残る
 - **適用範囲**: LibGDX / Unity / その他 GUI フレームワーク依存の presentation 層全般。純粋関数の比率が低い場合は「Screen 群はテスト不可」と明示的に M2 送りにする選択も OK
+
+### 2026-05-24: domain 層の表示ラベル汚染 — 段階的剥離パターン (Wave 1/6/8 の 3 Wave 完結)
+
+- **状況**: Wave 1 Task 4 で例外メッセージの i18n 移管 (4 ペア)、Wave 6 W6-α で Screen ハードコード 9 箇所を Strings に集約、Wave 8 W8-α で LayerEndNode#displayName を撤去。3 Wave に分けて domain 層から日本語を完全排除
+- **判断**: 各 Wave で「影響範囲が手頃なスコープ」だけ移管する。一気に全部やると差分が膨大、各 Wave で挙動変化を確認しながら積み上げる
+- **学び**: **domain 層の表示文字列汚染は「層 (domain / presentation) 境界を侵犯する種類の負債」なので、ハッカソン期は意図的に残置 + M2 段階で剥離が正解**。理由 (1) ハッカソン期は「displayName で文字列直接取得」が圧倒的に楽 (2) M2 で本格的 i18n を導入する際に「presentation 層に Labels クラスを集約 + Strings の Ja/En キー化」を順次進める (3) 完全撤去は「Event の displayLabel: String field を Enum に置換」のような構造変更を要するので、最後の Wave に持ってくる
+- **Event の field 仕様変更の威力**: `Event(int, int, int, String)` → `Event(int, int, int, EventKind)` への変更で「外部から日本語 String を注入できる悪い設計」が構造的に不可能になる。compact constructor で「kind と delta の整合性」を validation することで、`new Event(99, 99, 99, EventKind.HEALING_SPRING)` のような不整合呼出を早期検出 + `Event.of(kind)` factory で kind だけから自動構築可能
+- **適用範囲**: domain 層の表示文字列負債全般、特に「ハッカソン期に意図的に残した日本語 displayName」の最終撤去
+
+### 2026-05-24: LibGDX リソース系のコンポーネント集約パターン — record ではなく final class が筋
+
+- **状況**: Wave 8 W8-β で DddGame の Fonts / SoundManager / CardImageRegistry の 3 LibGDX リソースを GameResources final class に集約
+- **判断**: record にはできない。理由は dispose() メソッドが必要で、record は immutable value object 専用 (Disposable interface 実装は record でも可能だが「リソースを保持し、自分の生死を管理する」のは record の責務と直交する)
+- **完全なる防衛的 dispose**: 各 dispose 呼出を try-catch で個別に囲み、1 つが例外を投げても後続のリソース解放がスキップされない構造に。LibGDX の dispose は内部状態によっては例外を投げる可能性があり (Texture 未ロード状態、Music 既 close 等)、ハッカソン後の長期運用 (Phase D Android) でのクラッシュ率に直結する
+- **解放順序**: CardImageRegistry (Texture[]) → SoundManager (Music + Sound) → Fonts (FreeTypeFontGenerator + BitmapFont)。順序判断は「重い・無依存なリソースから順、フォントは最後 (テキスト系のクラッシュログを最後まで出せる)」
+- **学び**: **リソースライフサイクル管理クラスは record ではなく final class、dispose は防衛的 try-catch で個別解放**。理由 (1) record は immutable 思想 + value 比較が前提で、リソースの生死を扱うのと合わない (2) Disposable パターンは LibGDX のお作法、自前実装でも順序と例外を意識した実装が必須 (3) DddGame からは `if (resources != null) resources.dispose()` の 2 行に集約され、リソース系の責務が DddGame から完全分離される
+- **適用範囲**: GUI / ゲームフレームワーク (LibGDX / JavaFX / Swing) のリソース集約全般。dispose / close ライフサイクルがある型の集約は record ではなく final class

@@ -8,9 +8,9 @@
 
 ---
 
-## 2026-05-24 セッション最終アップデート + Wave 1〜7 完了
+## 2026-05-24 セッション最終アップデート + Wave 1〜8 完了
 
-本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1 (4 タスク) + M2 Wave 2 (3 タスク) + M2 Wave 3 (3 タスク) + M2 Wave 4 (5 段階 α/β/γ/δ/ε) + M2 Wave 5 (5 段階 γ/α-1/α-2/α-3/β) + M2 Wave 6 (4 段階 α/β/γ/δ) + M2 Wave 7 (4 段階 α/β/γ/δ) を完了。テスト 545 → 682 件 (+137)。残った M2 着手項目:
+本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1〜7 + M2 Wave 8 (3 段階 α/β/γ) を完了。テスト 545 → 697 件 (+152)。残った M2 着手項目:
 
 - **完了 (P2-P4)**: JSON 欠損 graceful、セーブ後ドロー仕様確認、Texture リーク、ダメージ計算 DRY 集約、
   BuffKindLabels 集約、HAND_DETAIL_TEXT_Y 文字数上限、EnemyKind isElite/isBoss、Optional 可読性、
@@ -39,9 +39,12 @@
 - **完了 (M2 Wave 7)**: TurnEngineHelpers 切り出し (TurnEngine 330 → 197 行、共通ヘルパ 3 件を独立クラス化、W7-α)、
   DddGame の中継 getter 7 件を progress() 1 メソッドに集約 (6 Screen の 16 箇所を機械的置換、W7-β)、
   presentation 層テスト補強 (BuffKindLabelsTest + NodeIconPathResolverTest を新規追加、+22 件、W7-γ)
-- **M2 送り (Wave 7 残置)**: Bestiary 次行動の点線予告 UI (AI 設計絡み、チームメイト領域)、
+- **完了 (M2 Wave 8)**: LayerEndNode の displayName 撤去 + EventKind enum 化 + LayerEndNodeLabels 新設で
+  ドメイン日本語汚染を完全排除 + Strings 8 キー追加 (W8-α)、DddGame の LibGDX リソース 3 件を GameResources に集約
+  + 完全なる防衛的 dispose (try-catch + null チェック内包、W8-β)
+- **M2 送り (Wave 8 残置)**: Bestiary 次行動の点線予告 UI (AI 設計絡み、チームメイト領域)、
   装備テーマのセット装備複合 / 漸進的アニメーション (equipment.json 仕様拡張がチームメイト領域)、
-  DddGame の component holder 分離 (GameContext / TurnDirector / Fonts / SaveManager を別クラスへ、Wave 8+)
+  DddGame の application 層集約 (GameContext / TurnDirector / SaveManager / SettingsManager を別クラスへ、Wave 9+)
 - **M2 送り**: 階段専用テクスチャ (チームメイト素材待ち)、
   Bestiary 次行動の点線予告 (AI 戦術絡み、M2 送り)、
   装備テーマのセット装備複合 / 漸進的アニメーション (M2 送り)
@@ -58,7 +61,7 @@
 | ~~**EquipmentScreen / Fonts.java の InitialStateFactory 直接参照を game.cardCatalog 経由化**~~ → **Wave 1 Task 1 で完了** (commit cacb7ec) | A7 multi-perspective Must | S | static rowText / glyphs 階層が深い |
 | ~~**SoulTree ノード定義の JSON 化**~~ → **Wave 2 Task A で完了** (commit fe0febf、tree.json + SoulTreeCatalog) | final-architect | M | 保守性向上 |
 | ~~**TurnEngine 671 行の分割**~~ → **Wave 5 + Wave 7 W7-α で完了** (commit 7fa67a0 / 406232b / 5b352fe / addd6b0、663 → 197 行、Movement / CardResolver / SkillResolver / Helpers の 4 クラス分離 ~70% 削減) | final-architect | M〜L | 商品化前リファクタ |
-| **LayerEndNode 日本語 displayName のドメイン汚染解消** (i18n 移行時) | domain-architect | M | i18n 全面対応とセットで |
+| ~~**LayerEndNode 日本語 displayName のドメイン汚染解消**~~ → **Wave 8 W8-α で完了** (commit 5970c76、EventKind enum 化 + LayerEndNodeLabels 新設、ドメイン日本語完全排除) | domain-architect | M | i18n 全面対応とセットで |
 | **presentation / infrastructure テスト補強** (Wave 7 W7-γ で部分対応: BuffKindLabels / NodeIconPathResolver / UiThemeResolver / RenderLayout 系。Screen 群はヘッドレス対応コスト overkill のため M2 後半送り) | devils-advocate | M | カバレッジ偏在 |
 | ~~**SaveData v2 migration**~~ → **Wave 6 W6-β で完了** (commit e97a76e、schemaVersion 1→2、bestiary + tutorialSeen 永続化、v1 graceful migration) | multi-perspective-reviewer | M | 後方互換 |
 | ~~**スキル枠 2 → 4 の常時表示**~~ → **Wave 2 Task C で完了** (commit 38a10a3、HudRenderer.drawSkillSlots + F1-F4) | tasks/todo.md Phase 7-3 | M | 4 枠あるが MVP は 2 個のみ使用 |
