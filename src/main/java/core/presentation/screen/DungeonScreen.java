@@ -86,8 +86,8 @@ public final class DungeonScreen extends ScreenAdapter {
   private PlayerInputs playerInputs;
   private NodeChoicePopup nodeChoice;
 
-  /** §15-3 / §15-6: 強化個体撃破時のカード追加 UI (1 ノード選択 = 1 枚 DrawPile 追加)。 */
-  private NodeChoicePopup eliteCardChoice;
+  /** §15-3 / §15-6: 強化個体撃破報酬 UI ライフサイクル管理 (Wave 4 W4-γ で DungeonScreen から切り出し)。 */
+  private EliteRewardOrchestrator eliteReward;
 
   /** §15-4: ステータス確認ポップアップ (Tab で開閉)。show() で 1 度だけ生成。 */
   private StatusPopup statusPopup;
@@ -121,6 +121,7 @@ public final class DungeonScreen extends ScreenAdapter {
     playerInputs.bindSkillSlotSizeSupplier(
         () -> game.context().state().player().skillSlot().size());
     statusPopup = new StatusPopup(game.fonts().large(), game.fonts().isJapaneseAvailable());
+    eliteReward = new EliteRewardOrchestrator(game, rng, effects);
     // マップタイルテクスチャをロード (ピクセルアート → Nearest filter で 80px 拡大時のボケ防止)。
     wallTexture = new com.badlogic.gdx.graphics.Texture(Gdx.files.internal("tiles/wall.png"));
     wallTexture.setFilter(
@@ -142,7 +143,7 @@ public final class DungeonScreen extends ScreenAdapter {
       updateState(delta);
       processNewEvents(); // §15-5 / E-8: 新規 DamageDealt → popup + shake / EliteDefeated → カード追加 UI
       effects.advanceEffects(delta); // popup の age 加算 + 期限切れ除去 + shake デクリメント + flash デクリメント
-      handleEliteCardChoice(); // §15-3 / §15-6: Elite 撃破 popup の入力処理
+      eliteReward.handleInput(); // §15-3 / §15-6: Elite 撃破 popup の入力処理
     }
     drawFrame();
     // Popup は HUD の上に重ねて描画する (CLEARED 中の前面 UI)。drawFrame() で batch.end() 済みのため、
@@ -150,9 +151,7 @@ public final class DungeonScreen extends ScreenAdapter {
     if (nodeChoice != null) {
       nodeChoice.render(delta);
     }
-    if (eliteCardChoice != null) {
-      eliteCardChoice.render(delta);
-    }
+    eliteReward.render(delta);
     if (statusPanelOpen) {
       statusPopup.updateValues(game.context().state().player());
       statusPopup.render(delta);
@@ -172,7 +171,7 @@ public final class DungeonScreen extends ScreenAdapter {
       }
       return;
     }
-    boolean otherPopupActive = nodeChoice != null || eliteCardChoice != null;
+    boolean otherPopupActive = nodeChoice != null || eliteReward.isActive();
     if (!otherPopupActive
         && game.context().state().phase() == TurnPhase.PLAYER_TURN
         && Gdx.input.isKeyJustPressed(Keys.TAB)) {
@@ -253,83 +252,6 @@ public final class DungeonScreen extends ScreenAdapter {
               nodeChoice.dispose();
               nodeChoice = null;
             });
-  }
-
-  /**
-   * §15-3 / §15-6: 強化個体撃破時のカード追加 UI 入力処理。{@link NodeChoicePopup} を流用し、 {@link
-   * LayerEndNode.Shop}(goldCost=0, ...) を 3 つ提示 → 1 つ選択 → DrawPile に追加。
-   */
-  private void handleEliteCardChoice() {
-    if (eliteCardChoice == null) {
-      return;
-    }
-    for (int i = 0; i < NodeChoicePopup.CHOICE_COUNT; i++) {
-      if (Gdx.input.isKeyJustPressed(numKey(i))) {
-        eliteCardChoice.select(i);
-      }
-    }
-    eliteCardChoice
-        .consume()
-        .ifPresent(
-            choice -> {
-              game.applyEliteCardReward(choice);
-              eliteCardChoice.dispose();
-              eliteCardChoice = null;
-              if (choice instanceof LayerEndNode.Shop shop) {
-                boolean jp = game.fonts().isJapaneseAvailable();
-                // Wave 3 Task A: Shop は CardId 保持なので cardCatalog 経由で displayName を解決
-                String cardName = game.cardCatalog().get(shop.cardId()).displayName();
-                showFlash(
-                    (jp
-                            ? Strings.Ja.CARD_REWARD_GAINED_FORMAT
-                            : Strings.En.CARD_REWARD_GAINED_FORMAT)
-                        .formatted(cardName));
-              }
-            });
-  }
-
-  /**
-   * Elite 撃破時のカード追加候補 (3 種) を {@link NodeChoicePopup} で生成する。
-   *
-   * <p>候補プールはカードマスタ (cards.json) の<b>攻撃カード</b>からシャッフルで 3 つ選び、それぞれ {@link
-   * LayerEndNode.Shop}(goldCost=0, card) でラップ。Gold 0 = 無料カード追加。攻撃カードに限定するのは、撃破報酬を 手応えのある 3
-   * 択にし「移動・バフだけのハズレ 3 択」を防ぐため (他タグはショップノードで入手可能)。
-   */
-  private NodeChoicePopup createEliteCardChoicePopup() {
-    List<core.domain.card.Card> attackPool =
-        new ArrayList<>(
-            game.cardCatalog().all().stream()
-                .filter(c -> c.tag() == core.domain.card.CardTag.ATTACK)
-                .toList());
-    Collections.shuffle(attackPool, rng);
-    // §UI 改善: ATTACK カードが CHOICE_COUNT (3) 未満なら他タグから補填する (IndexOutOfBoundsException 対策)。
-    // cards.json でタグ構成を変更した瞬間にクラッシュする脆さを除去。
-    List<core.domain.card.Card> rewards = new ArrayList<>(attackPool);
-    if (rewards.size() < NodeChoicePopup.CHOICE_COUNT) {
-      List<core.domain.card.Card> fallbackPool =
-          new ArrayList<>(
-              game.cardCatalog().all().stream()
-                  .filter(c -> c.tag() != core.domain.card.CardTag.ATTACK)
-                  .toList());
-      Collections.shuffle(fallbackPool, rng);
-      for (core.domain.card.Card c : fallbackPool) {
-        if (rewards.size() >= NodeChoicePopup.CHOICE_COUNT) {
-          break;
-        }
-        rewards.add(c);
-      }
-    }
-    List<LayerEndNode> choices = new ArrayList<>();
-    int n = Math.min(NodeChoicePopup.CHOICE_COUNT, rewards.size());
-    for (int i = 0; i < n; i++) {
-      // Wave 3 Task A: Shop は CardId 保持に変更されたため card.id() を渡す
-      choices.add(new LayerEndNode.Shop(0, rewards.get(i).id()));
-    }
-    boolean jp = game.fonts().isJapaneseAvailable();
-    String title = jp ? Strings.Ja.ELITE_CARD_REWARD_TITLE : Strings.En.ELITE_CARD_REWARD_TITLE;
-    // large(32px) 等倍。hud(16px)+setFontScale(2f) は Scene2D で漢字が黒四角化するため使えない。
-    return new NodeChoicePopup(
-        game.fonts().large(), title, List.copyOf(choices), game.nodeResolveContext());
   }
 
   /** カードマスタ (cards.json) からランダムに 1 枚返す (層末ショップノードのカード抽選用)。 */
@@ -481,9 +403,9 @@ public final class DungeonScreen extends ScreenAdapter {
       } else if (e instanceof BattleEvent.FloorAdvanced) {
         // §15-5: 層遷移 SE
         game.soundManager().playSe(SeKind.FLOOR_ADVANCE);
-      } else if (e instanceof BattleEvent.EliteDefeated && eliteCardChoice == null) {
-        // §15-3 / §15-6: 強化個体撃破時にカード追加 UI を発火
-        eliteCardChoice = createEliteCardChoicePopup();
+      } else if (e instanceof BattleEvent.EliteDefeated) {
+        // §15-3 / §15-6: 強化個体撃破時にカード追加 UI を発火 (二重生成は EliteRewardOrchestrator 内で防止)
+        eliteReward.triggerOnEliteDefeat();
       } else if (e instanceof BattleEvent.Moved m && !m.who().equals(playerId)) {
         // §UI 改善: 敵が画面外で動いた時、flash で「どこかで敵が動いているようだ」を表示。
         // 可視範囲 = camera.position ± (SCREEN_WIDTH/HEIGHT * camera.zoom / 2) (LibGDX
@@ -521,7 +443,7 @@ public final class DungeonScreen extends ScreenAdapter {
     if (!Gdx.input.justTouched()) {
       return;
     }
-    if (nodeChoice != null || eliteCardChoice != null || statusPanelOpen) {
+    if (nodeChoice != null || eliteReward.isActive() || statusPanelOpen) {
       return;
     }
     float screenW = Gdx.graphics.getWidth();
@@ -578,9 +500,6 @@ public final class DungeonScreen extends ScreenAdapter {
     if (nodeChoice != null) {
       nodeChoice.resize(width, height);
     }
-    if (eliteCardChoice != null) {
-      eliteCardChoice.resize(width, height);
-    }
     if (statusPopup != null) {
       statusPopup.resize(width, height);
     }
@@ -597,10 +516,7 @@ public final class DungeonScreen extends ScreenAdapter {
       nodeChoice.dispose();
       nodeChoice = null;
     }
-    if (eliteCardChoice != null) {
-      eliteCardChoice.dispose();
-      eliteCardChoice = null;
-    }
+    eliteReward.dispose();
   }
 
   @Override
@@ -619,9 +535,8 @@ public final class DungeonScreen extends ScreenAdapter {
       nodeChoice.dispose();
       nodeChoice = null;
     }
-    if (eliteCardChoice != null) {
-      eliteCardChoice.dispose();
-      eliteCardChoice = null;
+    if (eliteReward != null) {
+      eliteReward.dispose();
     }
     if (wallTexture != null) {
       wallTexture.dispose();
