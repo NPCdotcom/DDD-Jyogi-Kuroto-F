@@ -10,8 +10,6 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
 import com.badlogic.gdx.utils.Disposable;
 import core.domain.entity.EnemyKind;
-import core.domain.layer.LayerEndNode;
-import core.domain.layer.NodeResolveContext;
 import core.domain.tree.SoulTree;
 import core.domain.tree.TreeNode;
 import core.infrastructure.bootstrap.CardCatalog;
@@ -221,33 +219,9 @@ public final class Fonts implements Disposable {
     for (TreeNode node : SoulTree.allNodes().values()) {
       addAllChars(set, node.displayName());
     }
-    // LayerEndNode 全 5 種の動的 displayName を網羅 (NodeChoicePopup 文字黒化対策、
-    // §15-8 5 候補抽選で表示される全選択肢のグリフを事前生成)。
-    // Wave 3 Task A: displayName(NodeResolveContext) に signature 変更。グリフ事前生成専用の
-    // 簡易 context を組み立てて渡す (cards / equipments を Catalog の get に委譲)。
-    NodeResolveContext glyphContext =
-        new NodeResolveContext(cardCatalog::get, equipmentCatalog::get);
-    addAllChars(set, new LayerEndNode.HpMaxUp(5).displayName(glyphContext)); // "HP +5"
-    addAllChars(set, new LayerEndNode.SpeedUp(1).displayName(glyphContext)); // "速度 +1"
-    addAllChars(set, new LayerEndNode.Rest().displayName(glyphContext)); // "HP 全回復"
-    // Shop の固定フォーマット "ショップ: %s (金貨 %d)" の文字を網羅
-    // (引数 Card の displayName は下のカードマスタ走査で収集される)。
-    addAllChars(
-        set, new LayerEndNode.Shop(0, cardCatalog.all().get(0).id()).displayName(glyphContext));
-    // Wave 3 Task B: ShopEquipment の固定フォーマット "装備購入: %s (金貨 %d)" の文字を網羅
-    // (引数 Equipment.displayName は下の装備マスタ走査で収集される)。
-    // 空 EquipmentCatalog 時はスキップ (グリフ生成側は空 catalog でも起動を継続する設計)。
-    if (!equipmentCatalog.all().isEmpty()) {
-      addAllChars(
-          set,
-          new LayerEndNode.ShopEquipment(0, equipmentCatalog.all().get(0).id())
-              .displayName(glyphContext));
-    }
-    // Event の displayLabel は DungeonScreen.createNodeChoicePopup でハードコード渡し。
-    // Wave 3 Task C で多様化した 3 種を転写 (M2 で候補プールを集約して自動化予定)。
-    addAllChars(set, "ソウルの祠 (ソウル +30 / HP -5)");
-    addAllChars(set, "治療の泉 (HP +20 / ソウル -10)");
-    addAllChars(set, "黄金の宝箱 (金貨 +50)");
+    // Wave 8 W8-α: LayerEndNode の displayName 直接呼出を撤去。LAYER_END_* / EVENT_* キーは
+    // Strings.Ja の Reflection 収集で自動的に拾われるため、本ヘルパで追加処理は不要。
+    // 数字 (0-9) は ASCII_CHARS で網羅、Card / Equipment displayName は下方の Catalog 走査で網羅。
     // カードマスタ (cards.json) 全カードの displayName グリフを網羅。
     for (var card : cardCatalog.all()) {
       addAllChars(set, card.displayName());

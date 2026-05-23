@@ -160,7 +160,7 @@ public final class EliteRewardOrchestrator implements Disposable {
     boolean jp = game.fonts().isJapaneseAvailable();
     String title = jp ? Strings.Ja.ELITE_CARD_REWARD_TITLE : Strings.En.ELITE_CARD_REWARD_TITLE;
     return new NodeChoicePopup(
-        game.fonts().large(), title, List.copyOf(choices), game.nodeResolveContext());
+        game.fonts().large(), title, List.copyOf(choices), game.nodeResolveContext(), jp);
   }
 
   /** 0-indexed の i (0〜2) を NUM_1〜NUM_3 にマップ。範囲外は IAE。 */

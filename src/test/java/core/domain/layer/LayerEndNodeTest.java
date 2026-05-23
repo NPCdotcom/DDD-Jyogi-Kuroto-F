@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import core.domain.card.Card;
 import core.domain.card.CardId;
@@ -123,10 +122,7 @@ class LayerEndNodeTest {
     assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.HpMaxUp(-1));
   }
 
-  @Test
-  void hpMaxUpDisplayNameIncludesAmount() {
-    assertEquals("HP +5", new LayerEndNode.HpMaxUp(5).displayName(testContext()));
-  }
+  // Wave 8 W8-α: displayName は domain 層から撤去。ラベル検証は LayerEndNodeLabelsTest に移動。
 
   // ---------------- SpeedUp ----------------
 
@@ -148,11 +144,6 @@ class LayerEndNodeTest {
   @Test
   void speedUpZeroAmountIsRejected() {
     assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.SpeedUp(0));
-  }
-
-  @Test
-  void speedUpDisplayNameIncludesAmount() {
-    assertEquals("速度 +1", new LayerEndNode.SpeedUp(1).displayName(testContext()));
   }
 
   // ---------------- Rest ----------------
@@ -182,11 +173,6 @@ class LayerEndNodeTest {
     assertEquals(p.stats().maxHp(), rested.stats().currentHp(), "current は maxHp のまま");
   }
 
-  @Test
-  void restDisplayNameIsFixedString() {
-    assertEquals("HP 全回復", new LayerEndNode.Rest().displayName(testContext()));
-  }
-
   // ---------------- sealed 網羅性 ----------------
 
   @Test
@@ -200,7 +186,8 @@ class LayerEndNodeTest {
           new LayerEndNode.SpeedUp(1),
           new LayerEndNode.Rest(),
           new LayerEndNode.Shop(5, sampleCardId()),
-          new LayerEndNode.Event(10, -3, 0, "テスト"),
+          // Wave 8 W8-α: Event は EventKind 必須化、of() factory で構築
+          LayerEndNode.Event.of(core.domain.layer.EventKind.SOUL_SHRINE),
           new LayerEndNode.ShopEquipment(15, sampleEquipmentId())
         };
     for (LayerEndNode node : allKinds) {
@@ -261,14 +248,7 @@ class LayerEndNodeTest {
     assertEquals(p.cardPileState(), after.cardPileState(), "デッキ不変");
   }
 
-  @Test
-  void shopDisplayNameIncludesCardAndCost() {
-    String label = new LayerEndNode.Shop(5, sampleCardId()).displayName(testContext());
-    assertTrue(label.contains("ショップ"));
-    assertTrue(label.contains("5"));
-    // 本物のカード名を resolver 経由で解決していることを確認
-    assertTrue(label.contains(sampleCard().displayName()), "Shop displayName にカード名が含まれる");
-  }
+  // Wave 8 W8-α: displayName は domain 層から撤去。Shop ラベル検証は LayerEndNodeLabelsTest に移動。
 
   @Test
   void shopApplyRequiresNonNullContext() {
@@ -277,76 +257,82 @@ class LayerEndNodeTest {
         NullPointerException.class, () -> new LayerEndNode.Shop(5, sampleCardId()).apply(p, null));
   }
 
+  // ---------------- Event (Wave 8 W8-α: EventKind 必須化) ----------------
+
   @Test
-  void shopDisplayNameRequiresNonNullContext() {
-    assertThrows(
-        NullPointerException.class,
-        () -> new LayerEndNode.Shop(5, sampleCardId()).displayName(null));
+  void eventOfHealingSpringConstructsWithMatchingDeltas() {
+    LayerEndNode.Event healing = LayerEndNode.Event.of(core.domain.layer.EventKind.HEALING_SPRING);
+    assertEquals(-10, healing.soulDelta());
+    assertEquals(20, healing.hpDelta());
+    assertEquals(0, healing.goldDelta());
+    assertEquals(core.domain.layer.EventKind.HEALING_SPRING, healing.kind());
   }
 
-  // ---------------- Event ----------------
+  @Test
+  void eventOfGoldenChestAppliesGoldDelta() {
+    Player p = initialPlayer();
+    LayerEndNode.Event chest = LayerEndNode.Event.of(core.domain.layer.EventKind.GOLDEN_CHEST);
+    Player after = chest.apply(p, testContext());
+    assertEquals(50, after.gold().amount(), "黄金の宝箱で Gold +50");
+  }
 
   @Test
-  void eventAppliesSoulAndHpAndGoldDeltas() {
+  void eventOfSoulShrineAppliesSoulAndHpDeltas() {
     Player p = initialPlayer();
     int hpBefore = p.stats().currentHp();
     int soulBefore = p.soul().amount();
 
-    Player after = new LayerEndNode.Event(30, -5, 10, "ソウルの祠").apply(p, testContext());
+    Player after =
+        LayerEndNode.Event.of(core.domain.layer.EventKind.SOUL_SHRINE).apply(p, testContext());
 
-    assertEquals(soulBefore + 30, after.soul().amount());
-    assertEquals(hpBefore - 5, after.stats().currentHp());
-    assertEquals(10, after.gold().amount());
+    assertEquals(soulBefore + 30, after.soul().amount(), "ソウル +30");
+    assertEquals(hpBefore - 5, after.stats().currentHp(), "HP -5");
   }
 
   @Test
-  void eventWithPositiveHpHeals() {
-    Player p = initialPlayer().withStats(initialPlayer().stats().damaged(10));
-    int hpBeforeHeal = p.stats().currentHp();
+  void eventOfHealingSpringHealsHp() {
+    // 治療の泉は HP +20 (HEALING_SPRING)、ただしソウル -10 のため player の Soul に 10 以上が必要
+    Player p = initialPlayer().addSoul(new core.domain.meta.Soul(20));
+    Player damaged = p.withStats(p.stats().damaged(15));
+    int hpBeforeHeal = damaged.stats().currentHp();
+    int maxHp = damaged.stats().maxHp();
 
-    Player after = new LayerEndNode.Event(0, 7, 0, "回復イベント").apply(p, testContext());
+    Player after =
+        LayerEndNode.Event.of(core.domain.layer.EventKind.HEALING_SPRING)
+            .apply(damaged, testContext());
 
-    assertEquals(hpBeforeHeal + 7, after.stats().currentHp());
-  }
-
-  // Wave 3 Task C: バリデーション緩和。負値 soulDelta / goldDelta は許容 (治療の泉 / 賢者の助言 等)、
-  // ゼロ値だけの「何も変化しないイベント」を拒否する仕様に変更。
-  @Test
-  void eventAcceptsNegativeSoulDelta() {
-    // 治療の泉 (HP +20 / ソウル -10) の構築が成功すること (旧テスト eventRejectsNegativeSoulOrGoldDelta の代替)
-    LayerEndNode.Event healing = new LayerEndNode.Event(-10, 20, 0, "治療の泉");
-    assertEquals(-10, healing.soulDelta());
-    assertEquals(20, healing.hpDelta());
-  }
-
-  @Test
-  void eventAcceptsNegativeGoldDelta() {
-    // 賢者の助言 (将来 Gold コスト型イベント) の構築が成功すること
-    LayerEndNode.Event sage = new LayerEndNode.Event(0, 0, -20, "賢者の助言");
-    assertEquals(-20, sage.goldDelta());
+    // Stats.healed は maxHp で上限キャップされるため min を取る
+    assertEquals(
+        Math.min(maxHp, hpBeforeHeal + 20), after.stats().currentHp(), "HP +20 (max cap 適用)");
+    assertEquals(10, after.soul().amount(), "ソウル 20 → 10 (-10 消費)");
   }
 
   @Test
-  void eventRejectsAllZeroDeltas() {
-    // すべて 0 = 何も変化しない無意味イベントは拒否される (緩和後の唯一の compact constructor 拒否条件)
-    assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.Event(0, 0, 0, "無意味イベント"));
+  void eventRejectsMismatchedDeltas() {
+    // kind と delta が一致しない不整合呼出は IAE で早期検出
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new LayerEndNode.Event(99, 99, 99, core.domain.layer.EventKind.HEALING_SPRING));
+  }
+
+  @Test
+  void eventRejectsNullKind() {
+    assertThrows(NullPointerException.class, () -> new LayerEndNode.Event(0, 0, 50, null));
+  }
+
+  @Test
+  void eventOfRejectsNullKind() {
+    assertThrows(NullPointerException.class, () -> LayerEndNode.Event.of(null));
   }
 
   @Test
   void eventSilentFailWhenInsufficientSoul() {
-    // 治療の泉 (soulDelta=-10) で player のソウル不足時は silent fail (player そのまま返す)
-    // initialPlayer は Soul.zero() で起動するため、ソウル不足条件を満たす
+    // HEALING_SPRING (soulDelta=-10) で player のソウル不足時は silent fail (player そのまま返す)
     Player p = initialPlayer();
     assertEquals(0, p.soul().amount(), "前提: 初期 player の soul は 0");
-    LayerEndNode.Event healing = new LayerEndNode.Event(-10, 20, 0, "治療の泉");
+    LayerEndNode.Event healing = LayerEndNode.Event.of(core.domain.layer.EventKind.HEALING_SPRING);
     Player after = healing.apply(p, testContext());
     assertSame(p, after, "soul 不足時は player をそのまま返す");
-  }
-
-  @Test
-  void eventRejectsBlankDisplayLabel() {
-    // ブランク label は依然拒否 (ただし全 0 delta も同時に違反するので、変化があるパラメータでテスト)
-    assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.Event(1, 0, 0, ""));
   }
 
   // ---------------- ShopEquipment (Wave 3 Task B) ----------------
@@ -385,17 +371,7 @@ class LayerEndNodeTest {
     assertEquals(p, after, "Player 全体が不変");
   }
 
-  @Test
-  void shopEquipmentDisplayNameIncludesEquipmentNameAndCost() {
-    String label =
-        new LayerEndNode.ShopEquipment(15, sampleEquipmentId()).displayName(equipmentContext());
-    assertTrue(label.contains("装備購入"), "displayName に '装備購入' プレフィックスが含まれる");
-    assertTrue(label.contains("15"), "displayName に goldCost が含まれる");
-    // 本物の装備名を resolver 経由で解決していることを確認
-    assertTrue(
-        label.contains(sampleEquipmentDisplayName()),
-        "displayName に resolver で解決した装備名が含まれる: " + label);
-  }
+  // Wave 8 W8-α: displayName 検証は LayerEndNodeLabelsTest に移動。
 
   @Test
   void shopEquipmentApplyRequiresNonNullContext() {
@@ -403,13 +379,6 @@ class LayerEndNodeTest {
     assertThrows(
         NullPointerException.class,
         () -> new LayerEndNode.ShopEquipment(15, sampleEquipmentId()).apply(p, null));
-  }
-
-  @Test
-  void shopEquipmentDisplayNameRequiresNonNullContext() {
-    assertThrows(
-        NullPointerException.class,
-        () -> new LayerEndNode.ShopEquipment(15, sampleEquipmentId()).displayName(null));
   }
 
   @Test

@@ -15,6 +15,7 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import core.domain.layer.LayerEndNode;
 import core.domain.layer.NodeResolveContext;
+import core.presentation.render.LayerEndNodeLabels;
 import core.presentation.render.RenderLayout;
 import java.util.List;
 import java.util.Objects;
@@ -50,11 +51,16 @@ public final class NodeChoicePopup implements Disposable {
    *     LibGDX バグに遭遇したため、 等倍 32px で運用する。
    * @param title Window タイトル (Strings.Ja/En.LAYER_END_TITLE を呼出側で日英解決して渡す)
    * @param choices サイズ 3 必須、それ以外は IAE
-   * @param context Wave 3 Task A: 各 LayerEndNode の {@link
-   *     LayerEndNode#displayName(NodeResolveContext)} 呼出に渡す Card / Equipment 解決コンテキスト
+   * @param context Wave 3 Task A: 各 LayerEndNode のラベル解決 ({@link LayerEndNodeLabels#labelOf}) に渡す
+   *     Card / Equipment 解決コンテキスト
+   * @param jp Wave 8 W8-α: true なら日本語ラベル、false なら英語ラベルで描画
    */
   public NodeChoicePopup(
-      BitmapFont font, String title, List<LayerEndNode> choices, NodeResolveContext context) {
+      BitmapFont font,
+      String title,
+      List<LayerEndNode> choices,
+      NodeResolveContext context,
+      boolean jp) {
     Objects.requireNonNull(font, "font");
     Objects.requireNonNull(title, "title");
     Objects.requireNonNull(choices, "choices");
@@ -89,9 +95,12 @@ public final class NodeChoicePopup implements Disposable {
     // 参照がずれて漢字が黒四角化する (LibGDX 1.14 既知挙動)。large(32px) を等倍で運用する。
 
     for (int i = 0; i < CHOICE_COUNT; i++) {
-      // Wave 3 Task A: displayName は NodeResolveContext を受けるため、構築時に context を解決して渡す。
+      // Wave 8 W8-α: ラベル解決は presentation 層の LayerEndNodeLabels に委譲 (domain 純度回復)
       Label line =
-          new Label("  [%d]  %s".formatted(i + 1, choices.get(i).displayName(context)), labelStyle);
+          new Label(
+              "  [%d]  %s"
+                  .formatted(i + 1, LayerEndNodeLabels.labelOf(choices.get(i), context, jp)),
+              labelStyle);
       line.setColor(Color.WHITE);
       window.add(line).left().padBottom(16f).row();
     }

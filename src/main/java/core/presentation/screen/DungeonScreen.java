@@ -295,11 +295,10 @@ public final class DungeonScreen extends ScreenAdapter {
                 new LayerEndNode.Rest(),
                 // Wave 3 Task A: Shop は CardId 保持。ランダム抽選カードを id だけ渡す。
                 new LayerEndNode.Shop(5, randomCatalogCard().id()),
-                new LayerEndNode.Event(30, -5, 0, "ソウルの祠 (ソウル +30 / HP -5)"),
-                // Wave 3 Task C: イベントノード多様化。soulDelta / goldDelta が負値も許容できるよう
-                // Event の compact constructor を緩和済 (LayerEndNode.java)。
-                new LayerEndNode.Event(-10, 20, 0, "治療の泉 (HP +20 / ソウル -10)"),
-                new LayerEndNode.Event(0, 0, 50, "黄金の宝箱 (金貨 +50)"),
+                // Wave 8 W8-α: Event は EventKind 経由で構築 (旧 displayLabel: String 撤去、ドメイン日本語汚染解消)
+                LayerEndNode.Event.of(core.domain.layer.EventKind.SOUL_SHRINE),
+                LayerEndNode.Event.of(core.domain.layer.EventKind.HEALING_SPRING),
+                LayerEndNode.Event.of(core.domain.layer.EventKind.GOLDEN_CHEST),
                 // Wave 3 Task B: 装備購入ノード (層末 6 候補 → 8 候補、3 提示は変えない)。
                 new LayerEndNode.ShopEquipment(15, randomEquipmentId())));
     Collections.shuffle(allCandidates, rng);
@@ -311,7 +310,12 @@ public final class DungeonScreen extends ScreenAdapter {
             ? Strings.Ja.LAYER_END_TITLE
             : Strings.En.LAYER_END_TITLE;
     // large(32px) 等倍。hud(16px)+setFontScale(2f) は Scene2D で漢字が黒四角化するため使えない。
-    return new NodeChoicePopup(game.fonts().large(), title, choices, game.nodeResolveContext());
+    return new NodeChoicePopup(
+        game.fonts().large(),
+        title,
+        choices,
+        game.nodeResolveContext(),
+        game.fonts().isJapaneseAvailable());
   }
 
   /** 0-indexed の i (0〜2) を NUM_1〜NUM_3 にマップ。範囲外は IAE。 */

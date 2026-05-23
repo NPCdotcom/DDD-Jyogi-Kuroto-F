@@ -130,6 +130,16 @@ public final class Strings {
     public static final String BONUS_STAT_PHYSICAL_DEFENSE_SHORT = "物防";
     public static final String BONUS_STAT_MAGICAL_DEFENSE_SHORT = "魔防";
 
+    // §15-8 W8-α: LayerEndNode のラベル (旧 domain 層 displayName を presentation に分離)
+    public static final String LAYER_END_HP_MAX_UP_FORMAT = "HP +%d";
+    public static final String LAYER_END_SPEED_UP_FORMAT = "速度 +%d";
+    public static final String LAYER_END_REST = "HP 全回復";
+    public static final String LAYER_END_SHOP_FORMAT = "ショップ: %s (金貨 %d)";
+    public static final String LAYER_END_SHOP_EQUIPMENT_FORMAT = "装備購入: %s (金貨 %d)";
+    public static final String EVENT_HEALING_SPRING = "治療の泉 (HP +20 / ソウル -10)";
+    public static final String EVENT_GOLDEN_CHEST = "黄金の宝箱 (金貨 +50)";
+    public static final String EVENT_SOUL_SHRINE = "ソウルの祠 (ソウル +30 / HP -5)";
+
     // §15-3 カード図鑑
     public static final String COLLECTION_TITLE = "カード図鑑";
     public static final String COLLECTION_LOCKED = "？？？ (未入手)";
@@ -324,6 +334,16 @@ public final class Strings {
     public static final String BONUS_STAT_MAGICAL_ATTACK_SHORT = "MAtk";
     public static final String BONUS_STAT_PHYSICAL_DEFENSE_SHORT = "PDef";
     public static final String BONUS_STAT_MAGICAL_DEFENSE_SHORT = "MDef";
+
+    // §15-8 W8-α: LayerEndNode labels (split from domain layer displayName)
+    public static final String LAYER_END_HP_MAX_UP_FORMAT = "HP +%d";
+    public static final String LAYER_END_SPEED_UP_FORMAT = "Speed +%d";
+    public static final String LAYER_END_REST = "Full HP heal";
+    public static final String LAYER_END_SHOP_FORMAT = "Shop: %s (Gold %d)";
+    public static final String LAYER_END_SHOP_EQUIPMENT_FORMAT = "Equip: %s (Gold %d)";
+    public static final String EVENT_HEALING_SPRING = "Healing Spring (HP +20 / Soul -10)";
+    public static final String EVENT_GOLDEN_CHEST = "Golden Chest (Gold +50)";
+    public static final String EVENT_SOUL_SHRINE = "Soul Shrine (Soul +30 / HP -5)";
 
     // §15-3 Card collection
     public static final String COLLECTION_TITLE = "Card Collection";
