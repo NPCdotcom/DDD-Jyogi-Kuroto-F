@@ -1,6 +1,8 @@
 package core.presentation.render;
 
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import core.domain.card.CardElement;
@@ -18,8 +20,6 @@ import core.domain.entity.Enemy;
  */
 public final class DungeonRenderer {
 
-  private static final Color FLOOR_COLOR = new Color(0.2f, 0.2f, 0.22f, 1f);
-  private static final Color WALL_COLOR = new Color(0.45f, 0.32f, 0.22f, 1f);
   private static final Color STAIRS_COLOR = new Color(0.85f, 0.75f, 0.25f, 1f);
   private static final Color PLAYER_COLOR = new Color(0.30f, 0.65f, 1.00f, 1f);
   private static final Color ENEMY_COLOR = new Color(0.40f, 0.85f, 0.40f, 1f);
@@ -38,14 +38,68 @@ public final class DungeonRenderer {
 
   private DungeonRenderer() {}
 
-  public static void draw(ShapeRenderer shapes, DungeonState state) {
+  public static void draw(
+      SpriteBatch batch,
+      ShapeRenderer shapes,
+      DungeonState state,
+      Texture wallTexture,
+      Texture floorTexture) {
+    // 1. テクスチャフェーズ (床 + 壁、SpriteBatch のみ)。階段も床テクスチャで描き、識別マーカーは
+    //    シェイプフェーズで重ねる。
+    batch.begin();
+    drawMapTextures(batch, state.map(), wallTexture, floorTexture);
+    batch.end();
+
+    // 2. シェイプフェーズ (境界線 + 階段マーカー + アクター、ShapeRenderer のみ)。
     shapes.begin(ShapeType.Filled);
-    drawMap(shapes, state.map());
     drawWallFloorBorders(shapes, state.map());
+    drawStairsMarker(shapes, state.map());
     drawTraps(shapes, state);
     drawEnemies(shapes, state);
     drawPlayer(shapes, state.player().position());
     shapes.end();
+  }
+
+  /**
+   * マップタイルをテクスチャで描画する (チームメイト素材投入)。
+   *
+   * <p>壁は wall.png、床と階段は floor.png を 80×80 に引き伸ばして敷き詰める。階段の識別マーカーは {@link #drawStairsMarker}
+   * がシェイプフェーズで重ねる。
+   */
+  private static void drawMapTextures(
+      SpriteBatch batch, DungeonMap map, Texture wallTex, Texture floorTex) {
+    int tile = RenderLayout.TILE_SIZE;
+    for (int y = 0; y < map.height(); y++) {
+      for (int x = 0; x < map.width(); x++) {
+        Tile t = map.tileAt(new Position(x, y));
+        Texture tex = (t == Tile.WALL) ? wallTex : floorTex;
+        int sx = RenderLayout.MAP_ORIGIN_X + x * tile;
+        int sy = RenderLayout.MAP_ORIGIN_Y + y * tile;
+        batch.draw(tex, sx, sy, tile, tile);
+      }
+    }
+  }
+
+  /**
+   * 階段タイルの識別マーカーを床テクスチャの上に描画する (黄色矩形、タイルの中央 1/2)。
+   *
+   * <p>階段専用テクスチャは未投入のため、識別マーカーで視認性を確保する。M2 で素材投入時にこの メソッドを削除し、{@link #drawMapTextures} に階段専用
+   * Texture を渡すパターンに切り替える。
+   */
+  private static void drawStairsMarker(ShapeRenderer shapes, DungeonMap map) {
+    shapes.setColor(STAIRS_COLOR);
+    int tile = RenderLayout.TILE_SIZE;
+    int inset = tile / 4;
+    for (int y = 0; y < map.height(); y++) {
+      for (int x = 0; x < map.width(); x++) {
+        if (map.tileAt(new Position(x, y)) != Tile.STAIRS_DOWN) {
+          continue;
+        }
+        int sx = RenderLayout.MAP_ORIGIN_X + x * tile + inset;
+        int sy = RenderLayout.MAP_ORIGIN_Y + y * tile + inset;
+        shapes.rect(sx, sy, tile - inset * 2, tile - inset * 2);
+      }
+    }
   }
 
   /**
@@ -98,18 +152,6 @@ public final class DungeonRenderer {
     }
   }
 
-  private static void drawMap(ShapeRenderer shapes, DungeonMap map) {
-    for (int y = 0; y < map.height(); y++) {
-      for (int x = 0; x < map.width(); x++) {
-        Tile t = map.tileAt(new Position(x, y));
-        shapes.setColor(colorOf(t));
-        int sx = RenderLayout.MAP_ORIGIN_X + x * RenderLayout.TILE_SIZE;
-        int sy = RenderLayout.MAP_ORIGIN_Y + y * RenderLayout.TILE_SIZE;
-        shapes.rect(sx, sy, RenderLayout.TILE_SIZE - 1, RenderLayout.TILE_SIZE - 1);
-      }
-    }
-  }
-
   private static void drawEnemies(ShapeRenderer shapes, DungeonState state) {
     for (Enemy e : state.enemies()) {
       // §15-6 / §15-5 視認性: ボス=赤大 / 頑強=灰 / 強化個体=橙 / 雑魚=緑 / 素早い=水色小 で描き分ける。
@@ -141,13 +183,5 @@ public final class DungeonRenderer {
     int sx = RenderLayout.MAP_ORIGIN_X + p.x() * RenderLayout.TILE_SIZE + inset;
     int sy = RenderLayout.MAP_ORIGIN_Y + p.y() * RenderLayout.TILE_SIZE + inset;
     shapes.rect(sx, sy, RenderLayout.TILE_SIZE - inset * 2, RenderLayout.TILE_SIZE - inset * 2);
-  }
-
-  private static Color colorOf(Tile t) {
-    return switch (t) {
-      case FLOOR -> FLOOR_COLOR;
-      case WALL -> WALL_COLOR;
-      case STAIRS_DOWN -> STAIRS_COLOR;
-    };
   }
 }

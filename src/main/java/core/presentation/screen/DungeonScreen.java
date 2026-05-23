@@ -126,6 +126,12 @@ public final class DungeonScreen extends ScreenAdapter {
   /** ステータスポップアップ表示中フラグ。true の間はプレイヤー入力・進行を凍結する (モーダル)。 */
   private boolean statusPanelOpen;
 
+  /** マップタイル: 壁テクスチャ (チームメイト素材、ピクセルアート、Nearest filter)。 */
+  private com.badlogic.gdx.graphics.Texture wallTexture;
+
+  /** マップタイル: 床テクスチャ (チームメイト素材、ピクセルアート、Nearest filter)。 */
+  private com.badlogic.gdx.graphics.Texture floorTexture;
+
   public DungeonScreen(DddGame game) {
     this.game = game;
     this.rng = game.runRng();
@@ -143,6 +149,15 @@ public final class DungeonScreen extends ScreenAdapter {
     shapes = new ShapeRenderer();
     playerInputs = new PlayerInputs();
     statusPopup = new StatusPopup(game.fonts().large(), game.fonts().isJapaneseAvailable());
+    // マップタイルテクスチャをロード (ピクセルアート → Nearest filter で 80px 拡大時のボケ防止)。
+    wallTexture = new com.badlogic.gdx.graphics.Texture(Gdx.files.internal("tiles/wall.png"));
+    wallTexture.setFilter(
+        com.badlogic.gdx.graphics.Texture.TextureFilter.Nearest,
+        com.badlogic.gdx.graphics.Texture.TextureFilter.Nearest);
+    floorTexture = new com.badlogic.gdx.graphics.Texture(Gdx.files.internal("tiles/floor.png"));
+    floorTexture.setFilter(
+        com.badlogic.gdx.graphics.Texture.TextureFilter.Nearest,
+        com.badlogic.gdx.graphics.Texture.TextureFilter.Nearest);
     // §15-5: ダンジョン BGM を開始 (既に再生中なら no-op)
     game.soundManager().playBgm(BgmKind.DUNGEON);
   }
@@ -379,10 +394,10 @@ public final class DungeonScreen extends ScreenAdapter {
     ScreenUtils.clear(0.08f, 0.08f, 0.1f, 1f);
     viewport.apply();
 
-    // マップ層: 追従カメラで描画 (タイル → 敵 → プレイヤー → ダメージポップアップ)。
-    shapes.setProjectionMatrix(camera.combined);
-    DungeonRenderer.draw(shapes, game.context().state());
+    // マップ層: 追従カメラで描画 (タイルテクスチャ → 境界線 → 罠/敵/プレイヤー → ダメージポップアップ)。
     batch.setProjectionMatrix(camera.combined);
+    shapes.setProjectionMatrix(camera.combined);
+    DungeonRenderer.draw(batch, shapes, game.context().state(), wallTexture, floorTexture);
     batch.begin();
     drawPopups(batch);
     batch.end();
@@ -705,6 +720,14 @@ public final class DungeonScreen extends ScreenAdapter {
     if (eliteCardChoice != null) {
       eliteCardChoice.dispose();
       eliteCardChoice = null;
+    }
+    if (wallTexture != null) {
+      wallTexture.dispose();
+      wallTexture = null;
+    }
+    if (floorTexture != null) {
+      floorTexture.dispose();
+      floorTexture = null;
     }
     // playerInputs は LibGDX リソースを持たないので dispose 不要、reset のみ
     if (playerInputs != null) {
