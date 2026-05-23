@@ -20,7 +20,6 @@ import core.domain.battle.TurnPhase;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
-import core.domain.entity.EnemyKind;
 import core.domain.layer.LayerEndNode;
 import core.infrastructure.audio.BgmKind;
 import core.infrastructure.audio.SeKind;
@@ -94,11 +93,10 @@ public final class DungeonScreen extends ScreenAdapter {
   private float lowHpAnimTime = 0f;
 
   /**
-   * §15-5 / E-7: 撃破時に Bestiary へ EnemyKind を記録するための「直近観測時の敵 ID → kind」キャッシュ。 {@code
-   * BattleEvent.ActorDied} は ActorId のみ持ち kind を持たないため、生存中に観測した kind を覚えておく。 SaveData 永続化は M2
-   * 送り、本セッションはラン内のみ有効。
+   * §15-5 / E-7: 撃破時に Bestiary へ EnemyKind を記録するためのメモリ。 Wave 4 W4-α で純粋データクラスに切り出し
+   * (テスト容易性向上、SaveData 永続化への布石)。
    */
-  private final java.util.Map<ActorId, EnemyKind> rememberedEnemyKinds = new java.util.HashMap<>();
+  private final EnemyKindMemory enemyKindMemory = new EnemyKindMemory();
 
   /** マップ描画用カメラ (プレイヤー追従)。 */
   private OrthographicCamera camera;
@@ -498,7 +496,7 @@ public final class DungeonScreen extends ScreenAdapter {
   private void processNewEvents() {
     // §15-5 / E-7: 生存中の敵 ID → kind を更新 (ActorDied 時の Bestiary 記録に使う、kind は ActorDied 自体に無い)。
     for (Enemy en : game.context().state().enemies()) {
-      rememberedEnemyKinds.put(en.id(), en.kind());
+      enemyKindMemory.recordEnemy(en.id(), en.kind());
     }
     long current = game.context().totalEventsEmitted();
     if (current <= lastSeenEventCount) {
@@ -518,12 +516,9 @@ public final class DungeonScreen extends ScreenAdapter {
           game.soundManager().playSe(SeKind.DEAL_DAMAGE);
         }
       } else if (e instanceof BattleEvent.ActorDied died && !died.who().equals(playerId)) {
-        // §15-5 / E-7: 撃破済 EnemyKind を Bestiary に記録 (rememberedEnemyKinds は processNewEvents
-        // 冒頭で更新済)
-        EnemyKind defeatedKind = rememberedEnemyKinds.get(died.who());
-        if (defeatedKind != null) {
-          game.recordEnemyDefeated(defeatedKind);
-        }
+        // §15-5 / E-7: 撃破済 EnemyKind を Bestiary に記録 (enemyKindMemory は processNewEvents
+        // 冒頭で更新済、Wave 4 W4-α で純粋データクラスに分離)
+        enemyKindMemory.getEnemyKind(died.who()).ifPresent(game::recordEnemyDefeated);
         // §15-5: 敵撃破 SE (プレイヤー死亡は除外)
         game.soundManager().playSe(SeKind.ENEMY_DEFEATED);
       } else if (e instanceof BattleEvent.SkillUsed) {
