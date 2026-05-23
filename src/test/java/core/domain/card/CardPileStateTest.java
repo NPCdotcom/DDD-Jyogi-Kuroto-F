@@ -75,6 +75,13 @@ class CardPileStateTest {
     assertThrows(IllegalArgumentException.class, () -> CardPileState.initialDrawCount(-1));
   }
 
+  // P3-9: 大きな負数も境界値 -1 と同じ IllegalArgumentException を投げる
+  @Test
+  void initialDrawCountLargeNegativeThrowsIllegalArgumentException() {
+    // -1 と -100 は同じ例外を返す (どちらも totalDeckSize < 1 に引っかかる)
+    assertThrows(IllegalArgumentException.class, () -> CardPileState.initialDrawCount(-100));
+  }
+
   // =========================================================
   // 検証ポイント 4: drawN で山札切れ時の再シャッフル (固定シード)
   // =========================================================

@@ -387,4 +387,89 @@ class TurnDirectorTest {
 
     assertTrue(TurnDirector.hasMeaningfulAction(state));
   }
+
+  // ---- P3-7: AP=1 の細粒度テスト ----
+
+  /**
+   * AP=1 で ATTACK カードのみ手札、敵が遠い + 4 方向移動可 → hasMeaningfulAction=true。
+   *
+   * <p>§15-5: ATTACK カードの存在は「戦闘の意思決定が残っている」とみなし true を返す。
+   */
+  @Test
+  void hasMeaningfulActionReturnsTrueWithAttackCardAndAp1() {
+    // §15-5 詰み判定: AP=1 で ATTACK カード (コスト 1) → 使用可能 → true
+    Player player =
+        DomainFixtures.playerAt(new Position(2, 2))
+            .withActionPoints(new ActionPoints(1, 5))
+            .withCardPileState(
+                new CardPileState(
+                    DrawPile.empty(),
+                    Hand.empty().add(DomainFixtures.attackCard("zangeki")),
+                    DiscardPile.empty()));
+    Enemy farEnemy = DomainFixtures.slimeAt(new Position(4, 4));
+    DungeonState state =
+        DomainFixtures.newStateWith(
+            DomainFixtures.squareRoom(), player, List.of(farEnemy), TurnPhase.PLAYER_TURN);
+
+    assertTrue(TurnDirector.hasMeaningfulAction(state), "ATTACK カードがあれば true (敵が遠くても)");
+  }
+
+  /**
+   * AP=1 で BUFF カードのみ手札、隣接 4 方向は敵で塞ぎ → hasMeaningfulAction=true。
+   *
+   * <p>§15-5: BUFF カード単独でも「防御の意思決定が残っている」として true。 移動不可かどうかに関わらず BUFF は常に「有意なアクション」。
+   */
+  @Test
+  void hasMeaningfulActionReturnsTrueWithBuffCardAlone() {
+    // BUFF カード (コスト 1) のみ、4 方向を敵でブロック → BUFF 単独でも true
+    Card ironSkin =
+        new Card(
+            CardId.of("iron_skin"),
+            "鉄の皮膚",
+            1,
+            CardTag.BUFF,
+            CardElement.PHYSICAL,
+            new CardEffect.Buff(CardEffect.BuffKind.PHYSICAL_DEFENSE_UP, 2, 3));
+    Player player =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withActionPoints(new ActionPoints(1, 5))
+            .withCardPileState(
+                new CardPileState(
+                    DrawPile.empty(), Hand.empty().add(ironSkin), DiscardPile.empty()));
+    Enemy enemyRight = DomainFixtures.slimeAt(new Position(2, 1));
+    Enemy enemyDown = DomainFixtures.slimeAt(new Position(1, 2));
+    DungeonState state =
+        DomainFixtures.newStateWith(
+            DomainFixtures.squareRoom(),
+            player,
+            List.of(enemyRight, enemyDown),
+            TurnPhase.PLAYER_TURN);
+
+    assertTrue(TurnDirector.hasMeaningfulAction(state), "BUFF カードは移動先がなくても true");
+  }
+
+  /**
+   * AP=1 で MOVEMENT カードのみ手札、隣接 4 方向が全て壁 → hasMeaningfulAction=false。
+   *
+   * <p>§15-5: 移動系カード (MOVEMENT タグ) は「有意なアクション」と見なさない。 かつ通常移動先も全壁 → 詰み判定 false。
+   *
+   * <p>マップ: 1x1 部屋 = プレイヤーが唯一の床、四方壁。
+   */
+  @Test
+  void hasMeaningfulActionReturnsFalseWithMovementCardOnlyAndNoWalkableTile() {
+    // 3x3 マップでプレイヤーを中央 (1,1) に置く → 四方すべて壁
+    DungeonMap tinyRoom = DungeonMap.of(List.of("###", "#.#", "###"));
+    Player player =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withActionPoints(new ActionPoints(1, 5))
+            .withCardPileState(
+                new CardPileState(
+                    DrawPile.empty(),
+                    Hand.empty().add(DomainFixtures.moveCard("dash")),
+                    DiscardPile.empty()));
+    DungeonState state =
+        DomainFixtures.newStateWith(tinyRoom, player, List.of(), TurnPhase.PLAYER_TURN);
+
+    assertFalse(TurnDirector.hasMeaningfulAction(state), "MOVEMENT カードのみ + 四方壁 → false (詰み)");
+  }
 }

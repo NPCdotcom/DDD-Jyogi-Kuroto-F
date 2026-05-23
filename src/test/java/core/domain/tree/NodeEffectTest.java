@@ -108,4 +108,30 @@ class NodeEffectTest {
     assertThrows(IllegalArgumentException.class, () -> new NodeEffect.SlotExpandEffect(0));
     assertThrows(IllegalArgumentException.class, () -> new NodeEffect.SlotExpandEffect(-1));
   }
+
+  // P3-5: CardGrantEffect に null cardResolver を渡すと NullPointerException (apply 時の防御)
+  @Test
+  void cardGrantEffectRejectsNullResolver() {
+    Player base = basePlayer();
+    NodeEffect.CardGrantEffect effect = new NodeEffect.CardGrantEffect(CardId.of("test_card"));
+    assertThrows(NullPointerException.class, () -> effect.apply(base, null));
+  }
+
+  // P3-5: None.apply は identity (引数の Player と同一インスタンスを返す)
+  @Test
+  void noneApplyIsIdentityRegardlessOfCardResolver() {
+    Player base = basePlayer();
+    // cardResolver が null でも None は resolver を呼ばないため例外にならない
+    Player result = NodeEffect.None.INSTANCE.apply(base, null);
+    assertSame(base, result, "None.apply は Player を変えない (null resolver でも安全)");
+  }
+
+  // P3-5: SlotExpandEffect(1) で skillSlot maxSize が +1 される (最小 amount の境界値)
+  @Test
+  void slotExpandEffectWithAmountOneIncreasesMaxSizeByOne() {
+    Player base = basePlayer();
+    int before = base.skillSlot().maxSize();
+    Player after = new NodeEffect.SlotExpandEffect(1).apply(base, DUMMY_RESOLVER);
+    assertEquals(before + 1, after.skillSlot().maxSize(), "amount=1 (最小値) で maxSize が 1 増加");
+  }
 }

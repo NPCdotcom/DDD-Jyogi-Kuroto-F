@@ -55,4 +55,29 @@ class PlayerGoldTest {
     assertEquals(p.position(), after.position(), "Position は不変");
     assertEquals(p.statuses(), after.statuses(), "Statuses は不変");
   }
+
+  // §15-9 Shop: 残額ちょうどの spendGold は成功する (境界値)
+  @Test
+  void spendGoldExactAmountSucceeds() {
+    Player p = DomainFixtures.playerAt(new Position(1, 1)).addGold(new Gold(10));
+    Player broke = p.spendGold(new Gold(10));
+    assertEquals(0, broke.gold().amount(), "残額ちょうどを消費した後は 0");
+  }
+
+  // §15-9 Shop: 残額を 1 超えた spendGold は IllegalStateException (P3-1 追加ケース)
+  @Test
+  void spendGoldOneOverThrowsIllegalStateException() {
+    Player p = DomainFixtures.playerAt(new Position(1, 1)).addGold(new Gold(9));
+    // 残 9 に対して 10 を要求 → 1 超過
+    assertThrows(IllegalStateException.class, () -> p.spendGold(new Gold(10)));
+  }
+
+  // addGold(0) は gold.amount() を変えない (境界値: 加算量 0)
+  @Test
+  void addZeroGoldDoesNotChangeAmount() {
+    Player p = DomainFixtures.playerAt(new Position(1, 1)).addGold(new Gold(5));
+    Player same = p.addGold(new Gold(0));
+    assertEquals(5, same.gold().amount(), "0 加算後も gold は変化しない");
+    assertNotSame(p, same, "add は常に新インスタンスを返す");
+  }
 }

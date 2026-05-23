@@ -167,6 +167,31 @@ class StatsTest {
     assertThrows(NullPointerException.class, () -> base.plus(null));
   }
 
+  // P3-2: currentHp=maxHp の全 HP 満タン状態で maxHp を大きく削ると currentHp が clamp される
+  @Test
+  void plusWithNegativeMaxHpClampsCurrentHpWhenFull() {
+    // §15-4 / ADR-25: 装備の負補正 (maxHp -5) → maxHp=5 / currentHp=5 (clamp)
+    Stats full = new Stats(10, 10, 2, 0, 0, 0, 0); // currentHp == maxHp (満タン)
+    Stats reduced = full.plus(new StatsBonus(-5, 0, 0, 0, 0, 0));
+
+    assertEquals(5, reduced.maxHp(), "maxHp 10 - 5 = 5");
+    assertEquals(5, reduced.currentHp(), "currentHp は新 maxHp (5) にクランプされる");
+  }
+
+  // P3-2: 全ステに大きな負補正を当てても 0 を下回らない (全フィールド一括確認)
+  @Test
+  void plusWithAllNegativeBonusClampsAllFieldsToZero() {
+    // 物攻/魔攻/物防/魔防 + speed が全て大きな負数でも 0 になる
+    Stats base = new Stats(5, 10, 3, 2, 2, 2, 2);
+    Stats zeroed = base.plus(new StatsBonus(0, -100, -100, -100, -100, -100));
+
+    assertEquals(0, zeroed.speed(), "speed は 0 にクランプ");
+    assertEquals(0, zeroed.physicalAttack(), "physicalAttack は 0 にクランプ");
+    assertEquals(0, zeroed.magicalAttack(), "magicalAttack は 0 にクランプ");
+    assertEquals(0, zeroed.physicalDefense(), "physicalDefense は 0 にクランプ");
+    assertEquals(0, zeroed.magicalDefense(), "magicalDefense は 0 にクランプ");
+  }
+
   // ---------------- withMaxHpRaised (§15-8 層末ノード HP 強化用) ----------------
 
   @Test

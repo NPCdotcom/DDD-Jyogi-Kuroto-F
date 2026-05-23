@@ -91,4 +91,12 @@ class HandTest {
     Hand h = DomainFixtures.handOfSize(Hand.MAX_SIZE - 1);
     assertFalse(h.isFull());
   }
+
+  // P3-8: null カードは NullPointerException で弾く (§15-3 手札の不変性保護)
+  @Test
+  void addNullCardThrowsNullPointerException() {
+    // Hand.add の Objects.requireNonNull が null を弾く
+    Hand empty = Hand.empty();
+    assertThrows(NullPointerException.class, () -> empty.add(null));
+  }
 }

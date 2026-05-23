@@ -120,4 +120,37 @@ class ActionPointsTest {
     assertThrows(IllegalArgumentException.class, () -> new ActionPoints(-1, 5));
     assertThrows(IllegalArgumentException.class, () -> new ActionPoints(6, 5));
   }
+
+  // =========================================================
+  // P3-6: refilled() と refilledTo() の違いを明示
+  // =========================================================
+
+  /** ADR-06: 敵 AP は層番号で固定。refilled() は max を変えず current を max に戻す (敵ターン頭用)。 */
+  @Test
+  void refilledPreservesMaxWhileRestoringCurrentToMax() {
+    // AP 残 0 / max 3 → refilled → current=3, max=3 (max は 3 のまま)
+    ActionPoints ap = new ActionPoints(0, 3);
+    ActionPoints refilled = ap.refilled();
+
+    assertEquals(3, refilled.max(), "max は変化しない");
+    assertEquals(3, refilled.current(), "current は max まで回復");
+  }
+
+  /**
+   * refilled と refilledTo の違い: refilledTo は max も上書きするが refilled は max 据置。
+   *
+   * <p>敵に refilledTo(speed) を使うと「敵 AP = 層番号」仕様が崩れるため、敵ターン頭は refilled() を使う (ADR-06)。
+   */
+  @Test
+  void refilledDoesNotChangMaxUnlikeRefilledTo() {
+    ActionPoints ap = new ActionPoints(1, 5);
+
+    ActionPoints byRefilled = ap.refilled(); // max 据置
+    ActionPoints byRefilledTo = ap.refilledTo(3); // max を 3 に書き換え
+
+    assertEquals(5, byRefilled.max(), "refilled は max を据置 (5 のまま)");
+    assertEquals(3, byRefilledTo.max(), "refilledTo は max を新値 (3) に変更する");
+    assertEquals(5, byRefilled.current(), "refilled の current は元 max (5) に回復");
+    assertEquals(3, byRefilledTo.current(), "refilledTo の current は新 max (3) に回復");
+  }
 }
