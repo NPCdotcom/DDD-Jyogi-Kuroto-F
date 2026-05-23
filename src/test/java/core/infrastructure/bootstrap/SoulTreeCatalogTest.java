@@ -10,12 +10,22 @@ import core.domain.tree.NodeId;
 import core.domain.tree.SoulTree;
 import core.domain.tree.TreeNode;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /** {@link SoulTreeCatalog} が tree.json を正しくロードし、25 ノードのマスタ定義を構築することの検証。 */
 class SoulTreeCatalogTest {
 
   private static final SoulTreeCatalog CATALOG = SoulTreeCatalog.load();
+
+  /**
+   * Wave 5 W5-γ: {@code soulTreeAllNodesDelegatesToCatalog} が SoulTree.allNodes() を呼ぶため Supplier
+   * 注入が必要。
+   */
+  @BeforeAll
+  static void initSoulTreeProvider() {
+    SoulTree.setNodeProvider(InitialStateFactory::soulTreeNodes);
+  }
 
   @Test
   void loadsExactly25Nodes() {

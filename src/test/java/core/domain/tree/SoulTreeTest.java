@@ -15,13 +15,24 @@ import core.domain.common.Position;
 import core.domain.entity.Player;
 import core.domain.meta.Soul;
 import core.domain.support.DomainFixtures;
+import core.infrastructure.bootstrap.InitialStateFactory;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Function;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /** {@link SoulTree} の単体テスト (§15-7 / E-2)。 */
 class SoulTreeTest {
+
+  /**
+   * Wave 5 W5-γ: SoulTree のノード Supplier はテスト起動前に注入が必要。 全テストが同じ provider を使うため共有してよく、@AfterAll
+   * でのクリアは不要。
+   */
+  @BeforeAll
+  static void initSoulTreeProvider() {
+    SoulTree.setNodeProvider(InitialStateFactory::soulTreeNodes);
+  }
 
   private static final Function<CardId, Card> DUMMY_RESOLVER =
       id ->

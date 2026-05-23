@@ -525,6 +525,9 @@ public final class DddGame extends Game {
 
   @Override
   public void create() {
+    // §設計原則 / Wave 5 W5-γ: SoulTree のノードマスタ Supplier を最初に注入
+    // (domain → infrastructure 依存方向違反を解消、Logger 級の単発 init setter)。
+    SoulTree.setNodeProvider(core.infrastructure.bootstrap.InitialStateFactory::soulTreeNodes);
     fonts =
         new Fonts(
             core.infrastructure.bootstrap.InitialStateFactory.cardCatalog(),

@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * ソウルツリー (§15-7 / E-2)。永続強化のメタ進行を表現する不変 record。
@@ -37,6 +38,26 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
 
   public static final NodeId ROOT = NodeId.of("root");
 
+  /**
+   * §設計原則 / Wave 5 W5-γ: domain → infrastructure 依存方向違反 解消のための Supplier 注入。
+   *
+   * <p>本フィールドは「Logger / Properties 級の単発 initialization setter」として扱う (lessons.md 2026-05-23 記録)。
+   * 起動時に DddGame.create() から 1 度だけ {@link #setNodeProvider} で設定し、以降は read-only。 mutable static
+   * state 禁止ルールの 例外として許容: (1) 初期化フェーズのみ set (2) read 以降の state 変更なし (3) テストでも初期化可能。
+   */
+  private static Supplier<Map<NodeId, TreeNode>> nodeProvider;
+
+  /**
+   * ノードマスタの Supplier を注入する。DddGame.create() で {@code
+   * SoulTree.setNodeProvider(InitialStateFactory::soulTreeNodes)} を呼ぶ。
+   *
+   * <p>テスト時はカタログモック等で setProvider を上書き可能だが、 {@code @AfterEach} or {@code @AfterAll} で前 provider
+   * に復元する (並列テスト時の NPE 防止)。
+   */
+  public static void setNodeProvider(Supplier<Map<NodeId, TreeNode>> provider) {
+    nodeProvider = Objects.requireNonNull(provider, "provider");
+  }
+
   public SoulTree {
     Objects.requireNonNull(unlockedNodes, "unlockedNodes");
     if (totalSpentSoul < 0) {
@@ -54,17 +75,23 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
   }
 
   /**
-   * 全 23 ノードのマスタ定義を返す (id → TreeNode、登録順保持の不変マップ)。
+   * 全ノードのマスタ定義を返す (id → TreeNode、登録順保持の不変マップ)。
    *
    * <p>UI 側 (SoulTreeScreen) もここから配置情報を引く。{@link #isVisible} 経由で毎フレーム多数回呼ばれるため infrastructure 層 の
    * {@code SoulTreeCatalog} で 1 度ロードしキャッシュ済みのマップを委譲して返す (呼出のたびに再構築しない)。
    *
-   * <p>例外的に domain → infrastructure 参照を許容する: {@code cards.json} / {@code equipment.json} と同じく
-   * ノードマスタを JSON 駆動にすると、Jackson 依存が domain 層に侵入する。代替として infrastructure 層に Catalog を置き、 domain 層からは
-   * Map 取得のみ委譲する形を採った (CardCatalog / EquipmentCatalog と同型)。
+   * <p>Wave 5 W5-γ: 旧実装は {@code InitialStateFactory.soulTreeNodes()} を直接呼んでいたが、 domain →
+   * infrastructure 依存方向違反だったため Supplier 注入パターンに変更。{@link #setNodeProvider} で 起動時に注入された Supplier
+   * から取得する。
+   *
+   * @throws IllegalStateException nodeProvider が未注入の場合 (起動初期化漏れ)
    */
   public static Map<NodeId, TreeNode> allNodes() {
-    return core.infrastructure.bootstrap.InitialStateFactory.soulTreeNodes();
+    if (nodeProvider == null) {
+      throw new IllegalStateException(
+          "SoulTree.nodeProvider not initialized; call SoulTree.setNodeProvider(...) at startup");
+    }
+    return nodeProvider.get();
   }
 
   /**
