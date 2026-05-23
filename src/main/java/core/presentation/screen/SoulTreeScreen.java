@@ -437,6 +437,22 @@ public final class SoulTreeScreen extends ScreenAdapter {
       // 押下していたポインタを移動量しきい値未満で離した = クリック → ノード解放。
       Vector3 world = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0f);
       viewport.unproject(world);
+      Gdx.app.log(
+          "SoulTree",
+          "Click detected screen=("
+              + Gdx.input.getX()
+              + ","
+              + Gdx.input.getY()
+              + ") world=("
+              + world.x
+              + ","
+              + world.y
+              + ") camera=("
+              + camera.position.x
+              + ","
+              + camera.position.y
+              + ") zoom="
+              + camera.zoom);
       tryUnlockAt(world.x, world.y);
     }
     pointerDown = down;
@@ -479,11 +495,27 @@ public final class SoulTreeScreen extends ScreenAdapter {
     if (pendingUnlock == null) {
       return;
     }
-    pendingUnlock.render(delta);
+    Gdx.app.log("SoulTree", "renderAndConsumeUnlockDialog render() call");
+    // §UI 改善 (仮説 V 対策): Dialog.render() が例外で沈黙して dispose まで進むと
+    // 「ダイアログが出た形跡すら見えない」になるため、try-catch で可視化する。
+    try {
+      pendingUnlock.render(delta);
+    } catch (RuntimeException ex) {
+      Gdx.app.error("SoulTree", "Dialog render failed", ex);
+      boolean jp = game.fonts().isJapaneseAvailable();
+      showFlash((jp ? "ダイアログ描画失敗: " : "Dialog render failed: ") + ex.getClass().getSimpleName());
+      pendingUnlock.dispose();
+      pendingUnlock = null;
+      pendingUnlockId = null;
+      pointerDown = false;
+      dragged = false;
+      return;
+    }
     java.util.Optional<Boolean> r = pendingUnlock.consume();
     if (r.isEmpty()) {
       return;
     }
+    Gdx.app.log("SoulTree", "Dialog consumed result=" + r.get());
     if (r.get()) {
       try {
         game.unlockTreeNode(pendingUnlockId);
@@ -545,7 +577,22 @@ public final class SoulTreeScreen extends ScreenAdapter {
         bestId = candidate;
       }
     }
+    Gdx.app.log(
+        "SoulTree",
+        "tryUnlockAt world=("
+            + worldX
+            + ","
+            + worldY
+            + ") bestId="
+            + (bestId == null ? "null" : bestId.value())
+            + " bestDistSq="
+            + bestDistSq);
     if (bestId == null) {
+      // §UI 改善 (仮説 P 対策): クリックがどのノードにもヒットしなかった時、ユーザー目線は
+      // 「クリックしても何も起きない=固まった」と誤認するので flash で視覚的に伝える。
+      boolean jp = game.fonts().isJapaneseAvailable();
+      showFlash(
+          jp ? "ノードが見つかりません (アイコンの中央寄りをクリック)" : "No node found (click closer to icon center)");
       return;
     }
     // §15-7 UI 改善: 即解放せず確認ダイアログを開く (誤クリック対策)

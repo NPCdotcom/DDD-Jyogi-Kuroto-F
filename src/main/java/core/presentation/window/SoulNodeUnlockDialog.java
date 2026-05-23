@@ -70,6 +70,14 @@ public final class SoulNodeUnlockDialog {
 
   /** 入力受付 + 描画。Y/N/ESC で {@code done = true} になる。 */
   public void render(float delta) {
+    // §UI 改善 (仮説 V 対策): フォント未初期化 (null) で render に入ると BitmapFont.draw で NPE。
+    // 沈黙して ダイアログ全体が見えない症状の予防として早期検出 + ログ + 即時 cancel 扱いで抜ける。
+    if (titleFont == null || bodyFont == null) {
+      Gdx.app.error("SoulNodeUnlockDialog", "Fonts not initialized, skipping render");
+      result = Optional.of(false);
+      done = true;
+      return;
+    }
     // §UI 改善: done=true 後も同フレームの描画は完走させる (Screen 側が consume → dispose →
     // pendingUnlock = null するまでダイアログを表示し続ける)。旧実装の `if (done) return;` は
     // Y/N/ESC 押下フレームでダイアログ枠が瞬間的に消えるアーティファクトの原因となっていた。
