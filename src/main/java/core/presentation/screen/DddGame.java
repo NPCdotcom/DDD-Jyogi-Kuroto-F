@@ -458,7 +458,9 @@ public final class DddGame extends Game {
             runCount,
             soulTree,
             obtainedCards,
-            loadout);
+            loadout,
+            bestiary,
+            tutorialSeen);
     saveManager.save(data);
   }
 
@@ -484,6 +486,9 @@ public final class DddGame extends Game {
     this.loadout.putAll(SaveDataConverter.toLoadout(data));
     this.obtainedCards.clear();
     this.obtainedCards.addAll(SaveDataConverter.toObtainedCards(data));
+    // Wave 6 W6-β: bestiary + tutorialSeen を復元 (v1 セーブは graceful に空 / false)
+    this.bestiary = SaveDataConverter.toBestiary(data);
+    this.tutorialSeen = data.tutorialSeen();
 
     // ラン状態を復元: 指定層からの新規マップ生成 + プレイヤーステ / デッキ注入
     runRng = new Random();

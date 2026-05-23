@@ -37,10 +37,20 @@ public record SaveData(
     @JsonProperty("unlockedNodeIds") List<String> unlockedNodeIds,
     @JsonProperty("obtainedCardIds") List<String> obtainedCardIds,
     // EquipmentSlot.name() → EquipmentId.value()
-    @JsonProperty("loadout") Map<String, String> loadout) {
+    @JsonProperty("loadout") Map<String, String> loadout,
+    // §15-5 / E-7 (Wave 6 W6-β) 撃破済敵種 (EnemyKind.name())
+    @JsonProperty("defeatedEnemyKinds") List<String> defeatedEnemyKinds,
+    // §15-10 / E-10 (Wave 6 W6-β) チュートリアル既読フラグ
+    @JsonProperty("tutorialSeen") boolean tutorialSeen) {
 
-  /** 現在のスキーマバージョン。フィールド構造が変わった時に上げる。 */
-  public static final int CURRENT_SCHEMA_VERSION = 1;
+  /**
+   * 現在のスキーマバージョン。フィールド構造が変わった時に上げる。
+   *
+   * <p>v1 (旧): defeatedEnemyKinds / tutorialSeen なし。Wave 6 W6-β で 2 フィールド追加。 v1 セーブのロード時は Jackson
+   * が欠落フィールドを null / false で埋め、compact constructor で graceful migration: defeatedEnemyKinds →
+   * List.of()、tutorialSeen → false に正規化する。
+   */
+  public static final int CURRENT_SCHEMA_VERSION = 2;
 
   public SaveData {
     if (schemaVersion < 1) {
@@ -57,5 +67,7 @@ public record SaveData(
     unlockedNodeIds = List.copyOf(unlockedNodeIds);
     obtainedCardIds = List.copyOf(obtainedCardIds);
     loadout = Map.copyOf(loadout);
+    // v1 graceful migration: 欠落 (null) は空リストに正規化、Jackson が null を渡しても破綻しない
+    defeatedEnemyKinds = defeatedEnemyKinds != null ? List.copyOf(defeatedEnemyKinds) : List.of();
   }
 }

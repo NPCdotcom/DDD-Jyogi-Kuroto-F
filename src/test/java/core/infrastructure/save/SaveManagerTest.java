@@ -42,7 +42,9 @@ class SaveManagerTest {
         0,
         List.of("root"),
         List.of("zangeki"),
-        Map.of("HAND", "tattered_dagger"));
+        Map.of("HAND", "tattered_dagger"),
+        List.of(),
+        false);
   }
 
   @Test
@@ -145,7 +147,9 @@ class SaveManagerTest {
             0,
             List.of("root", "hp_up_1"),
             List.of("zangeki", "strong_strike"),
-            Map.of("HAND", "tattered_dagger"));
+            Map.of("HAND", "tattered_dagger"),
+            List.of(),
+            false);
     saveManager.save(second);
 
     Optional<SaveData> loaded = saveManager.load();

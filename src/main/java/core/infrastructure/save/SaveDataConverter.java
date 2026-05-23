@@ -6,15 +6,18 @@ import core.domain.card.CardPileState;
 import core.domain.card.DiscardPile;
 import core.domain.card.DrawPile;
 import core.domain.card.Hand;
+import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
 import core.domain.entity.Stats;
 import core.domain.equipment.Equipment;
 import core.domain.equipment.EquipmentId;
 import core.domain.equipment.EquipmentSlot;
+import core.domain.meta.Bestiary;
 import core.domain.tree.NodeId;
 import core.domain.tree.SoulTree;
 import core.infrastructure.bootstrap.InitialStateFactory;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -39,7 +42,7 @@ public final class SaveDataConverter {
   // =========================================================================
 
   /**
-   * DddGame の live 状態を {@link SaveData} に変換する。
+   * DddGame の live 状態を {@link SaveData} に変換する (Wave 6 W6-β で bestiary / tutorialSeen を追加)。
    *
    * @param player 現在のプレイヤー (ラン中の状態)
    * @param nextLayerNumber ロード後に進入する層番号
@@ -48,6 +51,8 @@ public final class SaveDataConverter {
    * @param soulTree ソウルツリー
    * @param obtainedCards カード図鑑
    * @param loadout 装備ロードアウト
+   * @param bestiary 撃破済敵種 (§15-5、Wave 6 W6-β で永続化対象)
+   * @param tutorialSeen チュートリアル既読フラグ (§15-10、Wave 6 W6-β で永続化対象)
    * @return 保存用 SaveData
    */
   public static SaveData toSaveData(
@@ -57,7 +62,9 @@ public final class SaveDataConverter {
       int runCount,
       SoulTree soulTree,
       Set<CardId> obtainedCards,
-      Map<EquipmentSlot, Equipment> loadout) {
+      Map<EquipmentSlot, Equipment> loadout,
+      Bestiary bestiary,
+      boolean tutorialSeen) {
 
     Stats stats = player.stats();
 
@@ -91,6 +98,13 @@ public final class SaveDataConverter {
       loadoutMap.put(entry.getKey().name(), entry.getValue().id().value());
     }
 
+    // Wave 6 W6-β: Bestiary を EnemyKind.name() の List<String> に直列化
+    // (unlockedNodeIds / obtainedCardIds と同型のパターン)
+    List<String> defeatedEnemyKinds = new ArrayList<>();
+    for (EnemyKind kind : bestiary.defeatedKinds()) {
+      defeatedEnemyKinds.add(kind.name());
+    }
+
     return new SaveData(
         SaveData.CURRENT_SCHEMA_VERSION,
         nextLayerNumber,
@@ -106,7 +120,9 @@ public final class SaveDataConverter {
         runCount,
         unlockedNodeIds,
         obtainedCardIds,
-        loadoutMap);
+        loadoutMap,
+        defeatedEnemyKinds,
+        tutorialSeen);
   }
 
   // =========================================================================
@@ -171,6 +187,28 @@ public final class SaveDataConverter {
       result.add(CardId.of(id));
     }
     return result;
+  }
+
+  /**
+   * {@link SaveData} から {@link Bestiary} を復元する (Wave 6 W6-β、§15-5)。
+   *
+   * <p>各 EnumKind.name() 文字列を {@link EnemyKind#valueOf} で復元。未知名 (将来の Enum 改変で削除された敵種 / typo 等) は
+   * {@link IllegalArgumentException} を try-catch で受け、WARN ログ + graceful skip で続行する。 これは {@link
+   * #toLoadout} / {@link #toSoulTree} と同型の「未知 ID は WARN + skip」パターン。
+   *
+   * <p>v1 セーブ (defeatedEnemyKinds 欠落) は {@link SaveData} の compact constructor で空リストに正規化されるため、
+   * 結果として空の Bestiary が返る (graceful migration)。
+   */
+  public static Bestiary toBestiary(SaveData data) {
+    Set<EnemyKind> kinds = EnumSet.noneOf(EnemyKind.class);
+    for (String name : data.defeatedEnemyKinds()) {
+      try {
+        kinds.add(EnemyKind.valueOf(name));
+      } catch (IllegalArgumentException e) {
+        LOG.warning("Unknown EnemyKind in save data, skipping: " + name);
+      }
+    }
+    return new Bestiary(kinds);
   }
 
   /**
