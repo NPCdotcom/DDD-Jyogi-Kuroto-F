@@ -100,4 +100,45 @@ class CardTest {
             new Card(
                 CardId.of("null-effect"), "有効名", 1, CardTag.ATTACK, CardElement.PHYSICAL, null));
   }
+
+  // Wave 11 W11-β: rarity Optional 正規化 + rarityOrDefault()
+
+  @Test
+  void legacyConstructorDefaultsRarityToEmpty() {
+    // 6 引数の後方互換コンストラクタは rarity = Optional.empty() で初期化
+    Card card = DomainFixtures.attackCard("legacy-001");
+    assertEquals(java.util.Optional.empty(), card.rarity());
+    assertEquals(CardRarity.COMMON, card.rarityOrDefault());
+  }
+
+  @Test
+  void explicitRarityIsPreserved() {
+    Card card =
+        new Card(
+            CardId.of("rare-001"),
+            "レア",
+            2,
+            CardTag.ATTACK,
+            CardElement.MAGICAL,
+            new CardEffect.Damage(8),
+            java.util.Optional.of(CardRarity.RARE));
+    assertEquals(java.util.Optional.of(CardRarity.RARE), card.rarity());
+    assertEquals(CardRarity.RARE, card.rarityOrDefault());
+  }
+
+  @Test
+  void nullRarityIsNormalizedToEmpty() {
+    // 7 引数コンストラクタに null を渡しても Optional.empty() に正規化される
+    Card card =
+        new Card(
+            CardId.of("null-rarity"),
+            "名無し",
+            1,
+            CardTag.ATTACK,
+            CardElement.PHYSICAL,
+            new CardEffect.Damage(2),
+            null);
+    assertEquals(java.util.Optional.empty(), card.rarity());
+    assertEquals(CardRarity.COMMON, card.rarityOrDefault());
+  }
 }

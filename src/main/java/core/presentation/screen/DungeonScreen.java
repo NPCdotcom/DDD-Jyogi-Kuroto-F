@@ -15,6 +15,9 @@ import core.application.TurnDirector;
 import core.domain.battle.BattleAction;
 import core.domain.battle.BattleEvent;
 import core.domain.battle.TurnPhase;
+import core.domain.card.Card;
+import core.domain.card.CardRarity;
+import core.domain.card.Hand;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
@@ -468,9 +471,10 @@ public final class DungeonScreen extends ScreenAdapter {
         eliteReward.triggerOnEliteDefeat();
       } else if (e instanceof BattleEvent.TurnPhaseChanged tpc
           && tpc.newPhase() == TurnPhase.PLAYER_TURN) {
-        // Wave 10 W10-β-2: プレイヤーターン開始 = 毎ターン頭のドロー演出として CARD_DRAW_C を発火
-        // レアリティ別 (C/U/R) 音分けは Card に rarity field 追加が必要で Wave 11+ 送り
-        game.soundManager().playSe(SeKind.CARD_DRAW_C);
+        // Wave 11 W11-β: プレイヤーターン開始時、手札に含まれる最高 rarity に応じて CARD_DRAW SE を分岐。
+        // 未指定カードは CardRarity.COMMON 扱い (Card.rarityOrDefault())。
+        Hand hand = game.requireRunSession().context().state().player().cardPileState().hand();
+        game.soundManager().playSe(drawSeFor(hand));
       } else if (e instanceof BattleEvent.WallBroken) {
         // Wave 11 W11-α: 壊れる壁破壊時に block_brake SE を再生
         game.soundManager().playSe(SeKind.BLOCK_BREAK);
@@ -646,5 +650,25 @@ public final class DungeonScreen extends ScreenAdapter {
     if (playerInputs != null) {
       playerInputs.reset();
     }
+  }
+
+  /**
+   * 手札の最高 rarity に応じて CARD_DRAW SE を選ぶ純関数 (Wave 11 W11-β、CTO チェックポイント #3 を活用)。
+   *
+   * <p>RARE 1 枚以上 → CARD_DRAW_R / UNCOMMON 1 枚以上 → CARD_DRAW_U / それ以外 → CARD_DRAW_C。空手札も
+   * CARD_DRAW_C にフォールバック (ターン頭のドロー後は通常空にならないが、空デッキ時の防衛)。
+   */
+  static SeKind drawSeFor(Hand hand) {
+    boolean hasUncommon = false;
+    for (Card c : hand.cards()) {
+      CardRarity r = c.rarityOrDefault();
+      if (r == CardRarity.RARE) {
+        return SeKind.CARD_DRAW_R;
+      }
+      if (r == CardRarity.UNCOMMON) {
+        hasUncommon = true;
+      }
+    }
+    return hasUncommon ? SeKind.CARD_DRAW_U : SeKind.CARD_DRAW_C;
   }
 }

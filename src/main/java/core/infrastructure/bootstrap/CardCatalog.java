@@ -6,6 +6,7 @@ import core.domain.card.Card;
 import core.domain.card.CardEffect;
 import core.domain.card.CardElement;
 import core.domain.card.CardId;
+import core.domain.card.CardRarity;
 import core.domain.card.CardTag;
 import core.domain.card.TrapLifetime;
 import java.io.IOException;
@@ -14,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -110,7 +112,28 @@ public final class CardCatalog {
         requiredInt(n, "apCost"),
         CardTag.valueOf(text(n, "tag")),
         CardElement.valueOf(text(n, "element")),
-        parseEffect(n.get("effect")));
+        parseEffect(n.get("effect")),
+        parseRarity(n.get("rarity")));
+  }
+
+  /**
+   * カードレアリティを graceful 読込 (Wave 11 W11-β)。JSON で未指定なら {@link Optional#empty()}、 値が enum 名と一致しなければ
+   * WARNING ログ + Optional.empty() でフォールバック。
+   *
+   * <p>cards.json は全カードへの rarity 付与が完了していないため (チームメイト領域)、未指定許容を維持。 起動時クラッシュ回避が最優先 ({@link
+   * EquipmentCatalog} の themeName / iconPath と同型)。
+   */
+  private static Optional<CardRarity> parseRarity(JsonNode r) {
+    if (r == null || r.isNull()) {
+      return Optional.empty();
+    }
+    String raw = r.asText();
+    try {
+      return Optional.of(CardRarity.valueOf(raw.toUpperCase()));
+    } catch (IllegalArgumentException e) {
+      LOG.warning("cards.json: unknown rarity '" + raw + "' (falling back to empty/COMMON)");
+      return Optional.empty();
+    }
   }
 
   private static CardEffect parseEffect(JsonNode e) {

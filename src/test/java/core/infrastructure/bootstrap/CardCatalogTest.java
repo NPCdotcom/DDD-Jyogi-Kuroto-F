@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import core.domain.card.Card;
 import core.domain.card.CardEffect;
 import core.domain.card.CardId;
+import core.domain.card.CardRarity;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 /** {@link CardCatalog} が cards.json を正しくロードし、既存システムの参照 ID を全て解決することの検証。 */
@@ -56,5 +58,25 @@ class CardCatalogTest {
   void allIdsAreUnique() {
     long distinct = CATALOG.all().stream().map(Card::id).distinct().count();
     assertEquals(CATALOG.all().size(), distinct, "カード ID は一意");
+  }
+
+  // Wave 11 W11-β: rarity graceful 読込
+
+  @Test
+  void rarityFieldIsParsedWhenPresent() {
+    // cards.json で W11-β 時点に rarity 明示済の代表カード (動作確認用)
+    assertEquals(Optional.of(CardRarity.RARE), CATALOG.get(CardId.of("blaze_nova")).rarity());
+    assertEquals(Optional.of(CardRarity.RARE), CATALOG.get(CardId.of("meteor_drop")).rarity());
+    assertEquals(Optional.of(CardRarity.UNCOMMON), CATALOG.get(CardId.of("teleport")).rarity());
+    assertEquals(
+        Optional.of(CardRarity.UNCOMMON), CATALOG.get(CardId.of("overhead_smash")).rarity());
+  }
+
+  @Test
+  void rarityIsEmptyWhenAbsentInJson() {
+    // 大多数のカードは rarity 未指定 → Optional.empty()、rarityOrDefault() = COMMON にフォールバック
+    Card zangeki = CATALOG.get(CardId.of("zangeki"));
+    assertEquals(Optional.empty(), zangeki.rarity());
+    assertEquals(CardRarity.COMMON, zangeki.rarityOrDefault());
   }
 }
