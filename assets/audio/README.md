@@ -4,6 +4,9 @@
 **ファイルが無い種別は自動的に無音 (no-op) になる** — 揃っていなくてもゲームは正常に動く。
 素材ができ次第、下記のファイル名・パスで投入すれば自動で鳴る。
 
+> **形式・音量目安・将来追加候補**の詳細は [docs/AssetProductionSpec.md §A-2](../../docs/AssetProductionSpec.md) を参照。
+> 本ファイルは配置パスと種別の Single Source of Truth。
+
 ## 配置パス
 
 ```

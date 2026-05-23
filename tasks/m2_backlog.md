@@ -46,15 +46,24 @@
 
 | 項目 | 担当 |
 |---|---|
-| **スプライト/ピクセルアート素材投入** (敵・プレイヤー・マップ。現在 ShapeRenderer 矩形) | チームメイト |
-| **音声素材実ファイル投入** (BGM / SE、`assets/audio/README.md` 配置規約あり) | チームメイト |
-| **スキルカード未画像 11 枚** (zangeki, strong_strike, magic_bolt, fireball, ember_shot, blaze_nova, blink_step, flame_circle, arcane_veil, stone_wall, haste — 現在 test.png fallback) | チームメイト (アーティスト) |
+| **スプライト/ピクセルアート素材投入** (敵・プレイヤー・マップ。現在 ShapeRenderer 矩形)。制作仕様: [docs/AssetProductionSpec.md §A-1](../docs/AssetProductionSpec.md) | チームメイト |
+| **音声素材実ファイル投入** (BGM / SE、`assets/audio/README.md` 配置規約あり)。制作仕様: [docs/AssetProductionSpec.md §A-2](../docs/AssetProductionSpec.md) | チームメイト |
+| **スキルカード未画像 11 枚** (zangeki, strong_strike, magic_bolt, fireball, ember_shot, blaze_nova, blink_step, flame_circle, arcane_veil, stone_wall, haste — 現在 test.png fallback)。制作仕様: [docs/AssetProductionSpec.md §A-3](../docs/AssetProductionSpec.md) | チームメイト (アーティスト) |
 | **equipment.json grantedCards コンセプト不一致 5 件** (dwarven_boots→stone_throw、phoenix_feather_cloak→fireball、venom_fang→piercing_arrow、earth_bracers→armor_break、crimson_bow→strong_strike) | カード/装備設計 |
 | **カード完全一致グループの抜本差別化** (副次効果の付与) | カード設計 |
 | **新 EnemyKind (SWIFT_SLIME / TOUGH_SLIME) のフレーバー・バランス確定** | 敵設計 |
-| **コードライセンス選定** (README に TBD と記載中) | チーム決定 |
-| **キーマッピング議論** (hjkl / 8 方向対角線の要否) | UX 議論 |
 | **クリア条件再検討** (階段直行最適解の回避、敵配置) | レベル設計 |
+
+---
+
+## 確定済み判断 (本仕様書から除外)
+
+ハッカソン本番 (2026-05-23) で次の判断が確定し、本バックログから除外:
+
+| 項目 | 決定内容 | 確定日 |
+|---|---|---|
+| **コードライセンス選定** | ライセンス指定なし (オーナー保有)。README.md に明記 | 2026-05-23 |
+| **キーマッピング議論** | WASD / 矢印キー固定で確定 (hjkl / 8 方向対角線は不採用) | 2026-05-23 |
 
 ---
 

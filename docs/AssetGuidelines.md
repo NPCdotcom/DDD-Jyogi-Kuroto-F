@@ -3,6 +3,10 @@
 DDD-Jyogi-Kuroto-F で使用する **アセット (フォント・画像・音)** の収集・取り込み・ライセンス管理ルール。
 仕様の詳細は [GAME_DESIGN.md §8 AI 使用方針](./GAME_DESIGN.md) も参照。
 
+> **制作仕様** (寸法・配置パス・命名・取り込み手順) はチームメイト向けの単一ドキュメント
+> [docs/AssetProductionSpec.md](./AssetProductionSpec.md) に集約。本書は**取得・ライセンス管理**に
+> フォーカスする。
+
 ---
 
 ## 1. 基本方針
