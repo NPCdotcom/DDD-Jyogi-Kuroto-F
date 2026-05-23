@@ -148,6 +148,9 @@ public final class DungeonScreen extends ScreenAdapter {
     batch = new SpriteBatch();
     shapes = new ShapeRenderer();
     playerInputs = new PlayerInputs();
+    // §15-5 Wave2 Task C: F1〜F4 スキル発動のため、スキルスロット装着済み数を供給する。
+    playerInputs.bindSkillSlotSizeSupplier(
+        () -> game.context().state().player().skillSlot().size());
     statusPopup = new StatusPopup(game.fonts().large(), game.fonts().isJapaneseAvailable());
     // マップタイルテクスチャをロード (ピクセルアート → Nearest filter で 80px 拡大時のボケ防止)。
     wallTexture = new com.badlogic.gdx.graphics.Texture(Gdx.files.internal("tiles/wall.png"));

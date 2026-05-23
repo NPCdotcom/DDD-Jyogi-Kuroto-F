@@ -11,6 +11,8 @@ import core.domain.battle.TurnPhase;
 import core.domain.card.Card;
 import core.domain.card.CardElement;
 import core.domain.entity.Player;
+import core.domain.skill.Skill;
+import core.domain.skill.SkillSlot;
 import core.infrastructure.bootstrap.CardImageRegistry;
 import core.infrastructure.save.UiPreset;
 import java.util.List;
@@ -112,6 +114,7 @@ public final class HudRenderer {
         preset);
     drawLog(batch, font, jp, context.latestEvents(RenderLayout.LOG_LINES_VISIBLE));
     drawHand(batch, font, jp, p, pendingCardIndex, images);
+    drawSkillSlots(batch, font, jp, p);
   }
 
   /**
@@ -141,6 +144,51 @@ public final class HudRenderer {
         RenderLayout.HAND_CARD_BOTTOM_Y,
         RenderLayout.HAND_CARD_WIDTH,
         RenderLayout.HAND_CARD_HEIGHT);
+  }
+
+  /**
+   * スキル枠 UI を画面左下 (手札の上) に常時描画する (§15-5 / Wave2 Task C)。
+   *
+   * <p>maxSize に関わらず常に 4 枠固定表示する。装着済みスロットは緑系、空スロットは暗灰色で表示する。 キー表示 "[F1]"〜"[F4]" を左上に、スキル名を中央に描く。
+   * SpriteBatch のみで完結し、ShapeRenderer は使わない (HudRenderer.draw のシグネチャを変更しない制約)。
+   */
+  private static void drawSkillSlots(SpriteBatch batch, BitmapFont font, boolean jp, Player p) {
+    SkillSlot slot = p.skillSlot();
+    // 常に 4 枠表示 (§15-5 スキル枠 4 枠常時表示)
+    int displayCount = 4;
+
+    // small フォント (16px) でキー名・スキル名を描く。large は枠に収まらないため使わない。
+    // HudRenderer は Fonts を受け取らないため、font (large) を縮小設定で代用する。
+    // § 暫定: large (32px) で "[F1] 名前" 形式の 1 行テキストを枠の上に縦並びで表示。
+    for (int i = 0; i < displayCount; i++) {
+      float x =
+          RenderLayout.SKILL_SLOT_FIRST_X
+              + i * (RenderLayout.SKILL_SLOT_SIZE + RenderLayout.SKILL_SLOT_MARGIN);
+      float y = RenderLayout.SKILL_SLOT_Y;
+
+      boolean equipped = i < slot.skills().size();
+      if (equipped) {
+        Skill skill = slot.skills().get(i);
+        // 装着済: 緑系でスキル名を表示
+        font.setColor(new Color(0.55f, 1f, 0.6f, 1f));
+        font.draw(batch, "[F%d]".formatted(i + 1), x, y);
+        // スキル名は 1 行下 (y - 40) に shorter 形式で (フォント 32px、行間考慮)
+        font.setColor(new Color(0.7f, 1f, 0.75f, 1f));
+        String name = skill.displayName();
+        // スキル枠幅 (SKILL_SLOT_SIZE=60) を超える長名は先頭 3 文字で省略 (small フォントなし暫定対応)
+        if (name.length() > 4) {
+          name = name.substring(0, 3) + "..";
+        }
+        font.draw(batch, name, x, y - 36f);
+      } else {
+        // 未装着: 暗灰色でキー表示のみ
+        font.setColor(new Color(0.35f, 0.35f, 0.35f, 1f));
+        font.draw(batch, "[F%d]".formatted(i + 1), x, y);
+        font.setColor(new Color(0.25f, 0.25f, 0.25f, 1f));
+        font.draw(batch, jp ? "空" : "---", x, y - 36f);
+      }
+    }
+    font.setColor(Color.WHITE);
   }
 
   /** 手札を画面下部にカード画像 120×168 で描画する (§15-3 / UI 改善)。 */

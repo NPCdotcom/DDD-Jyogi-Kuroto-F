@@ -133,12 +133,24 @@ public final class PlayerInputs {
     }
   }
 
-  /** 状態0 (通常): 移動 / 数字キーによるカード選択 / 待機 / ターン終了。 */
+  /** 状態0 (通常): 移動 / 数字キーによるカード選択 / F1〜F4 スキル発動 / 待機 / ターン終了。 */
   private Optional<BattleAction> pollNormalMode(int handSize) {
     // WASD / 矢印キーは移動
     Direction dir = readDirection();
     if (dir != null) {
       return Optional.of(new BattleAction.Move(dir));
+    }
+    // F1〜F4 でスキル発動 (§15-5 Wave2 Task C)。装着済みスロットのみ受け付ける。
+    // Keys.F1=244 / F2=245 / F3=246 / F4=247 (連続値) なので F1 + i で算出可能。
+    for (int i = 0; i < 4; i++) {
+      if (Gdx.input.isKeyJustPressed(Keys.F1 + i)) {
+        int slotCount = pollSkillSlotSize();
+        if (slotCount > 0 && i < slotCount) {
+          return Optional.of(new BattleAction.UseSkill(i));
+        }
+        // 未装着スロットのキー入力は無視
+        return Optional.empty();
+      }
     }
     // 数字キーでカード選択モードへ (UseCard: 0-indexed)。手札に実在するカードのみ選択可
     // (空スロットを選んでカード選択状態に入り、操作不能に陥るのを防ぐ)。
@@ -157,6 +169,33 @@ public final class PlayerInputs {
       return Optional.of(new BattleAction.EndTurn());
     }
     return Optional.empty();
+  }
+
+  /**
+   * スキルスロットの装着済み数を取得するためのフックメソッド。
+   *
+   * <p>デフォルト実装はスキル数取得不可なので常に 0 を返し、スキル F1〜F4 の判定を呼出側 ({@link #bindSkillSlotSizeSupplier}) で 制御させる。
+   * {@link DungeonState} を引数に取る {@link #poll(DungeonState)} でスロット数を直接参照できるよう、
+   * setSkillSlotSizeSupplier を 使って lambda を注入する。
+   */
+  private java.util.function.IntSupplier skillSlotSizeSupplier = () -> 0;
+
+  /**
+   * スキルスロットの装着済み数を供給する Supplier を設定する (§15-5 Wave2 Task C)。
+   *
+   * <p>{@link core.presentation.screen.DungeonScreen} 等から {@code
+   * inputs.bindSkillSlotSizeSupplier(() -> state.player().skillSlot().size())} のように設定する。 未設定の場合は
+   * F1〜F4 が常に無効になる (安全側フォールバック)。
+   *
+   * @param supplier 現在のスキルスロット装着済み数を返す Supplier
+   */
+  public void bindSkillSlotSizeSupplier(java.util.function.IntSupplier supplier) {
+    this.skillSlotSizeSupplier =
+        java.util.Objects.requireNonNull(supplier, "skillSlotSizeSupplier");
+  }
+
+  private int pollSkillSlotSize() {
+    return skillSlotSizeSupplier.getAsInt();
   }
 
   /**
