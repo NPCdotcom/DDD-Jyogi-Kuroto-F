@@ -372,7 +372,7 @@ public final class DungeonScreen extends ScreenAdapter {
         game.requireRunSession().context(),
         playerInputs.pendingCardIndex(),
         game.cardImageRegistry(),
-        game.settings().uiPreset(),
+        game.persistence().settings().uiPreset(),
         theme);
     effects.drawFlash(batch, game.fonts().large(), theme);
     batch.end();

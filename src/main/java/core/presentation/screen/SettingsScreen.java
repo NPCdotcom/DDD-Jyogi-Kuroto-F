@@ -58,7 +58,7 @@ public final class SettingsScreen extends ScreenAdapter {
     camera = new OrthographicCamera();
     viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
     batch = new SpriteBatch();
-    current = game.settings();
+    current = game.persistence().settings();
   }
 
   @Override

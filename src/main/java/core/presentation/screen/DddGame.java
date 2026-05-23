@@ -22,11 +22,10 @@ import core.domain.tree.SoulTree;
 import core.infrastructure.audio.SoundManager;
 import core.infrastructure.bootstrap.CardImageRegistry;
 import core.infrastructure.bootstrap.InitialStateFactory;
+import core.infrastructure.save.PersistenceServices;
 import core.infrastructure.save.SaveData;
 import core.infrastructure.save.SaveDataConverter;
-import core.infrastructure.save.SaveManager;
 import core.infrastructure.save.Settings;
-import core.infrastructure.save.SettingsManager;
 import core.presentation.render.Fonts;
 import core.presentation.render.GameResources;
 import core.presentation.render.UiTheme;
@@ -83,14 +82,14 @@ public final class DddGame extends Game {
    */
   private PlayerProgress progress = PlayerProgress.initial(defaultLoadout());
 
-  /** セーブ / ロードを担当する (§15-11)。 */
-  private final SaveManager saveManager = new SaveManager();
-
-  /** 設定の永続化を担当する (§15-1)。 */
-  private final SettingsManager settingsManager = new SettingsManager();
-
-  /** 現在の設定 (§15-1)。起動時にロードし、SettingsScreen で更新する。 */
-  private Settings settings = Settings.DEFAULT;
+  /**
+   * 永続化サービス 3 コンポーネント (SaveManager / SettingsManager / Settings) の集約 (Wave 9 W9-β)。
+   *
+   * <p>create() で {@link PersistenceServices#load} により一括初期化。applySettings() / saveSettings() 等の
+   * 操作は本 holder を経由する。LibGDX 副作用 (フルスクリーン / 音量) は本 holder に含めず、 DddGame 側で仲介する (CTO レビュー反映
+   * #3、infrastructure 層の純粋性維持)。
+   */
+  private PersistenceServices persistence;
 
   private static Map<EquipmentSlot, Equipment> defaultLoadout() {
     Equipment dagger = InitialStateFactory.tatteredDagger();
@@ -367,34 +366,40 @@ public final class DddGame extends Game {
   }
 
   // =========================================================================
-  // §15-11 セーブ / ロード
+  // §15-11 セーブ / ロード / §15-1 設定
   // =========================================================================
 
-  /** セーブマネージャを返す (TitleScreen のセーブ存在判定に使う)。 */
-  public SaveManager saveManager() {
-    return saveManager;
-  }
-
-  /** 設定マネージャを返す (初回起動判定などに使う)。 */
-  public SettingsManager settingsManager() {
-    return settingsManager;
-  }
-
-  /** 現在の設定を返す (§15-1)。 */
-  public Settings settings() {
-    return settings;
+  /** 永続化サービスの集約 (Wave 9 W9-β、SaveManager / SettingsManager / Settings)。 */
+  public PersistenceServices persistence() {
+    return persistence;
   }
 
   /**
-   * 設定を更新してフルスクリーンを即時反映する (§15-1)。
+   * 設定を更新してフルスクリーン + 音量を即時反映する (§15-1、Wave 9 W9-β CTO レビュー反映 #3)。
    *
-   * <p>保存は {@link #saveSettings()} を別途呼ぶこと (SettingsScreen が ESC 時に呼ぶ)。
+   * <p>処理シーケンス:
    *
-   * @param newSettings 新しい設定
+   * <ol>
+   *   <li>{@link PersistenceServices#apply}: 永続データの更新 (純粋なデータ層)
+   *   <li>{@link PersistenceServices#save}: ファイルへの即時保存
+   *   <li>{@link #updateHardwareConfigurations}: グラフィック / サウンドの副作用 (LibGDX 依存、DddGame が仲介)
+   * </ol>
+   *
+   * <p>PersistenceServices は LibGDX 非依存に保たれ、infrastructure 層の純粋性を維持する。
    */
   public void applySettings(Settings newSettings) {
-    java.util.Objects.requireNonNull(newSettings, "newSettings");
-    this.settings = newSettings;
+    Objects.requireNonNull(newSettings, "newSettings");
+    persistence.apply(newSettings); // 1. 永続データの更新
+    persistence.save(); // 2. ファイルへの即時保存
+    updateHardwareConfigurations(newSettings); // 3. グラフィック/サウンドの副作用
+  }
+
+  /**
+   * グラフィック / サウンドへ Settings を即時反映する (Wave 9 W9-β、LibGDX 依存の副作用を DddGame に集約)。
+   *
+   * <p>本メソッドは {@link #applySettings} の内部呼出専用 = PersistenceServices に副作用を逆流させないための分離。
+   */
+  private void updateHardwareConfigurations(Settings newSettings) {
     // フルスクリーン切替を実機反映
     if (newSettings.fullscreen()) {
       com.badlogic.gdx.Graphics.DisplayMode mode = com.badlogic.gdx.Gdx.graphics.getDisplayMode();
@@ -410,12 +415,11 @@ public final class DddGame extends Game {
   }
 
   /**
-   * 現在の設定をファイルに保存する (§15-1)。
-   *
-   * <p>SettingsScreen の ESC 、初回プリセット選択後に呼ぶ。
+   * 現在の設定をファイルに保存する (§15-1、初回プリセット選択後等のシンプルな保存パス用)。{@link #applySettings} は中で save を呼ぶため、
+   * 通常は直接呼ばない。
    */
   public void saveSettings() {
-    settingsManager.save(settings);
+    persistence.save();
   }
 
   /**
@@ -441,7 +445,7 @@ public final class DddGame extends Game {
             progress.loadout(),
             progress.bestiary(),
             progress.tutorialSeen());
-    saveManager.save(data);
+    persistence.saveManager().save(data);
   }
 
   /**
@@ -453,7 +457,7 @@ public final class DddGame extends Game {
    * @return ロードに成功した場合 true
    */
   public boolean loadFromSave() {
-    Optional<SaveData> optData = saveManager.load();
+    Optional<SaveData> optData = persistence.saveManager().load();
     if (optData.isEmpty()) {
       return false;
     }
@@ -517,20 +521,20 @@ public final class DddGame extends Game {
     // §設計原則 / Wave 5 W5-γ: SoulTree のノードマスタ Supplier を最初に注入
     // (domain → infrastructure 依存方向違反を解消、Logger 級の単発 init setter)。
     SoulTree.setNodeProvider(core.infrastructure.bootstrap.InitialStateFactory::soulTreeNodes);
-    // §15-1: 設定をロード (ファイルなし時は DEFAULT、resources 初期化前に確定)
-    this.settings = settingsManager.load();
+    // Wave 9 W9-β: 永続化サービスを一括初期化 (SaveManager + SettingsManager + Settings、resources より前)
+    this.persistence = PersistenceServices.load();
     // Wave 8 W8-β: LibGDX リソース 3 件 (Fonts / SoundManager / CardImageRegistry) を GameResources
     // で一括初期化
     this.resources =
         GameResources.load(
-            settings,
+            persistence.settings(),
             core.infrastructure.bootstrap.InitialStateFactory.cardCatalog(),
             core.infrastructure.bootstrap.InitialStateFactory.equipmentCatalog());
     // §15-7 / E-2: startNewRun() はラン開始の瞬間 (TitleScreen の ENTER) でのみ呼ぶ。
     // ここで呼ぶと獲得前の playerSoul が Player に注入・ゼロ化され、ソウルツリーで使えなく
-    // なる (ソウル消失バグの根治)。context / director は最初のラン開始まで null。
+    // なる (ソウル消失バグの根治)。RunSession は最初のラン開始まで Optional.empty()。
     // §15-1: 初回起動 (settings.json 未存在) は UI プリセット選択画面を最初に表示する。
-    if (!settingsManager.exists()) {
+    if (!persistence.settingsManager().exists()) {
       changeScreen(new FirstRunPresetScreen(this));
     } else {
       changeScreen(new TitleScreen(this));

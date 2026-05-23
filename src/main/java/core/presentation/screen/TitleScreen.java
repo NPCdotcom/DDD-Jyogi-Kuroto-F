@@ -90,7 +90,7 @@ public final class TitleScreen extends ScreenAdapter {
     // 旧: START_HINT_Y - LARGE_LINE_HEIGHT (Y=416) で TITLE_OPEN_TREE_HINT_Y と衝突
     // → ENTER の 1 行上 (START_HINT_Y + LARGE_LINE_HEIGHT、Y=512) に配置して衝突回避
     // (SUBTITLE Y=642 と ENTER Y=464 の間の空き領域)
-    if (game.saveManager().exists()) {
+    if (game.persistence().saveManager().exists()) {
       large.setColor(0.6f, 0.95f, 0.6f, 1f);
       large.draw(
           batch,
@@ -179,7 +179,7 @@ public final class TitleScreen extends ScreenAdapter {
       game.soundManager().playSe(SeKind.BUTTON);
       game.startNewRun();
       game.changeScreen(new DungeonScreen(game));
-    } else if (Gdx.input.isKeyJustPressed(Keys.L) && game.saveManager().exists()) {
+    } else if (Gdx.input.isKeyJustPressed(Keys.L) && game.persistence().saveManager().exists()) {
       // §15-11: セーブデータが存在するときのみ「つづきから」でロード
       boolean loaded = game.loadFromSave();
       if (loaded) {
