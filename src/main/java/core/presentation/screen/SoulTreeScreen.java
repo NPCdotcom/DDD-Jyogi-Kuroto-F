@@ -643,6 +643,11 @@ public final class SoulTreeScreen extends ScreenAdapter {
   public void resize(int width, int height) {
     // false: カメラ位置を再センタリングしない (ユーザーのパン位置を保持する)。
     viewport.update(width, height, false);
+    // §UI 改善: ダイアログ表示中にウィンドウサイズ変更があった場合、Dialog の viewport も同期する
+    // (DungeonScreen が nodeChoice / statusPopup を resize しているのと同じパターン)。
+    if (pendingUnlock != null) {
+      pendingUnlock.resize(width, height);
+    }
   }
 
   @Override

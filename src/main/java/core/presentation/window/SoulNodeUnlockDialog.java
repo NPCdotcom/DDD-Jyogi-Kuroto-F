@@ -66,6 +66,11 @@ public final class SoulNodeUnlockDialog {
     this.camera = new OrthographicCamera();
     this.viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
     camera.setToOrtho(false, RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT);
+    // §UI 改善 (画面非表示の真因): FitViewport はコンストラクタで内部 screenWidth/Height が 0 のまま。
+    // 後で viewport.apply() を呼んでも glViewport(0,0,0,0) になり、描画は GPU に届くが画面の
+    // 0×0 領域に書かれて見えない。動的生成された Popup は LibGDX framework の resize() が
+    // 呼ばれないため、コンストラクタで一度 update() して実画面解像度を反映する。
+    this.viewport.update(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), true);
   }
 
   /** 入力受付 + 描画。Y/N/ESC で {@code done = true} になる。 */
