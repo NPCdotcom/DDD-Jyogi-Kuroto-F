@@ -8,17 +8,18 @@
 
 ---
 
-## 2026-05-23 セッション最終アップデート
+## 2026-05-23 セッション最終アップデート + Wave 1 完了
 
-本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) を完了。残った M2 着手項目を以下に整理:
+本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1 (4 タスク) を完了。残った M2 着手項目を以下に整理:
 
-- **完了**: JSON 欠損 graceful、セーブ後ドロー仕様確認、Texture リーク、ダメージ計算 DRY 集約、
+- **完了 (P2-P4)**: JSON 欠損 graceful、セーブ後ドロー仕様確認、Texture リーク、ダメージ計算 DRY 集約、
   BuffKindLabels 集約、HAND_DETAIL_TEXT_Y 文字数上限、EnemyKind isElite/isBoss、Optional 可読性、
-  CardCollectionScreen の game.cardCatalog 経由化、HudRenderer/CardDescriber/EquipmentScreen/Stats/
-  DamageFormula 新設
-- **M2 送り (新規)**: LayerEndNode.Shop の Card/CardId 統一 (record signature 変更で広範囲影響)、
-  EquipmentScreen / Fonts.java の InitialStateFactory 直接参照を game.cardCatalog 経由化 (static
-  rowText / static glyphs 階層が深く全 Screen 統一リファクタ要)
+  CardCollectionScreen の game.cardCatalog 経由化、DamageFormula 新設
+- **完了 (M2 Wave 1)**: Fonts/EquipmentScreen の InitialStateFactory 経由化 (P4-8 残り)、
+  CreditsScreen 拡充 (素材クレジット表示)、汎用 ConfirmationDialog 新設 + R キー確認ダイアログ、
+  ソウルツリー以外の例外/通知メッセージ i18n 移管 (4 ペア)
+- **M2 送り**: LayerEndNode.Shop の Card/CardId 統一 (record signature 変更で広範囲影響)、
+  階段専用テクスチャ (チームメイト素材待ち)
 
 ---
 
@@ -29,7 +30,7 @@
 | **DungeonScreen 697 行の責務分割** (EnemyKindMemory / ScreenEffects (shake+popup+flash) / EliteRewardOrchestrator 等を切り出し) | final-architect 2026-05-23 | L | God Object 化 |
 | **DddGame の PlayerProgress 集約抽出** (Soul / runCount / obtainedCards / bestiary / loadout / tutorialSeen を 1 つの record に) | final-architect 2026-05-23 | M | God Object 化 |
 | **LayerEndNode.Shop vs NodeEffect.CardGrantEffect の Card/CardId 表現統一** (cardResolver 注入パターン) | final-architect 2026-05-23 | M | 驚き最小 |
-| **EquipmentScreen / Fonts.java の InitialStateFactory 直接参照を game.cardCatalog 経由化** (本セッション 1801d2c で CardCollectionScreen のみ対応) | A7 multi-perspective Must | S | static rowText / glyphs 階層が深い |
+| ~~**EquipmentScreen / Fonts.java の InitialStateFactory 直接参照を game.cardCatalog 経由化**~~ → **Wave 1 Task 1 で完了** (commit cacb7ec) | A7 multi-perspective Must | S | static rowText / glyphs 階層が深い |
 | **SoulTree ノード定義の JSON 化** (現在 Java ハードコード、カード/装備は JSON 化済で非対称) | final-architect | M | 保守性向上 |
 | **TurnEngine 671 行の分割** (カード解決 / 敵解決へ) | final-architect | M〜L | 商品化前リファクタ |
 | **LayerEndNode 日本語 displayName のドメイン汚染解消** (i18n 移行時) | domain-architect | M | i18n 全面対応とセットで |
@@ -49,9 +50,9 @@
 | **ショップノードの装備購入機能** (現状カード追加報酬のみ) | §15-9 / E-5 | M |
 | **イベントノード多様化** (現状「ソウルの祠」固定 1 種) | §15-6 | M |
 | **装備テーマ変動 UI** (§7-2 / §15-9、装備で UI 色テーマが変わる) | Phase A | M |
-| **CreditsScreen 拡充** (使用素材クレジット表示画面) | tasks/todo.md Phase 6 | S |
-| **R キー無確認リセット → 確認ダイアログ化** (SoulTreeScreen の R キーで意図しないリセット防止) | 前々セッション申し送り | S |
-| **ソウルツリー以外の例外メッセージのローカライズ** (Strings.Ja/En への移管) | 前セッション申し送り | S |
+| ~~**CreditsScreen 拡充**~~ → **Wave 1 Task 2 で完了** (commit b56cdb1) | tasks/todo.md Phase 6 | S |
+| ~~**R キー無確認リセット → 確認ダイアログ化**~~ → **Wave 1 Task 3 で完了** (commit 6552b1b、汎用 ConfirmationDialog 新設) | 前々セッション申し送り | S |
+| ~~**ソウルツリー以外の例外メッセージのローカライズ**~~ → **Wave 1 Task 4 で完了** (commit 10f0208、4 ペア i18n 移管) | 前セッション申し送り | S |
 | **階段専用テクスチャ投入** (現状: 床テクスチャ + 黄色マーカーで代替、commit 8502888) | 2026-05-23 セッション追加 | S |
 | **壁・床素材のバリエーション** (複数素材を層ごとにローテーション) | 2026-05-23 セッション追加 | M |
 
