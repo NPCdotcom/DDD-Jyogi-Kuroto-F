@@ -92,12 +92,16 @@ public final class RenderLayout {
   /**
    * メッセージログ表示開始位置 (下方向に展開)。
    *
-   * <p>画面下部、操作ヒントの上に配置。large (32px) で行間 LARGE_LINE_HEIGHT=48 を取り、2 行表示する (大型化により情報視認性を上げる。3 行以上はヒント
-   * / 手札との衝突を起こす)。
+   * <p>画面下部寄り、HUD パネル + 手札の真上に配置。large (32px) で行間 LARGE_LINE_HEIGHT=48 を取り、 2 行表示する
+   * (大型化により情報視認性を上げる)。
+   *
+   * <p>LOG_TOP_Y=520 → ログ占有範囲 Y∈[472, 520]。手札カード画像 (HAND_CARD_BOTTOM_Y=110 + HAND_CARD_HEIGHT=168 =
+   * Y∈[110, 278])、手札詳細テキスト (HAND_DETAIL_TEXT_Y=290) と衝突せず、 HUD_Y_HINT=170 / HUD_Y_MOVE_TOKEN=800
+   * とも干渉しない安全領域。
    */
   public static final int LOG_X = 40;
 
-  public static final int LOG_TOP_Y = 270;
+  public static final int LOG_TOP_Y = 520;
   public static final int LOG_LINE_HEIGHT = 48;
   public static final int LOG_LINES_VISIBLE = 2;
 

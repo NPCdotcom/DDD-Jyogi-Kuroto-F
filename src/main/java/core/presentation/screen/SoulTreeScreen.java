@@ -281,6 +281,11 @@ public final class SoulTreeScreen extends ScreenAdapter {
       if (pos == null) {
         continue;
       }
+      // §UI 改善: 中央 (ROOT) ノードは画像も「中央」テキストも描画しない (浮いて見えるとのユーザー指摘)。
+      // 枝線描画ループ (上) は ROOT 位置を参照し続けるため、中央から外周への枝線は維持される。
+      if (id.equals(SoulTree.ROOT)) {
+        continue;
+      }
       // 段階的開示: 可視 = 前提全解放 / シルエット = 前提が全て可視 (1 段先の予告) / それ以外は非表示。
       boolean visible = tree.isVisible(id);
       boolean silhouette = !visible && allPrereqsVisible(node, tree);
@@ -401,7 +406,14 @@ public final class SoulTreeScreen extends ScreenAdapter {
    */
   private void handlePointer() {
     if (pendingUnlock != null) {
-      return; // モーダル中はポインタ凍結 (ダイアログが入力を取る)
+      // モーダル中はポインタ凍結 (ダイアログが入力を取る)。
+      // 「固まる」バグ防止: pointerDown / dragged を消費しないと、ダイアログ閉じた次フレームで
+      // `down=false / pointerDown=true / dragged=false` のまま else-if (pointerDown && !dragged)
+      // 分岐が真になり、同じワールド座標で tryUnlockAt が再発火 → ダイアログ無限再オープン。
+      // ここで両者をリセットすることで、ダイアログ完了後の初回フレームは「押下されていない」状態から始まる。
+      pointerDown = false;
+      dragged = false;
+      return;
     }
     boolean down = Gdx.input.isTouched();
     if (down && !pointerDown) {
@@ -485,6 +497,9 @@ public final class SoulTreeScreen extends ScreenAdapter {
     pendingUnlock.dispose();
     pendingUnlock = null;
     pendingUnlockId = null;
+    // 二重防御: ダイアログ閉じ直後にポインタ状態を確実に同期する (handlePointer の早期 return と対)。
+    pointerDown = false;
+    dragged = false;
   }
 
   private void tryUnlockAt(float worldX, float worldY) {

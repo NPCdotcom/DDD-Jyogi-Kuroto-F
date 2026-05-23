@@ -174,6 +174,10 @@ public final class Strings {
     // §15-5 詰み回避: 自動ターン終了通知
     public static final String EV_AUTO_TURN_END_FORMAT = "自動ターン終了 (%s)";
     public static final String AUTO_TURN_END_REASON_STUCK = "行動不能";
+
+    // §UI 改善: 敵のターン中の常時表示 + 画面外で敵が動いた時の通知
+    public static final String HINT_ENEMY_TURN_IN_PROGRESS = "敵のターン進行中…";
+    public static final String LOG_DISTANT_ENEMY_MOVE = "どこかで敵が動いているようだ";
   }
 
   /** 英語版 (フォント未配置時の fallback)。 */
@@ -343,5 +347,9 @@ public final class Strings {
     // §15-5 stuck-handling: auto turn end notification
     public static final String EV_AUTO_TURN_END_FORMAT = "Auto turn end (%s)";
     public static final String AUTO_TURN_END_REASON_STUCK = "stuck";
+
+    // §UI: Enemy-turn always-on indicator + off-screen enemy move notification
+    public static final String HINT_ENEMY_TURN_IN_PROGRESS = "Enemy turn in progress…";
+    public static final String LOG_DISTANT_ENEMY_MOVE = "An enemy is moving somewhere";
   }
 }

@@ -270,12 +270,13 @@ public final class HudRenderer {
       boolean inMovementTokenMode,
       TurnPhase phase,
       UiPreset preset) {
-    // §15-1 / §15-8 プリセット連動: CLEARED 状態は最重要のため常時表示。
+    // §15-1 / §15-8 プリセット連動: CLEARED / ENEMY_TURN 状態は最重要のため常時表示。
     // それ以外で MINIMAL プリセット (showExtendedHud=false) ならヒントを抑制する。
-    if (phase != TurnPhase.CLEARED && !RenderLayout.showExtendedHud(preset)) {
+    boolean criticalPhase = phase == TurnPhase.CLEARED || phase == TurnPhase.ENEMY_TURN;
+    if (!criticalPhase && !RenderLayout.showExtendedHud(preset)) {
       return;
     }
-    // 優先度: CLEARED (層踏破) > 移動権保持中 > カード選択中 > 通常
+    // 優先度: CLEARED (層踏破) > ENEMY_TURN (敵ターン進行中) > 移動権保持中 > カード選択中 > 通常
     // ヒントは large() (32px) で描画 (プロジェクタ視聴対応、§UI 拡大方針)
     BitmapFont font = fonts.large();
     String hint;
@@ -283,6 +284,11 @@ public final class HudRenderer {
       // CLEARED は強調のため YELLOW (§15-6 / ADR-23)
       font.setColor(0.95f, 0.85f, 0.3f, 1f);
       hint = jp ? Strings.Ja.CLEARED_HINT : Strings.En.CLEARED_HINT;
+    } else if (phase == TurnPhase.ENEMY_TURN) {
+      // §UI 改善: 敵ターン中は「敵のターン進行中…」をオレンジで常時表示
+      // (敵が画面外で動いていてもプレイヤーが状況を把握できる)
+      font.setColor(1f, 0.6f, 0.3f, 1f);
+      hint = jp ? Strings.Ja.HINT_ENEMY_TURN_IN_PROGRESS : Strings.En.HINT_ENEMY_TURN_IN_PROGRESS;
     } else {
       font.setColor(0.7f, 0.7f, 0.7f, 1f);
       if (inMovementTokenMode) {

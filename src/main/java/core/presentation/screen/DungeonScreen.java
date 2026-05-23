@@ -459,6 +459,22 @@ public final class DungeonScreen extends ScreenAdapter {
       } else if (e instanceof BattleEvent.EliteDefeated && eliteCardChoice == null) {
         // §15-3 / §15-6: 強化個体撃破時にカード追加 UI を発火
         eliteCardChoice = createEliteCardChoicePopup();
+      } else if (e instanceof BattleEvent.Moved m && !m.who().equals(playerId)) {
+        // §UI 改善: 敵が画面外で動いた時、flash で「どこかで敵が動いているようだ」を表示。
+        // 可視範囲 = camera.position ± (SCREEN_WIDTH/HEIGHT * camera.zoom / 2) (LibGDX
+        // OrthographicCamera 標準)。
+        // zoom=0.5 なら半幅 480, 半高 270 (world unit)。HUD パネル分の Y オフセットも camera.position に含まれる。
+        float worldX = m.to().x() * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f;
+        float worldY = m.to().y() * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f;
+        float halfW = RenderLayout.SCREEN_WIDTH * camera.zoom / 2f;
+        float halfH = RenderLayout.SCREEN_HEIGHT * camera.zoom / 2f;
+        boolean offScreen =
+            Math.abs(worldX - camera.position.x) > halfW
+                || Math.abs(worldY - camera.position.y) > halfH;
+        if (offScreen) {
+          boolean jp = game.fonts().isJapaneseAvailable();
+          showFlash(jp ? Strings.Ja.LOG_DISTANT_ENEMY_MOVE : Strings.En.LOG_DISTANT_ENEMY_MOVE);
+        }
       }
     }
     lastSeenEventCount = current;

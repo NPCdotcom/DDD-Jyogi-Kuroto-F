@@ -87,13 +87,16 @@ public final class TitleScreen extends ScreenAdapter {
         RenderLayout.START_HINT_Y);
 
     // §15-11: セーブデータが存在するときのみ「つづきから」を表示
+    // 旧: START_HINT_Y - LARGE_LINE_HEIGHT (Y=416) で TITLE_OPEN_TREE_HINT_Y と衝突
+    // → ENTER の 1 行上 (START_HINT_Y + LARGE_LINE_HEIGHT、Y=512) に配置して衝突回避
+    // (SUBTITLE Y=642 と ENTER Y=464 の間の空き領域)
     if (game.saveManager().exists()) {
       large.setColor(0.6f, 0.95f, 0.6f, 1f);
       large.draw(
           batch,
           jp ? Strings.Ja.CONTINUE_HINT : Strings.En.CONTINUE_HINT,
           RenderLayout.START_HINT_X,
-          RenderLayout.START_HINT_Y - RenderLayout.LARGE_LINE_HEIGHT);
+          RenderLayout.START_HINT_Y + RenderLayout.LARGE_LINE_HEIGHT);
     }
 
     // §15-7 / E-2: ソウルツリーへの動線。1 周目 (runCount 0) は非表示、
