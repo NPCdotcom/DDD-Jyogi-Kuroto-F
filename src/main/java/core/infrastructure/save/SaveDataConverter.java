@@ -176,8 +176,12 @@ public final class SaveDataConverter {
   /**
    * {@link SaveData} の Stats 部分からデッキを組み立て、{@link Player} の {@link CardPileState} を復元する。
    *
-   * <p>未定義のカード ID は graceful にスキップ (警告ログ)。山札はシャッフル済み前提で全カードを DrawPile に積む (ロード後のラン開始時は
-   * InitialStateFactory.advanceLayer が初期ドローを行う)。
+   * <p>未定義のカード ID は graceful にスキップ (警告ログ)。山札はシャッフル済み前提で全カードを DrawPile に積む。
+   *
+   * <p><b>初期ドローはこのメソッドでは行わない</b>。呼び出し元 {@code InitialStateFactory.fromSaveData} (line 450 付近) が
+   * {@code cardPileState.drawN(CardPileState.initialDrawCount(data.deck().size()), rng)} で
+   * 上位フローで初期手札を引く設計。ロード後の最初の PLAYER_TURN 開始時には手札に初期ドロー枚数が入った 状態でゲームが始まる (devils-advocate 検証済
+   * 2026-05-23)。
    */
   public static CardPileState toCardPileState(SaveData data) {
     List<Card> cards = new ArrayList<>();
@@ -189,7 +193,7 @@ public final class SaveDataConverter {
         LOG.warning("Unknown card id in save data, skipping: " + id);
       }
     }
-    // 全カードを山札に積む (手札は空、捨て札は空)
+    // 全カードを山札に積む (手札は空、捨て札は空 — 初期ドローは上位 InitialStateFactory が担当)
     DrawPile drawPile = new DrawPile(cards);
     return new CardPileState(drawPile, Hand.empty(), DiscardPile.empty());
   }

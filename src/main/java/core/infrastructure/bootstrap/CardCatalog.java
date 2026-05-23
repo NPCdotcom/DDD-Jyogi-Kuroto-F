@@ -14,6 +14,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * カードマスタ (§15-3)。クラスパス上の {@code /cards.json} を 1 度ロードし、{@code CardId → Card} のマップを構築する。
@@ -25,6 +27,8 @@ import java.util.Objects;
  */
 public final class CardCatalog {
 
+  private static final Logger LOG = Logger.getLogger(CardCatalog.class.getName());
+
   private static final String RESOURCE = "/cards.json";
 
   private final Map<CardId, Card> byId;
@@ -33,16 +37,23 @@ public final class CardCatalog {
     this.byId = byId;
   }
 
-  /** クラスパスの {@code /cards.json} を読み込んで CardCatalog を構築する。 */
+  /**
+   * クラスパスの {@code /cards.json} を読み込んで CardCatalog を構築する。
+   *
+   * <p>ファイル欠損 / I/O エラー時は SEVERE ログを出力して**最小フォールバックカタログ** (斬撃 1 種のみ) を返す。提出 zip
+   * にファイル抜けがあっても起動だけは保証する (graceful)。フォールバック時はゲーム性は崩れるが、 ユーザーに「カードマスタが読めません」と気付いてもらうための救済措置。
+   */
   public static CardCatalog load() {
     try (InputStream in = CardCatalog.class.getResourceAsStream(RESOURCE)) {
       if (in == null) {
-        throw new IllegalStateException("card master not found on classpath: " + RESOURCE);
+        LOG.severe("card master not found on classpath: " + RESOURCE + " (loading fallback)");
+        return fallback();
       }
       JsonNode root = new ObjectMapper().readTree(in);
       JsonNode cards = root.get("cards");
       if (cards == null || !cards.isArray()) {
-        throw new IllegalStateException("cards.json must contain a 'cards' array");
+        LOG.severe("cards.json must contain a 'cards' array (loading fallback)");
+        return fallback();
       }
       Map<CardId, Card> map = new LinkedHashMap<>();
       for (JsonNode node : cards) {
@@ -53,8 +64,28 @@ public final class CardCatalog {
       }
       return new CardCatalog(map);
     } catch (IOException e) {
-      throw new IllegalStateException("failed to load " + RESOURCE, e);
+      LOG.log(Level.SEVERE, "failed to load " + RESOURCE + " (loading fallback)", e);
+      return fallback();
     }
+  }
+
+  /**
+   * フォールバックカタログ。「斬撃」1 種だけのミニマル構成で、起動不能を回避する。
+   *
+   * <p>本来のカードマスタが読めない場合の救済措置で、本番運用では使われない想定。チームメイトが cards.json を 編集してビルドし直すまでのつなぎ。
+   */
+  private static CardCatalog fallback() {
+    Map<CardId, Card> map = new LinkedHashMap<>();
+    Card fallbackCard =
+        new Card(
+            CardId.of("zangeki"),
+            "斬撃 (fallback)",
+            1,
+            CardTag.ATTACK,
+            CardElement.PHYSICAL,
+            new CardEffect.Damage(3));
+    map.put(fallbackCard.id(), fallbackCard);
+    return new CardCatalog(map);
   }
 
   /** 指定 ID のカードを返す。未登録なら {@link IllegalArgumentException}。 */

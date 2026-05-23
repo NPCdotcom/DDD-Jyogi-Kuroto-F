@@ -14,6 +14,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * 装備マスタ (§15-9)。クラスパス上の {@code /equipment.json} を 1 度ロードし、{@code EquipmentId → Equipment} を構築する。
@@ -23,6 +25,8 @@ import java.util.Objects;
  */
 public final class EquipmentCatalog {
 
+  private static final Logger LOG = Logger.getLogger(EquipmentCatalog.class.getName());
+
   private static final String RESOURCE = "/equipment.json";
 
   private final Map<EquipmentId, Equipment> byId;
@@ -31,16 +35,23 @@ public final class EquipmentCatalog {
     this.byId = byId;
   }
 
-  /** クラスパスの {@code /equipment.json} を読み込んで EquipmentCatalog を構築する。 */
+  /**
+   * クラスパスの {@code /equipment.json} を読み込んで EquipmentCatalog を構築する。
+   *
+   * <p>ファイル欠損 / I/O エラー時は SEVERE ログ + 空カタログを返す graceful fallback。InitialStateFactory の デフォルト装備
+   * (ぼろい短剣) はハードコードなので、空カタログでも起動は可能。
+   */
   public static EquipmentCatalog load() {
     try (InputStream in = EquipmentCatalog.class.getResourceAsStream(RESOURCE)) {
       if (in == null) {
-        throw new IllegalStateException("equipment master not found on classpath: " + RESOURCE);
+        LOG.severe("equipment master not found on classpath: " + RESOURCE + " (loading empty)");
+        return new EquipmentCatalog(new LinkedHashMap<>());
       }
       JsonNode root = new ObjectMapper().readTree(in);
       JsonNode arr = root.get("equipment");
       if (arr == null || !arr.isArray()) {
-        throw new IllegalStateException("equipment.json must contain an 'equipment' array");
+        LOG.severe("equipment.json must contain an 'equipment' array (loading empty)");
+        return new EquipmentCatalog(new LinkedHashMap<>());
       }
       Map<EquipmentId, Equipment> map = new LinkedHashMap<>();
       for (JsonNode node : arr) {
@@ -51,7 +62,8 @@ public final class EquipmentCatalog {
       }
       return new EquipmentCatalog(map);
     } catch (IOException e) {
-      throw new IllegalStateException("failed to load " + RESOURCE, e);
+      LOG.log(Level.SEVERE, "failed to load " + RESOURCE + " (loading empty)", e);
+      return new EquipmentCatalog(new LinkedHashMap<>());
     }
   }
 

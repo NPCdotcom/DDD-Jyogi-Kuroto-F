@@ -185,12 +185,21 @@ public final class SoulTreeScreen extends ScreenAdapter {
       if (path == null) {
         continue; // CardGrantEffect は CardImageRegistry 経由
       }
+      Texture tex = null;
       try {
         if (Gdx.files.internal(path).exists()) {
-          nodeIconTextures.put(entry.getKey(), new Texture(Gdx.files.internal(path)));
+          tex = new Texture(Gdx.files.internal(path));
+          nodeIconTextures.put(entry.getKey(), tex);
+          tex = null; // 所有権が map に移った、後段の cleanup スキップ
         }
       } catch (RuntimeException ignored) {
         // 欠損時は fallbackNodeTexture で代替
+      } finally {
+        // §UI 改善 (devils-advocate 検出): new Texture 直後の put が万一例外で失敗した場合に
+        // Texture が dispose されずリークするのを防ぐ。put が成功した時点で tex=null になり no-op。
+        if (tex != null) {
+          tex.dispose();
+        }
       }
     }
   }
