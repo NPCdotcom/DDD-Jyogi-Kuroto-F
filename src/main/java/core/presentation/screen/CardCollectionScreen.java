@@ -5,6 +5,7 @@ import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -13,6 +14,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import core.domain.card.Card;
 import core.domain.card.CardElement;
 import core.domain.card.CardId;
+import core.infrastructure.bootstrap.CardImageRegistry;
 import core.infrastructure.bootstrap.InitialStateFactory;
 import core.presentation.render.CardDescriber;
 import core.presentation.render.RenderLayout;
@@ -34,6 +36,11 @@ public final class CardCollectionScreen extends ScreenAdapter {
   private static final float LIST_TOP_Y = 930f;
   private static final float LIST_BOTTOM_Y = 110f;
   private static final float SCROLL_SPEED = 1100f;
+
+  // §15-3 カード画像 (card_image_map.json) のサムネイル寸法。row 高さ 46 内に収まる程度。
+  private static final float THUMB_WIDTH = 32f;
+  private static final float THUMB_HEIGHT = 42f;
+  private static final float TEXT_GAP = 12f;
 
   private static final Color OBTAINED_PHYSICAL = new Color(1f, 0.78f, 0.45f, 1f);
   private static final Color OBTAINED_MAGICAL = new Color(0.72f, 0.6f, 1f, 1f);
@@ -93,25 +100,41 @@ public final class CardCollectionScreen extends ScreenAdapter {
     boolean jp = game.fonts().isJapaneseAvailable();
     BitmapFont font = game.fonts().large();
     Set<CardId> obtained = game.obtainedCards();
+    CardImageRegistry images = game.cardImageRegistry();
+    float textX = LIST_X + THUMB_WIDTH + TEXT_GAP;
     for (int i = 0; i < allCards.size(); i++) {
       float y = LIST_TOP_Y - i * ROW_HEIGHT + scrollOffset;
       if (y < LIST_BOTTOM_Y || y > LIST_TOP_Y + ROW_HEIGHT) {
         continue; // リスト帯の外 → 描かない
       }
       Card card = allCards.get(i);
-      if (obtained.contains(card.id())) {
+      boolean isObtained = obtained.contains(card.id());
+      // §15-3: カード画像のサムネイル描画 (未取得は暗色シルエット)
+      if (images != null) {
+        Texture tex = images.get(card.id());
+        if (tex != null) {
+          if (isObtained) {
+            batch.setColor(Color.WHITE);
+          } else {
+            batch.setColor(0.30f, 0.30f, 0.34f, 1f);
+          }
+          batch.draw(tex, LIST_X, y - 8f, THUMB_WIDTH, THUMB_HEIGHT);
+          batch.setColor(Color.WHITE);
+        }
+      }
+      if (isObtained) {
         font.setColor(
             card.element() == CardElement.PHYSICAL ? OBTAINED_PHYSICAL : OBTAINED_MAGICAL);
         font.draw(
             batch,
             "%s   AP%d   %s"
                 .formatted(card.displayName(), card.apCost(), CardDescriber.describe(card)),
-            LIST_X,
+            textX,
             y);
       } else {
         font.setColor(LOCKED);
         font.draw(
-            batch, jp ? Strings.Ja.COLLECTION_LOCKED : Strings.En.COLLECTION_LOCKED, LIST_X, y);
+            batch, jp ? Strings.Ja.COLLECTION_LOCKED : Strings.En.COLLECTION_LOCKED, textX, y);
       }
     }
     font.setColor(Color.WHITE);

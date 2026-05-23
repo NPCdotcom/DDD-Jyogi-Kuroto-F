@@ -17,6 +17,7 @@ import core.domain.meta.Soul;
 import core.domain.tree.NodeId;
 import core.domain.tree.SoulTree;
 import core.infrastructure.audio.SoundManager;
+import core.infrastructure.bootstrap.CardImageRegistry;
 import core.infrastructure.bootstrap.InitialStateFactory;
 import core.infrastructure.save.SaveData;
 import core.infrastructure.save.SaveDataConverter;
@@ -48,6 +49,9 @@ public final class DddGame extends Game {
   private TurnDirector director;
   private Fonts fonts;
   private SoundManager soundManager;
+
+  /** カード画像レジストリ (§15-3、カード ID → Texture、未マッピング/欠損は test.png fallback)。 */
+  private CardImageRegistry cardImageRegistry;
 
   /**
    * ランごとの乱数源 (ADR-19)。{@link #startNewRun()} で新しいシードに切り替え、{@link DungeonScreen} へ注入する。 同一シードを渡すことで
@@ -165,6 +169,11 @@ public final class DddGame extends Game {
   /** サウンドマネージャ (BGM / SE 再生の窓口)。 */
   public SoundManager soundManager() {
     return soundManager;
+  }
+
+  /** カード画像レジストリ (CardCollectionScreen / HudRenderer から参照)。 */
+  public CardImageRegistry cardImageRegistry() {
+    return cardImageRegistry;
   }
 
   public SoulTree soulTree() {
@@ -373,7 +382,6 @@ public final class DddGame extends Game {
 
     // メタ進捗を復元
     this.runCount = data.runCount();
-    this.playerSoul = Soul.zero(); // ランに注入する前に 0 化 (後述で Player に注入)
     this.soulTree = SaveDataConverter.toSoulTree(data);
     this.loadout.clear();
     this.loadout.putAll(SaveDataConverter.toLoadout(data));
@@ -418,6 +426,8 @@ public final class DddGame extends Game {
     this.settings = settingsManager.load();
     // §15-5: サウンドマネージャを初期化 (ファイル欠損時は no-op で継続)
     soundManager = new SoundManager(settings);
+    // §15-3: カード画像レジストリ (起動時に全 PNG をロード、欠損は test.png fallback)
+    cardImageRegistry = CardImageRegistry.load();
     // §15-7 / E-2: startNewRun() はラン開始の瞬間 (TitleScreen の ENTER) でのみ呼ぶ。
     // ここで呼ぶと獲得前の playerSoul が Player に注入・ゼロ化され、ソウルツリーで使えなく
     // なる (ソウル消失バグの根治)。context / director は最初のラン開始まで null。
@@ -437,6 +447,9 @@ public final class DddGame extends Game {
     }
     if (soundManager != null) {
       soundManager.dispose();
+    }
+    if (cardImageRegistry != null) {
+      cardImageRegistry.dispose();
     }
   }
 }

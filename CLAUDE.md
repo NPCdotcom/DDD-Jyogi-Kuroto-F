@@ -37,6 +37,8 @@
 
 以下この文書および他 docs の `./gradlew <task>` 表記は PowerShell では `.\gradlew <task>` (または `.\gradlew.bat <task>`) に読み替えること。JAVA_HOME / PATH の自動設定は `/gradle-runner` Skill が担当。
 
+**JDK バージョン**: 本番ビルドは **JDK 25.0.3** で検証済 (`gradlew check` BUILD SUCCESSFUL)。ハッカソン当日マシンに jdk-25.0.3 が無い場合は事前にインストールするか、過去セッションで jdk-21 でもビルド通過実績あり (テスト全 PASS) — どちらを使うか当日確定すること。混在実行は避ける。
+
 ---
 
 ## 設計原則 8 項目 (PR レビュー時の必須チェックリスト)

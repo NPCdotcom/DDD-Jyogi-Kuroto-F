@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
 /**
  * live 状態 ({@link core.presentation.screen.DddGame} のフィールド群) と {@link SaveData} の双方向変換を担う。
@@ -28,6 +29,8 @@ import java.util.Set;
  * に扱い、 ログを出してデフォルト値にフォールバックする (Fonts の欠損フォールバックと同じ思想)。
  */
 public final class SaveDataConverter {
+
+  private static final Logger LOG = Logger.getLogger(SaveDataConverter.class.getName());
 
   private SaveDataConverter() {}
 
@@ -115,12 +118,15 @@ public final class SaveDataConverter {
     Set<NodeId> unlocked = new HashSet<>();
     unlocked.add(SoulTree.ROOT); // root は必ず含む
     for (String id : data.unlockedNodeIds()) {
-      NodeId nodeId = NodeId.of(id);
-      if (SoulTree.allNodes().containsKey(nodeId)) {
-        unlocked.add(nodeId);
-      } else {
-        java.util.logging.Logger.getLogger(SaveDataConverter.class.getName())
-            .warning("Unknown NodeId in save data, skipping: " + id);
+      try {
+        NodeId nodeId = NodeId.of(id);
+        if (SoulTree.allNodes().containsKey(nodeId)) {
+          unlocked.add(nodeId);
+        } else {
+          LOG.warning("Unknown NodeId in save data, skipping: " + id);
+        }
+      } catch (IllegalArgumentException e) {
+        LOG.warning("Invalid NodeId in save data, skipping: " + id + " - " + e.getMessage());
       }
     }
     // totalSpentSoul は再計算 (保存値は不要、allNodes から算出できる)
@@ -143,12 +149,11 @@ public final class SaveDataConverter {
             InitialStateFactory.equipmentCatalog().get(EquipmentId.of(entry.getValue()));
         result.put(slot, equipment);
       } catch (IllegalArgumentException e) {
-        java.util.logging.Logger.getLogger(SaveDataConverter.class.getName())
-            .warning(
-                "Unknown slot or equipment id in save data, skipping: "
-                    + entry
-                    + " - "
-                    + e.getMessage());
+        LOG.warning(
+            "Unknown slot or equipment id in save data, skipping: "
+                + entry
+                + " - "
+                + e.getMessage());
       }
     }
     // ロードアウトが空 → デフォルトに戻す (空デッキ防止)
@@ -181,8 +186,7 @@ public final class SaveDataConverter {
         Card card = InitialStateFactory.resolveCard(CardId.of(id));
         cards.add(card);
       } catch (IllegalArgumentException e) {
-        java.util.logging.Logger.getLogger(SaveDataConverter.class.getName())
-            .warning("Unknown card id in save data, skipping: " + id);
+        LOG.warning("Unknown card id in save data, skipping: " + id);
       }
     }
     // 全カードを山札に積む (手札は空、捨て札は空)

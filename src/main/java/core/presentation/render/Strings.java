@@ -165,6 +165,11 @@ public final class Strings {
     // §15-1 初回 UI プリセット選択
     public static final String FIRST_RUN_PRESET_TITLE = "UI プリセットを選択してください";
     public static final String FIRST_RUN_PRESET_HINT = "1 / 2 / 3 キーで選択";
+
+    // クレジット画面 (M2 提出)
+    public static final String CREDITS_TITLE = "クレジット";
+    public static final String CREDITS_BACK_HINT = "[ESC] タイトルへ戻る";
+    public static final String TITLE_OPEN_CREDITS_HINT = "[K] クレジット";
   }
 
   /** 英語版 (フォント未配置時の fallback)。 */
@@ -325,5 +330,10 @@ public final class Strings {
     // §15-1 First-run UI preset selection
     public static final String FIRST_RUN_PRESET_TITLE = "Choose a UI preset";
     public static final String FIRST_RUN_PRESET_HINT = "Press 1 / 2 / 3 to select";
+
+    // Credits screen (M2 submission)
+    public static final String CREDITS_TITLE = "Credits";
+    public static final String CREDITS_BACK_HINT = "[ESC] Back to title";
+    public static final String TITLE_OPEN_CREDITS_HINT = "[K] Credits";
   }
 }

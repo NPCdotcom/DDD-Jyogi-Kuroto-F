@@ -118,11 +118,13 @@ public final class TitleScreen extends ScreenAdapter {
         RenderLayout.START_HINT_X,
         RenderLayout.TITLE_OPEN_TREE_HINT_Y - RenderLayout.LARGE_LINE_HEIGHT);
 
-    // §15-1 / §15-8: 設定画面への動線 (常時アクセス可)。
+    // §15-1 / §15-8: 設定画面 / クレジット画面への動線 (常時アクセス可)。
     large.setColor(0.75f, 0.75f, 0.75f, 1f);
     large.draw(
         batch,
-        jp ? Strings.Ja.TITLE_OPEN_SETTINGS_HINT : Strings.En.TITLE_OPEN_SETTINGS_HINT,
+        (jp ? Strings.Ja.TITLE_OPEN_SETTINGS_HINT : Strings.En.TITLE_OPEN_SETTINGS_HINT)
+            + "    "
+            + (jp ? Strings.Ja.TITLE_OPEN_CREDITS_HINT : Strings.En.TITLE_OPEN_CREDITS_HINT),
         RenderLayout.START_HINT_X,
         RenderLayout.TITLE_OPEN_TREE_HINT_Y - RenderLayout.LARGE_LINE_HEIGHT * 2);
 
@@ -195,6 +197,10 @@ public final class TitleScreen extends ScreenAdapter {
       // §15-1 / §15-8: 設定画面はいつでもアクセス可。
       game.soundManager().playSe(SeKind.BUTTON);
       game.changeScreen(new SettingsScreen(game));
+    } else if (Gdx.input.isKeyJustPressed(Keys.K)) {
+      // M2 提出: クレジット画面はいつでもアクセス可。
+      game.soundManager().playSe(SeKind.BUTTON);
+      game.changeScreen(new CreditsScreen(game));
     }
   }
 
