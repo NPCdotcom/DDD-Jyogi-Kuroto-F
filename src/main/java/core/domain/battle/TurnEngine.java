@@ -1,12 +1,8 @@
 package core.domain.battle;
 
 import core.domain.card.ActiveBuff;
-import core.domain.card.Card;
-import core.domain.card.CardEffect;
 import core.domain.card.CardElement;
-import core.domain.card.CardPileState;
 import core.domain.card.TrapLifetime;
-import core.domain.common.Direction;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonState;
 import core.domain.dungeon.PlacedTrap;
@@ -61,7 +57,7 @@ public final class TurnEngine {
     return switch (action) {
       case BattleAction.Move move -> TurnEngineMovement.applyPlayerMove(state, move.direction());
       case BattleAction.UseSkill use -> applyPlayerSkill(state, use.slotIndex());
-      case BattleAction.UseCard use -> applyPlayerUseCard(state, use);
+      case BattleAction.UseCard use -> TurnEngineCardResolver.applyPlayerUseCard(state, use);
       case BattleAction.Wait ignored -> applyPlayerWait(state);
       case BattleAction.EndTurn ignored -> endPlayerTurn(state);
     };
@@ -193,168 +189,8 @@ public final class TurnEngine {
     return applyEffectByPlayer(afterCostState, skill, targetOpt.get());
   }
 
-  /**
-   * カード使用 (§15-3 / ADR-18)。本 PR では Damage カードのみ実装、Move / Buff / Trap は ActionRejected で明示。
-   *
-   * <p>処理シーケンス: 手札範囲 → AP コスト → CardEffect で switch → 各効果。
-   */
-  private static StepResult applyPlayerUseCard(DungeonState state, BattleAction.UseCard action) {
-    Player player = state.player();
-    CardPileState piles = player.cardPileState();
-    int handIndex = action.handIndex();
-    if (handIndex >= piles.hand().size()) {
-      return reject(state, player.id(), "手札範囲外");
-    }
-    Card card = piles.hand().get(handIndex);
-    if (!player.actionPoints().canSpend(card.apCost())) {
-      return reject(state, player.id(), "AP 不足");
-    }
-    return switch (card.effect()) {
-      case CardEffect.Damage dmg ->
-          resolveCardDamage(state, card, dmg, action.direction(), handIndex);
-      case CardEffect.Move move -> resolveCardMove(state, card, move, handIndex);
-      case CardEffect.Buff buff -> resolveCardBuff(state, card, buff, handIndex);
-      case CardEffect.Trap trap ->
-          resolveCardTrap(state, card, trap, action.direction(), handIndex);
-    };
-  }
-
-  /**
-   * Buff カード解決 (§15-3 / ADR-27)。{@link PlayerStatuses#activeBuffs()} に新規 {@link ActiveBuff}
-   * を追加し、{@link Player#effectiveStats()} 経由で以降のカード使用 / 受けるダメージに効果が反映される。
-   *
-   * <p>処理:
-   *
-   * <ol>
-   *   <li>AP 消費 + Hand→Discard (副作用は新インスタンス返却)
-   *   <li>同じ {@link CardEffect.BuffKind} の既存 ActiveBuff は除去 (上書き、ADR-22 罠の上書き同型)
-   *   <li>新 {@link ActiveBuff(buff.kind(), buff.amount(), buff.durationTurns())} を追加
-   *   <li>{@link BattleEvent.SkillUsed} + {@link BattleEvent.BuffApplied} を発火
-   * </ol>
-   */
-  private static StepResult resolveCardBuff(
-      DungeonState state, Card card, CardEffect.Buff buff, int handIndex) {
-    Player player = state.player();
-    PlayerStatuses statuses = player.statuses();
-
-    // 重複 BuffKind は上書き (ADR-27 / KISS)
-    List<ActiveBuff> newBuffs = new ArrayList<>(statuses.activeBuffs().size() + 1);
-    for (ActiveBuff b : statuses.activeBuffs()) {
-      if (b.kind() != buff.kind()) {
-        newBuffs.add(b);
-      }
-    }
-    ActiveBuff applied = new ActiveBuff(buff.kind(), buff.amount(), buff.durationTurns());
-    newBuffs.add(applied);
-
-    PlayerStatuses newStatuses = statuses.withActiveBuffs(newBuffs);
-    Player afterUse =
-        player
-            .withStatuses(newStatuses)
-            .withActionPoints(player.actionPoints().spend(card.apCost()))
-            .withCardPileState(player.cardPileState().playFromHand(handIndex));
-
-    DungeonState ns = state.withPlayer(afterUse);
-    List<BattleEvent> events = new ArrayList<>();
-    events.add(new BattleEvent.SkillUsed(player.id(), card.displayName()));
-    events.add(
-        new BattleEvent.BuffApplied(
-            player.id(), applied.kind(), applied.amount(), applied.remainingTurns()));
-    return new StepResult(ns, events);
-  }
-
-  /**
-   * Trap カード解決 (§15-3 / ADR-22)。指定方向の隣接マスに罠を設置 (壁不可、同座標既存罠は上書き)。
-   *
-   * <p>処理:
-   *
-   * <ol>
-   *   <li>設置先タイル walkable チェック (壁不可)
-   *   <li>同座標既存罠を除去 (上書き、3 並列レビュー結論「驚き最小 = 最新が優先」)
-   *   <li>新 PlacedTrap を placedTraps に追加
-   *   <li>AP 消費 + Hand→Discard
-   *   <li>SkillUsed + TrapPlaced イベント発火
-   * </ol>
-   */
-  private static StepResult resolveCardTrap(
-      DungeonState state, Card card, CardEffect.Trap trap, Direction direction, int handIndex) {
-    Player player = state.player();
-    Position trapPos = player.position().move(direction);
-    if (!state.map().isWalkable(trapPos)) {
-      return reject(state, player.id(), "そこには罠を設置できない");
-    }
-    // 同座標重複は上書き (新規優先)
-    List<PlacedTrap> newTraps = new ArrayList<>(state.placedTraps().size() + 1);
-    for (PlacedTrap t : state.placedTraps()) {
-      if (!t.position().equals(trapPos)) {
-        newTraps.add(t);
-      }
-    }
-    newTraps.add(new PlacedTrap(trapPos, trap.baseValue(), trap.lifetime(), card.element()));
-
-    Player afterUse =
-        player
-            .withActionPoints(player.actionPoints().spend(card.apCost()))
-            .withCardPileState(player.cardPileState().playFromHand(handIndex));
-    DungeonState ns = state.withPlayer(afterUse).withPlacedTraps(newTraps);
-    List<BattleEvent> events = new ArrayList<>();
-    events.add(new BattleEvent.SkillUsed(player.id(), card.displayName()));
-    events.add(new BattleEvent.TrapPlaced(player.id(), trapPos, trap.baseValue()));
-    return new StepResult(ns, events);
-  }
-
-  /**
-   * Move カード解決 (§15-5 / ADR-21)。AP コスト消費 + Hand→Discard + pendingMoveCount = distance 設定。
-   *
-   * <p>本メソッドではカード使用時点で移動は行わない (= 距離 1 でも UseCard 後の AWSD 押下で 1 マス進む)。これにより「カードを切る → 方向キーで動く」操作を
-   * 明示的に分離 (移動 α 案、ADR-20)。
-   */
-  private static StepResult resolveCardMove(
-      DungeonState state, Card card, CardEffect.Move move, int handIndex) {
-    Player player = state.player();
-    Player afterUse =
-        player
-            .withActionPoints(player.actionPoints().spend(card.apCost()))
-            .withCardPileState(player.cardPileState().playFromHand(handIndex))
-            .withPendingMoveCount(move.distance());
-    DungeonState ns = state.withPlayer(afterUse);
-    List<BattleEvent> events = new ArrayList<>();
-    // ADR-18 / ADR-21: 使用宣言は SkillUsed 流用、追加で MovementGranted を発火 (HUD 表示用)。
-    events.add(new BattleEvent.SkillUsed(player.id(), card.displayName()));
-    events.add(new BattleEvent.MovementGranted(player.id(), move.distance()));
-    return new StepResult(ns, events);
-  }
-
-  /**
-   * Damage カードの解決。方向指定で隣接マスを取り、敵不在なら reject、存在すれば
-   *
-   * <ol>
-   *   <li>{@link CardEffect.Damage#resolve} で最終ダメージを確定 (ADR-17)
-   *   <li>AP 消費 + Hand→Discard 移動 (純関数操作)
-   *   <li>{@link #resolveDamageToEnemy} 経由でダメージ反映 + 死亡判定
-   * </ol>
-   */
-  private static StepResult resolveCardDamage(
-      DungeonState state, Card card, CardEffect.Damage dmg, Direction direction, int handIndex) {
-    Player player = state.player();
-    Position targetPos = player.position().move(direction);
-    Optional<Enemy> targetOpt = state.findEnemyAt(targetPos);
-    if (targetOpt.isEmpty()) {
-      return reject(state, player.id(), "対象がいない");
-    }
-    Enemy target = targetOpt.get();
-    // ADR-25: effectiveStats() で装備 + Buff 込みの攻撃力を使う (素ステは Buff 期限管理用に保持)
-    int finalDamage = dmg.resolve(player.effectiveStats(), target.stats(), card.element());
-    Player afterAction =
-        player
-            .withActionPoints(player.actionPoints().spend(card.apCost()))
-            .withCardPileState(player.cardPileState().playFromHand(handIndex));
-    DungeonState afterCostState = state.withPlayer(afterAction);
-    List<BattleEvent> events = new ArrayList<>();
-    // ADR-18: BattleEvent.CardUsed は新設せず SkillUsed を流用 (displayName で識別、YAGNI)。
-    events.add(new BattleEvent.SkillUsed(player.id(), card.displayName()));
-    return resolveDamageToEnemy(afterCostState, finalDamage, target, events);
-  }
+  // Wave 5 W5-α-2: applyPlayerUseCard / resolveCardDamage / resolveCardMove / resolveCardBuff /
+  // resolveCardTrap は {@link TurnEngineCardResolver} に切り出し済。
 
   private static StepResult applyPlayerWait(DungeonState state) {
     Player player = state.player();
@@ -445,7 +281,7 @@ public final class TurnEngine {
    * <p>Skill 経路 ({@link #resolveSkillDamage} 計算結果) と Card 経路 ({@code CardEffect.Damage.resolve}
    * 計算結果) のどちらからも、防御適用済みの確定 int を受け取る。本メソッドは二重減算しない。
    */
-  private static StepResult resolveDamageToEnemy(
+  static StepResult resolveDamageToEnemy(
       DungeonState state, int finalDamage, Enemy target, List<BattleEvent> events) {
     Stats damagedStats = target.stats().damaged(finalDamage);
     events.add(
