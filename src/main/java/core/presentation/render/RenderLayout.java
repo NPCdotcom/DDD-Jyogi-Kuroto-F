@@ -92,12 +92,11 @@ public final class RenderLayout {
   /**
    * メッセージログ表示開始位置 (下方向に展開)。
    *
-   * <p>画面下部寄り、HUD パネル + 手札の真上に配置。large (32px) で行間 LARGE_LINE_HEIGHT=48 を取り、 2 行表示する
-   * (大型化により情報視認性を上げる)。
+   * <p>画面中段右寄り、HUD パネル + 手札 + カード詳細テキストの上に配置。large (32px) で行間 LARGE_LINE_HEIGHT=48 を取り、 2 行表示する。
    *
    * <p>LOG_TOP_Y=520 → ログ占有範囲 Y∈[472, 520]。手札カード画像 (HAND_CARD_BOTTOM_Y=110 + HAND_CARD_HEIGHT=168 =
-   * Y∈[110, 278])、手札詳細テキスト (HAND_DETAIL_TEXT_Y=290) と衝突せず、 HUD_Y_HINT=170 / HUD_Y_MOVE_TOKEN=800
-   * とも干渉しない安全領域。
+   * Y∈[110, 278]) およびカード詳細テキスト (HAND_DETAIL_TEXT_Y=80、画像の下に配置) と衝突せず、 HUD_Y_HINT=170 /
+   * HUD_Y_MOVE_TOKEN=800 とも干渉しない安全領域。
    */
   public static final int LOG_X = 40;
 
@@ -113,13 +112,6 @@ public final class RenderLayout {
    */
   public static final int HAND_Y = 64;
 
-  /**
-   * 手札カード 1 文字あたりの概算ピクセル幅 (large 32px フォント基準)。
-   *
-   * <p>初期手札は数枚なので画面幅に収まる前提。9 枚揃うシナリオでは右側がはみ出る可能性があるが、 §15-3 の MAX_HAND_SIZE 想定でも実用上問題ないレベル。
-   */
-  public static final int HAND_CARD_GLYPH_WIDTH = 20;
-
   // §15-3 大型手札描画 (カード画像 120x168)。1 枚分の slot 幅 = WIDTH + MARGIN。9 枚で 1224 px、画面幅 1920 に収まる。
   public static final int HAND_CARD_WIDTH = 120;
   public static final int HAND_CARD_HEIGHT = 168;
@@ -131,8 +123,13 @@ public final class RenderLayout {
   /** 選択中カードを縦方向に持ち上げる量 (視覚強調)。 */
   public static final int HAND_CARD_SELECTED_LIFT = 20;
 
-  /** 選択中カードの詳細テキスト (displayName + AP + 効果説明) を描画する Y 座標。手札画像の上に配置。 */
-  public static final int HAND_DETAIL_TEXT_Y = 290;
+  /**
+   * 選択中カードの詳細テキスト (displayName + AP + 効果説明) を描画する Y 座標。
+   *
+   * <p>カード画像 (Y∈[110, 278]) と被らないよう、画像の**下** (画面下端側) に配置する。 large (32px) baseline Y=80 → 描画範囲
+   * Y∈[48, 80]、画面下端から 48px 余白、HAND_CARD_BOTTOM_Y=110 とも 30px 余白、HUD_Y_HINT=170 とも 90px 離れて干渉なし。
+   */
+  public static final int HAND_DETAIL_TEXT_Y = 80;
 
   /** 手札 1 枚目の左下 X 座標 (9 枚センター配置: (1920 - 9*120 - 8*16) / 2 = 356)。 */
   public static final int HAND_FIRST_X = 356;

@@ -53,9 +53,11 @@ public final class SoulTreeScreen extends ScreenAdapter {
   private static final float CENTER_X = 960f;
   private static final float CENTER_Y = 540f;
 
-  // §15-7 UI 改善: クリック判定円を画像枠 (64x64) の対角約 45px に近づけ、一個飛びクリック誤認を抑制。
+  // §UI 改善: viewport.unproject の浮動小数点誤差 (±数 px) + ユーザーがアイコン (64x64) の縁を狙った
+  // クリックが判定円 40px 外に落ちる症状を解消するため、判定円を 50f に拡大。ノード間最短距離 200px
+  // (ステ軸 60° 等間隔) で判定円 50 同士でも余裕 100px、隣接ノード誤判定なし。
   /** ノードクリック判定の半径 (px、ワールド座標)。 */
-  private static final float NODE_RADIUS = 40f;
+  private static final float NODE_RADIUS = 50f;
 
   /** ノードテクスチャ描画サイズ (px)。 */
   private static final float NODE_TEX_SIZE = 64f;
@@ -485,10 +487,22 @@ public final class SoulTreeScreen extends ScreenAdapter {
     if (r.get()) {
       try {
         game.unlockTreeNode(pendingUnlockId);
-        showFlash("解放: " + SoulTree.allNodes().get(pendingUnlockId).displayName());
+        // 防衛的 null チェック: pendingUnlockId は tryUnlockAt 由来で allNodes() に必ず存在するため
+        // 実際には null にならないが、SoulTree の API 変更で取りこぼした場合の NPE を回避する。
+        TreeNode unlocked = SoulTree.allNodes().get(pendingUnlockId);
+        showFlash("解放: " + (unlocked != null ? unlocked.displayName() : pendingUnlockId.value()));
       } catch (IllegalStateException ex) {
         boolean jp = game.fonts().isJapaneseAvailable();
-        showFlash(jp ? "ソウルが不足しています" : "Insufficient soul");
+        // SoulTree.unlock は「ソウル不足」「前提未解放」「解放済み」の 3 種を IllegalStateException
+        // で投げる。メッセージ文字列で判別して適切な flash を出す。
+        String msg = ex.getMessage() != null ? ex.getMessage() : "";
+        if (msg.startsWith("Insufficient soul")) {
+          showFlash(jp ? "ソウルが不足しています" : "Insufficient soul");
+        } else if (msg.startsWith("Prerequisite not unlocked")) {
+          showFlash(jp ? "前提ノードが未解放です" : "Prerequisite not unlocked");
+        } else {
+          showFlash(jp ? "解放できません" : "Cannot unlock");
+        }
       } catch (IllegalArgumentException ex) {
         boolean jp = game.fonts().isJapaneseAvailable();
         showFlash(jp ? "無効なノードです" : "Invalid node");
@@ -508,6 +522,14 @@ public final class SoulTreeScreen extends ScreenAdapter {
     NodeId bestId = null;
     float bestDistSq = Float.MAX_VALUE;
     for (Map.Entry<NodeId, Vector2> entry : POSITIONS.entrySet()) {
+      NodeId candidate = entry.getKey();
+      // §UI 改善: 中央 ROOT は描画スキップしているが、POSITIONS には残るためクリック判定でも除外する。
+      // 入れないと NODE_RADIUS=50 への拡大で中央付近クリックが見えない ROOT に吸い込まれ、
+      // unlock(ROOT) が「Node already unlocked」(IllegalStateException) を投げて「解放できません」 flash
+      // (renderAndConsumeUnlockDialog の else 分岐) が出る謎挙動になる。
+      if (candidate.equals(SoulTree.ROOT)) {
+        continue;
+      }
       Vector2 pos = entry.getValue();
       float dx = worldX - pos.x;
       float dy = worldY - pos.y;
@@ -515,7 +537,6 @@ public final class SoulTreeScreen extends ScreenAdapter {
       if (distSq > NODE_RADIUS * NODE_RADIUS) {
         continue;
       }
-      NodeId candidate = entry.getKey();
       if (!game.soulTree().isVisible(candidate)) {
         continue; // シルエットノードは候補から除外
       }
@@ -529,6 +550,10 @@ public final class SoulTreeScreen extends ScreenAdapter {
     }
     // §15-7 UI 改善: 即解放せず確認ダイアログを開く (誤クリック対策)
     TreeNode node = SoulTree.allNodes().get(bestId);
+    // 防衛: POSITIONS と allNodes() の定義ズレ (将来の追加時に片方を忘れるケース) に備える。
+    if (node == null) {
+      return;
+    }
     NodeEffect effect = node.effect();
     Texture iconTex = nodeIconFor(bestId, effect);
     boolean isCardGrant = effect instanceof NodeEffect.CardGrantEffect;

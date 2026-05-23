@@ -335,4 +335,44 @@ class SoulTreeTest {
     assertThrows(
         IllegalStateException.class, () -> finalTree.unlock(NodeId.of("speed_up_2"), new Soul(29)));
   }
+
+  // ---------------- ROOT 除外ガード回帰 (SoulTreeScreen.tryUnlockAt の前提) ----------------
+
+  @Test
+  void allNodesContainsRootKey() {
+    // 回帰防止: SoulTreeScreen.tryUnlockAt は allNodes().containsKey(ROOT) を前提に
+    // ROOT 除外ガードを掛ける。ROOT がマスタ定義から削除されると整合が崩れる。
+    assertTrue(SoulTree.allNodes().containsKey(SoulTree.ROOT), "allNodes のマスタ定義に ROOT が含まれる");
+  }
+
+  @Test
+  void allNodesReturnsSameInstanceOnRepeatedCalls() {
+    // allNodes() は static キャッシュ (ALL_NODES) を返すため、複数回呼んでも同一オブジェクト。
+    // 毎フレーム呼ばれる SoulTreeScreen の isVisible が再構築コストを払わないことを確認。
+    assertSame(SoulTree.allNodes(), SoulTree.allNodes(), "allNodes() は同一 Map インスタンスを返す (キャッシュ)");
+  }
+
+  @Test
+  void unlockRootThrowsIllegalStateException() {
+    // 回帰防止: ROOT はコスト 0 で初期解放済みのため、unlock しようとすると
+    // "already unlocked" として IllegalStateException を投げる。
+    // SoulTreeScreen の tryUnlockAt が ROOT をガードする前提を裏付ける。
+    SoulTree tree = SoulTree.empty();
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> tree.unlock(SoulTree.ROOT, new Soul(0)));
+    assertTrue(
+        ex.getMessage().contains("already unlocked"),
+        "例外メッセージに 'already unlocked' が含まれる: " + ex.getMessage());
+  }
+
+  @Test
+  void isVisibleRootAlwaysTrueRegardlessOfUnlockedSet() {
+    // 前提明示: ROOT は prerequisites が空なので、どの SoulTree インスタンスでも
+    // isVisible(ROOT) == true。SoulTreeScreen が ROOT を常に描画する前提を固定。
+    SoulTree fresh = SoulTree.empty();
+    assertTrue(fresh.isVisible(SoulTree.ROOT), "empty() で ROOT は可視");
+    // ROOT 以外も解放された状態でも変わらない
+    SoulTree afterUnlock = fresh.unlock(NodeId.of("hp_up_1"), new Soul(100)).newTree();
+    assertTrue(afterUnlock.isVisible(SoulTree.ROOT), "ノード解放後も ROOT は可視のまま");
+  }
 }

@@ -87,8 +87,10 @@ public final class SaveManager {
       LOG.log(
           Level.WARNING, "Failed to load (treating as no save): " + saveFile.getAbsolutePath(), e);
       return Optional.empty();
-    } catch (IllegalArgumentException e) {
-      // SaveData compact constructor のバリデーション違反 (スキーマ不整合) も graceful に扱う
+    } catch (RuntimeException e) {
+      // SaveData compact constructor のバリデーション違反 (IllegalArgumentException) のほか、
+      // List/Map.copyOf が null 要素で NullPointerException を投げるケース (ユーザー編集の
+      // 不正 JSON / Schema migration 過程の null 要素) も graceful にロードなし扱いにする。
       LOG.log(
           Level.WARNING,
           "Invalid save data (treating as no save): " + saveFile.getAbsolutePath(),

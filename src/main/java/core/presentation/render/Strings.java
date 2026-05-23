@@ -42,7 +42,6 @@ public final class Strings {
     public static final String PHASE_RUN_CLEARED = "ダンジョン制覇";
 
     public static final String GAME_OVER_HEADER = "敗 北";
-    public static final String CLEARED_HEADER = "フロア踏破";
     public static final String RUN_CLEARED_HEADER = "ダンジョン制覇";
     public static final String SOULS_KEPT = "持ち帰ったソウル: ";
     public static final String NEW_RUN_HINT = "ENTER でソウルツリーへ";
@@ -55,7 +54,6 @@ public final class Strings {
     public static final String LAYER_END_TITLE = "層末ノード — 1 つ選んでください";
 
     // 手札表示ラベル
-    public static final String HAND_LABEL = "手札:";
     public static final String HAND_HINT = "数字キー: カード選択  方向キー: 使用方向  ESC: キャンセル";
     public static final String CARD_ELEMENT_PHYSICAL = "物";
     public static final String CARD_ELEMENT_MAGICAL = "魔";
@@ -117,7 +115,6 @@ public final class Strings {
     public static final String SOUL_TREE_CONTROLS_HINT =
         "[クリック] 解放  [WASD/矢印] 移動  [Z/X] ズーム  [R] リセット  [ESC] 戻る";
     public static final String SOUL_TREE_FLASH_RESET = "ツリーをリセットしました";
-    public static final String SOUL_TREE_LOCKED_FLASH = "前提ノードを先に解放してください";
     public static final String TITLE_OPEN_TREE_HINT_FORMAT = "[T] ソウルツリーを開く (所持ソウル: %d)";
 
     // §15-3 カード図鑑
@@ -213,7 +210,6 @@ public final class Strings {
     public static final String PHASE_RUN_CLEARED = "DUNGEON CLEAR";
 
     public static final String GAME_OVER_HEADER = "YOU DIED";
-    public static final String CLEARED_HEADER = "FLOOR CLEARED";
     public static final String RUN_CLEARED_HEADER = "DUNGEON CLEARED";
     public static final String SOULS_KEPT = "Souls carried out: ";
     public static final String NEW_RUN_HINT = "Press ENTER to open the Soul Tree";
@@ -226,7 +222,6 @@ public final class Strings {
     public static final String LAYER_END_TITLE = "Layer-end node — choose one";
 
     // 手札表示ラベル
-    public static final String HAND_LABEL = "Hand:";
     public static final String HAND_HINT = "Number: select card  Arrow: direction  ESC: cancel";
     public static final String CARD_ELEMENT_PHYSICAL = "Physical";
     public static final String CARD_ELEMENT_MAGICAL = "Magical";
@@ -289,7 +284,6 @@ public final class Strings {
     public static final String SOUL_TREE_CONTROLS_HINT =
         "[Click] Unlock  [WASD/Arrows] Pan  [Z/X] Zoom  [R] Reset  [ESC] Back";
     public static final String SOUL_TREE_FLASH_RESET = "Tree reset";
-    public static final String SOUL_TREE_LOCKED_FLASH = "Unlock the prerequisite node first";
     public static final String TITLE_OPEN_TREE_HINT_FORMAT = "[T] Open Soul Tree (Soul: %d)";
 
     // §15-3 Card collection

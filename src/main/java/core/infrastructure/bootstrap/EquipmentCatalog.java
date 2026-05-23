@@ -77,12 +77,12 @@ public final class EquipmentCatalog {
     }
     StatsBonus bonus =
         new StatsBonus(
-            sb.get("maxHp").asInt(),
-            sb.get("speed").asInt(),
-            sb.get("physicalAttack").asInt(),
-            sb.get("magicalAttack").asInt(),
-            sb.get("physicalDefense").asInt(),
-            sb.get("magicalDefense").asInt());
+            requiredInt(sb, "maxHp"),
+            requiredInt(sb, "speed"),
+            requiredInt(sb, "physicalAttack"),
+            requiredInt(sb, "magicalAttack"),
+            requiredInt(sb, "physicalDefense"),
+            requiredInt(sb, "magicalDefense"));
     List<CardId> granted = new ArrayList<>();
     JsonNode grantedCardsNode = n.get("grantedCards");
     if (grantedCardsNode != null && grantedCardsNode.isArray()) {
@@ -104,5 +104,21 @@ public final class EquipmentCatalog {
       throw new IllegalStateException("equipment.json: missing field '" + field + "'");
     }
     return v.asText();
+  }
+
+  /**
+   * 必須数値フィールドを取得する。null / 欠落 / 非数値型は {@link IllegalStateException} で早期検出。 (CardCatalog.requiredInt
+   * と同型、equipment.json のタイポ / 書き忘れによる起動 NPE を防ぐ)
+   */
+  private static int requiredInt(JsonNode n, String field) {
+    JsonNode v = n == null ? null : n.get(field);
+    if (v == null || v.isNull()) {
+      throw new IllegalStateException("equipment.json: missing int field '" + field + "'");
+    }
+    if (!v.isNumber()) {
+      throw new IllegalStateException(
+          "equipment.json: field '" + field + "' must be a number, got: " + v);
+    }
+    return v.asInt();
   }
 }

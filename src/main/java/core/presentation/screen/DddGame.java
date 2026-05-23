@@ -198,6 +198,14 @@ public final class DddGame extends Game {
     return cardImageRegistry;
   }
 
+  /**
+   * カードマスタ (§15-3)。presentation 層が {@code InitialStateFactory.cardCatalog()} を直接呼ぶと presentation →
+   * infrastructure 依存方向違反になるため、DddGame 経由で間接化する窓口。
+   */
+  public core.infrastructure.bootstrap.CardCatalog cardCatalog() {
+    return core.infrastructure.bootstrap.InitialStateFactory.cardCatalog();
+  }
+
   public SoulTree soulTree() {
     return soulTree;
   }

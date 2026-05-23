@@ -290,15 +290,33 @@ public final class DungeonScreen extends ScreenAdapter {
    * 択にし「移動・バフだけのハズレ 3 択」を防ぐため (他タグはショップノードで入手可能)。
    */
   private NodeChoicePopup createEliteCardChoicePopup() {
-    List<core.domain.card.Card> allRewards =
+    List<core.domain.card.Card> attackPool =
         new ArrayList<>(
-            core.infrastructure.bootstrap.InitialStateFactory.cardCatalog().all().stream()
+            game.cardCatalog().all().stream()
                 .filter(c -> c.tag() == core.domain.card.CardTag.ATTACK)
                 .toList());
-    Collections.shuffle(allRewards, rng);
+    Collections.shuffle(attackPool, rng);
+    // §UI 改善: ATTACK カードが CHOICE_COUNT (3) 未満なら他タグから補填する (IndexOutOfBoundsException 対策)。
+    // cards.json でタグ構成を変更した瞬間にクラッシュする脆さを除去。
+    List<core.domain.card.Card> rewards = new ArrayList<>(attackPool);
+    if (rewards.size() < NodeChoicePopup.CHOICE_COUNT) {
+      List<core.domain.card.Card> fallbackPool =
+          new ArrayList<>(
+              game.cardCatalog().all().stream()
+                  .filter(c -> c.tag() != core.domain.card.CardTag.ATTACK)
+                  .toList());
+      Collections.shuffle(fallbackPool, rng);
+      for (core.domain.card.Card c : fallbackPool) {
+        if (rewards.size() >= NodeChoicePopup.CHOICE_COUNT) {
+          break;
+        }
+        rewards.add(c);
+      }
+    }
     List<LayerEndNode> choices = new ArrayList<>();
-    for (int i = 0; i < NodeChoicePopup.CHOICE_COUNT; i++) {
-      choices.add(new LayerEndNode.Shop(0, allRewards.get(i)));
+    int n = Math.min(NodeChoicePopup.CHOICE_COUNT, rewards.size());
+    for (int i = 0; i < n; i++) {
+      choices.add(new LayerEndNode.Shop(0, rewards.get(i)));
     }
     String title = "強化個体撃破: カード追加";
     // large(32px) 等倍。hud(16px)+setFontScale(2f) は Scene2D で漢字が黒四角化するため使えない。
@@ -307,8 +325,7 @@ public final class DungeonScreen extends ScreenAdapter {
 
   /** カードマスタ (cards.json) からランダムに 1 枚返す (層末ショップノードのカード抽選用)。 */
   private core.domain.card.Card randomCatalogCard() {
-    List<core.domain.card.Card> all =
-        new ArrayList<>(core.infrastructure.bootstrap.InitialStateFactory.cardCatalog().all());
+    List<core.domain.card.Card> all = new ArrayList<>(game.cardCatalog().all());
     Collections.shuffle(all, rng);
     return all.get(0);
   }
@@ -604,7 +621,8 @@ public final class DungeonScreen extends ScreenAdapter {
     // §15-6 UI/UX: 端クランプ撤廃 — プレイヤー常に可視範囲中央、マップ外領域が見えても許容する設計。
     if (shakeRemaining > 0f) {
       float intensity = shakeAmplitude * (shakeRemaining / SHAKE_DURATION);
-      float angle = (float) (Math.random() * Math.PI * 2.0);
+      // ADR-19 整合: 静的 Math.random() の代わりに注入済 rng を使う (同一シードでシェイク方向も再現可)。
+      float angle = (float) (rng.nextDouble() * Math.PI * 2.0);
       camera.position.x += (float) (Math.cos(angle) * intensity);
       camera.position.y += (float) (Math.sin(angle) * intensity);
     }

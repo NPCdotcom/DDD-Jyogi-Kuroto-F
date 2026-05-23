@@ -71,9 +71,18 @@ public final class DungeonGenerator {
       throw new IllegalArgumentException("enemyCount must be >= 0: " + enemyCount);
     }
     for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      GeneratedDungeon d = tryBuild(gridW, gridH, enemyCount, placeStairs, rng);
-      if (d != null) {
-        return d;
+      try {
+        GeneratedDungeon d = tryBuild(gridW, gridH, enemyCount, placeStairs, rng);
+        if (d != null) {
+          return d;
+        }
+      } catch (IllegalArgumentException ex) {
+        // §UI 改善 (devils-advocate 検出): 深い分割 + 細い領域で rng.nextInt(0) 等の IAE が
+        // tryBuild 内で発生し得るため、attempt 単位で吸収して次の試行に進む。最終的に
+        // 全 attempt 失敗なら buildFallback (1 部屋) に逃げて起動クラッシュを回避する。
+        if (Gdx.app != null) {
+          Gdx.app.log("DungeonGenerator", "tryBuild attempt failed: " + ex.getMessage());
+        }
       }
     }
     return buildFallback(gridW, gridH, enemyCount, placeStairs, rng);

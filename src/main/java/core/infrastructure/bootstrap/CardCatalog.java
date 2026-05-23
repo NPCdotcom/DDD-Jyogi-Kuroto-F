@@ -76,7 +76,7 @@ public final class CardCatalog {
     return new Card(
         CardId.of(text(n, "id")),
         text(n, "displayName"),
-        n.get("apCost").asInt(),
+        requiredInt(n, "apCost"),
         CardTag.valueOf(text(n, "tag")),
         CardElement.valueOf(text(n, "element")),
         parseEffect(n.get("effect")));
@@ -85,15 +85,15 @@ public final class CardCatalog {
   private static CardEffect parseEffect(JsonNode e) {
     String type = text(e, "type");
     return switch (type) {
-      case "Damage" -> new CardEffect.Damage(e.get("baseValue").asInt());
-      case "Move" -> new CardEffect.Move(e.get("distance").asInt());
+      case "Damage" -> new CardEffect.Damage(requiredInt(e, "baseValue"));
+      case "Move" -> new CardEffect.Move(requiredInt(e, "distance"));
       case "Buff" ->
           new CardEffect.Buff(
               CardEffect.BuffKind.valueOf(text(e, "kind")),
-              e.get("amount").asInt(),
-              e.get("durationTurns").asInt());
+              requiredInt(e, "amount"),
+              requiredInt(e, "durationTurns"));
       case "Trap" ->
-          new CardEffect.Trap(e.get("baseValue").asInt(), parseLifetime(e.get("lifetime")));
+          new CardEffect.Trap(requiredInt(e, "baseValue"), parseLifetime(e.get("lifetime")));
       default -> throw new IllegalStateException("unknown card effect type: " + type);
     };
   }
@@ -102,7 +102,7 @@ public final class CardCatalog {
     String type = text(l, "type");
     return switch (type) {
       case "UntilStepped" -> TrapLifetime.UntilStepped.INSTANCE;
-      case "Turns" -> new TrapLifetime.Turns(l.get("remaining").asInt());
+      case "Turns" -> new TrapLifetime.Turns(requiredInt(l, "remaining"));
       default -> throw new IllegalStateException("unknown trap lifetime type: " + type);
     };
   }
@@ -113,5 +113,23 @@ public final class CardCatalog {
       throw new IllegalStateException("cards.json: missing field '" + field + "'");
     }
     return v.asText();
+  }
+
+  /**
+   * 必須数値フィールドを取得する。null / 欠落 / 非数値型は {@link IllegalStateException} で早期検出。
+   *
+   * <p>素の {@code .get(field).asInt()} は JsonNode が null だと NPE を投げ、起動時にスタックトレース無しで詰む。
+   * 本ヘルパはタイポ・キー欠落を cards.json のどのフィールドかメッセージで明示する。
+   */
+  private static int requiredInt(JsonNode n, String field) {
+    JsonNode v = n == null ? null : n.get(field);
+    if (v == null || v.isNull()) {
+      throw new IllegalStateException("cards.json: missing int field '" + field + "'");
+    }
+    if (!v.isNumber()) {
+      throw new IllegalStateException(
+          "cards.json: field '" + field + "' must be a number, got: " + v);
+    }
+    return v.asInt();
   }
 }

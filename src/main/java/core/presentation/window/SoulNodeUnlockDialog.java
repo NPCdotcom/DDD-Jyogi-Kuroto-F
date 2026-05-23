@@ -70,19 +70,18 @@ public final class SoulNodeUnlockDialog {
 
   /** 入力受付 + 描画。Y/N/ESC で {@code done = true} になる。 */
   public void render(float delta) {
-    if (done) {
-      return;
-    }
-
-    if (Gdx.input.isKeyJustPressed(Keys.Y) && canAfford) {
-      result = Optional.of(true);
-      done = true;
-      return;
-    }
-    if (Gdx.input.isKeyJustPressed(Keys.N) || Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
-      result = Optional.of(false);
-      done = true;
-      return;
+    // §UI 改善: done=true 後も同フレームの描画は完走させる (Screen 側が consume → dispose →
+    // pendingUnlock = null するまでダイアログを表示し続ける)。旧実装の `if (done) return;` は
+    // Y/N/ESC 押下フレームでダイアログ枠が瞬間的に消えるアーティファクトの原因となっていた。
+    // done=true 後は新規入力のみ受け付けない (二重発火防止)。
+    if (!done) {
+      if (Gdx.input.isKeyJustPressed(Keys.Y) && canAfford) {
+        result = Optional.of(true);
+        done = true;
+      } else if (Gdx.input.isKeyJustPressed(Keys.N) || Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
+        result = Optional.of(false);
+        done = true;
+      }
     }
 
     viewport.apply();
