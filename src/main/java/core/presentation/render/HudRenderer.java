@@ -193,17 +193,29 @@ public final class HudRenderer {
       font.draw(batch, "AP%d".formatted(card.apCost()), bounds.x + bounds.width - 60f, y + 28f);
     }
 
-    // §15-3: 選択中カードのみ詳細テキストを画像群の上 (HAND_DETAIL_TEXT_Y) に大きく表示。
+    // §15-3: 選択中カードのみ詳細テキストを画像群の下 (HAND_DETAIL_TEXT_Y) に表示。
     if (pendingCardIndex >= 0 && pendingCardIndex < cards.size()) {
       Card sel = cards.get(pendingCardIndex);
       font.setColor(Color.YELLOW);
       String elemLabel = elementLabel(jp, sel.element());
-      font.draw(
-          batch,
+      String full =
           "%s  AP:%d  %s  —  %s"
-              .formatted(sel.displayName(), sel.apCost(), elemLabel, CardDescriber.describe(sel)),
-          RenderLayout.HAND_FIRST_X,
-          RenderLayout.HAND_DETAIL_TEXT_Y);
+              .formatted(sel.displayName(), sel.apCost(), elemLabel, CardDescriber.describe(sel));
+      // §UI 改善 (A9 攻撃 5 対応): HAND_X〜HUD_X 領域 (約 1024px) を超える長文は末尾「…」省略。
+      // GlyphLayout で実描画幅を計測し、HUD_X の手前 80px (右余白) を超える場合は文字列を縮める。
+      float maxWidth = RenderLayout.HUD_X - RenderLayout.HAND_FIRST_X - 80f;
+      com.badlogic.gdx.graphics.g2d.GlyphLayout layout =
+          new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, full);
+      String drawn = full;
+      if (layout.width > maxWidth) {
+        // 1 文字ずつ削って「…」を付け、収まるまで縮める (BitmapFont.draw に直接渡せる String)。
+        for (int len = full.length() - 1; len > 0; len--) {
+          drawn = full.substring(0, len) + "…";
+          layout.setText(font, drawn);
+          if (layout.width <= maxWidth) break;
+        }
+      }
+      font.draw(batch, drawn, RenderLayout.HAND_FIRST_X, RenderLayout.HAND_DETAIL_TEXT_Y);
       font.setColor(Color.WHITE);
     }
   }
@@ -364,28 +376,16 @@ public final class HudRenderer {
       case BattleEvent.BuffApplied ba ->
           (jp ? Strings.Ja.EV_BUFF_APPLIED_FORMAT : Strings.En.EV_BUFF_APPLIED_FORMAT)
               .formatted(
-                  ba.who().value(), buffKindLabel(jp, ba.kind()), ba.amount(), ba.remainingTurns());
+                  ba.who().value(),
+                  BuffKindLabels.labelOf(ba.kind(), jp),
+                  ba.amount(),
+                  ba.remainingTurns());
       case BattleEvent.EliteDefeated ed ->
           (jp ? Strings.Ja.EV_ELITE_DEFEATED_FORMAT : Strings.En.EV_ELITE_DEFEATED_FORMAT)
               .formatted(ed.who().value());
       case BattleEvent.AutoTurnEnded ate ->
           (jp ? Strings.Ja.EV_AUTO_TURN_END_FORMAT : Strings.En.EV_AUTO_TURN_END_FORMAT)
               .formatted(autoTurnReasonLabel(jp, ate.reason()));
-    };
-  }
-
-  /** {@link core.domain.card.CardEffect.BuffKind} の日英表示ラベル (HUD ログ用)。 */
-  private static String buffKindLabel(boolean jp, core.domain.card.CardEffect.BuffKind kind) {
-    return switch (kind) {
-      case PHYSICAL_ATTACK_UP ->
-          jp ? Strings.Ja.BUFF_KIND_PHYSICAL_ATTACK : Strings.En.BUFF_KIND_PHYSICAL_ATTACK;
-      case MAGICAL_ATTACK_UP ->
-          jp ? Strings.Ja.BUFF_KIND_MAGICAL_ATTACK : Strings.En.BUFF_KIND_MAGICAL_ATTACK;
-      case PHYSICAL_DEFENSE_UP ->
-          jp ? Strings.Ja.BUFF_KIND_PHYSICAL_DEFENSE : Strings.En.BUFF_KIND_PHYSICAL_DEFENSE;
-      case MAGICAL_DEFENSE_UP ->
-          jp ? Strings.Ja.BUFF_KIND_MAGICAL_DEFENSE : Strings.En.BUFF_KIND_MAGICAL_DEFENSE;
-      case SPEED_UP -> jp ? Strings.Ja.BUFF_KIND_SPEED : Strings.En.BUFF_KIND_SPEED;
     };
   }
 }

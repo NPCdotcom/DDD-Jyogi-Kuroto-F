@@ -13,7 +13,6 @@ import core.domain.dungeon.PlacedTrap;
 import core.domain.dungeon.Tile;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
-import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
 import core.domain.entity.PlayerStatuses;
 import core.domain.entity.Stats;
@@ -482,16 +481,11 @@ public final class TurnEngine {
   /**
    * スキルダメージに被弾側の防御を適用する (ADR-17 改訂)。
    *
-   * <p>{@code max(1, amount − 防御)}。属性 (PHYSICAL → 物防 / MAGICAL → 魔防) で参照する防御ステを切り替える。 カードダメージの
-   * {@link CardEffect.Damage#resolve} と同じ式型だが、スキルは攻撃側ステを加算せず 固定 {@code amount} を基準値とする点が異なる。
+   * <p>計算は {@link DamageFormula#resolveWithoutAttacker} に委譲。スキルは攻撃側ステを加算せず 固定 {@code amount}
+   * を基準値とするため、カード経路の {@link DamageFormula#resolve} ではなく {@code resolveWithoutAttacker} を使う。
    */
   private static int resolveSkillDamage(int amount, Stats victim, CardElement element) {
-    int defense =
-        switch (element) {
-          case PHYSICAL -> victim.physicalDefense();
-          case MAGICAL -> victim.magicalDefense();
-        };
-    return Math.max(1, amount - defense);
+    return DamageFormula.resolveWithoutAttacker(amount, victim, element);
   }
 
   /**
@@ -516,7 +510,7 @@ public final class TurnEngine {
       events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), soulReward));
       events.add(new BattleEvent.GoldGained(rewardedPlayer.id(), goldReward));
       // §15-3 / §15-6: 強化個体撃破時にプレゼン層でカード追加 UI を発火するためのトリガ。
-      if (target.kind() == EnemyKind.ELITE_SLIME) {
+      if (target.kind().isElite()) {
         events.add(new BattleEvent.EliteDefeated(target.id()));
       }
       DungeonState ns = state.withEnemyRemoved(target.id()).withPlayer(rewardedPlayer);
@@ -524,7 +518,7 @@ public final class TurnEngine {
       // (敵 1 体撃破で即クリアになるのを避けるため)。
       // §15-6 例外: ボス撃破 = ラン勝利 (RUN_CLEARED)。ボスは最終層・最終部屋にのみ配置され、
       // そのフロアに階段は無いため、ボス撃破が唯一の進行手段となる。
-      if (target.kind() == EnemyKind.BOSS) {
+      if (target.kind().isBoss()) {
         ns = ns.withPhase(TurnPhase.RUN_CLEARED);
         events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.RUN_CLEARED));
       }
@@ -628,12 +622,12 @@ public final class TurnEngine {
         events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), soulReward));
         events.add(new BattleEvent.GoldGained(rewardedPlayer.id(), goldReward));
         // §15-3 / §15-6: Elite が罠で死亡した場合もカード追加 UI を発火。
-        if (victimEnemy.kind() == EnemyKind.ELITE_SLIME) {
+        if (victimEnemy.kind().isElite()) {
           events.add(new BattleEvent.EliteDefeated(victimId));
         }
         ns = ns.withEnemyRemoved(victimId).withPlayer(rewardedPlayer);
         // §15-6 例外: 罠でボスを倒した場合もラン勝利 (resolveDamageToEnemy と同じ扱い)。
-        if (victimEnemy.kind() == EnemyKind.BOSS) {
+        if (victimEnemy.kind().isBoss()) {
           ns = ns.withPhase(TurnPhase.RUN_CLEARED);
           events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.RUN_CLEARED));
         }

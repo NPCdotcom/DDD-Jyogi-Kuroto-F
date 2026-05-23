@@ -1,5 +1,6 @@
 package core.domain.entity;
 
+import core.domain.card.CardElement;
 import core.domain.equipment.StatsBonus;
 import java.util.Objects;
 
@@ -51,6 +52,27 @@ public record Stats(
 
   public boolean isAlive() {
     return currentHp > 0;
+  }
+
+  /**
+   * 属性に応じた攻撃ステを返す (§15-4)。{@link core.domain.battle.DamageFormula} から呼ばれ、 ダメージ計算 switch の散乱を防ぐ
+   * (新属性追加時の修正箇所を本ファイルと {@link CardElement} に局所化)。
+   */
+  public int attackBy(CardElement element) {
+    Objects.requireNonNull(element, "element");
+    return switch (element) {
+      case PHYSICAL -> physicalAttack;
+      case MAGICAL -> magicalAttack;
+    };
+  }
+
+  /** 属性に応じた防御ステを返す (§15-4)。{@link #attackBy} と対になるヘルパ。 */
+  public int defenseAgainst(CardElement element) {
+    Objects.requireNonNull(element, "element");
+    return switch (element) {
+      case PHYSICAL -> physicalDefense;
+      case MAGICAL -> magicalDefense;
+    };
   }
 
   public Stats damaged(int amount) {

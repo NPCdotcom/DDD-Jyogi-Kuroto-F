@@ -1,5 +1,6 @@
 package core.domain.card;
 
+import core.domain.battle.DamageFormula;
 import core.domain.entity.Stats;
 import java.util.Objects;
 
@@ -58,15 +59,8 @@ public sealed interface CardEffect
      * @return 最終ダメージ ({@code >= 1})
      */
     public int resolve(Stats attacker, Stats defender, CardElement element) {
-      Objects.requireNonNull(attacker, "attacker");
-      Objects.requireNonNull(defender, "defender");
-      Objects.requireNonNull(element, "element");
-      int raw =
-          switch (element) {
-            case PHYSICAL -> baseValue + attacker.physicalAttack() - defender.physicalDefense();
-            case MAGICAL -> baseValue + attacker.magicalAttack() - defender.magicalDefense();
-          };
-      return Math.max(1, raw);
+      // ADR-17 改訂 + DRY: 計算式は DamageFormula に集約。本メソッドは Damage record の薄い窓口 (公開 API 互換維持)。
+      return DamageFormula.resolve(baseValue, attacker, defender, element);
     }
   }
 

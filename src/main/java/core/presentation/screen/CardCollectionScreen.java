@@ -15,7 +15,6 @@ import core.domain.card.Card;
 import core.domain.card.CardElement;
 import core.domain.card.CardId;
 import core.infrastructure.bootstrap.CardImageRegistry;
-import core.infrastructure.bootstrap.InitialStateFactory;
 import core.presentation.render.CardDescriber;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
@@ -47,7 +46,7 @@ public final class CardCollectionScreen extends ScreenAdapter {
   private static final Color LOCKED = new Color(0.38f, 0.38f, 0.44f, 1f);
 
   private final DddGame game;
-  private final List<Card> allCards = InitialStateFactory.cardCatalog().all();
+  private final List<Card> allCards;
 
   private OrthographicCamera camera;
   private Viewport viewport;
@@ -57,6 +56,8 @@ public final class CardCollectionScreen extends ScreenAdapter {
 
   public CardCollectionScreen(DddGame game) {
     this.game = game;
+    // presentation → infrastructure 依存方向違反を解消するため、DddGame 経由で間接化。
+    this.allCards = game.cardCatalog().all();
   }
 
   @Override

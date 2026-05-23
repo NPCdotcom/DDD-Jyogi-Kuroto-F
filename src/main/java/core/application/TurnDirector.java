@@ -169,10 +169,14 @@ public final class TurnDirector {
     }
     for (Enemy enemy : context.state().enemies()) {
       Optional<Enemy> me = context.state().findEnemy(enemy.id());
-      if (me.isEmpty() || me.get().actionPoints().isEmpty()) {
+      if (me.isEmpty()) {
         continue;
       }
-      BattleAction decision = EnemyAi.decide(me.get(), context.state());
+      Enemy current = me.get();
+      if (current.actionPoints().isEmpty()) {
+        continue;
+      }
+      BattleAction decision = EnemyAi.decide(current, context.state());
       StepResult r = TurnEngine.resolveEnemyAction(context.state(), enemy.id(), decision);
       context.applyResult(r);
       if (r.wasRejected()) {

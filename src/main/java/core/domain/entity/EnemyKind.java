@@ -44,4 +44,23 @@ public enum EnemyKind {
   public int goldReward() {
     return goldReward;
   }
+
+  /**
+   * 強化個体かを返す (§15-3 / §15-6 カード追加 UI の発火判定)。
+   *
+   * <p>呼出側で {@code kind() == EnemyKind.ELITE_SLIME} と書く代わりにこのヘルパを使うことで、新規 Elite 系敵 を追加する際に判定箇所が漏れない
+   * (SOLID / 驚き最小)。
+   */
+  public boolean isElite() {
+    return this == ELITE_SLIME;
+  }
+
+  /**
+   * ボスかを返す (§15-6 RUN_CLEARED 判定の前提)。
+   *
+   * <p>新規ボス系敵を追加する際にこのヘルパに集約することで判定箇所が漏れない。
+   */
+  public boolean isBoss() {
+    return this == BOSS;
+  }
 }

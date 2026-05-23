@@ -22,19 +22,14 @@ public final class CardDescriber {
       case CardEffect.Damage d -> elem + "ダメージ " + d.baseValue();
       case CardEffect.Move m -> m.distance() + " マス移動";
       case CardEffect.Buff b ->
-          buffLabel(b.kind()) + " " + signed(b.amount()) + " (" + b.durationTurns() + "T)";
+          BuffKindLabels.labelOf(b.kind(), true)
+              + " "
+              + signed(b.amount())
+              + " ("
+              + b.durationTurns()
+              + "T)";
       case CardEffect.Trap t ->
           "罠 " + elem + " " + t.baseValue() + " / " + trapLifetimeLabel(t.lifetime());
-    };
-  }
-
-  private static String buffLabel(CardEffect.BuffKind kind) {
-    return switch (kind) {
-      case PHYSICAL_ATTACK_UP -> "物攻";
-      case MAGICAL_ATTACK_UP -> "魔攻";
-      case PHYSICAL_DEFENSE_UP -> "物防";
-      case MAGICAL_DEFENSE_UP -> "魔防";
-      case SPEED_UP -> "速度";
     };
   }
 

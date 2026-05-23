@@ -1,5 +1,6 @@
 package core.domain.dungeon;
 
+import core.domain.battle.DamageFormula;
 import core.domain.card.CardElement;
 import core.domain.card.TrapLifetime;
 import core.domain.common.Position;
@@ -58,12 +59,8 @@ public record PlacedTrap(
    * 将来、設置者ステ依存に拡張する場合は PlacedTrap にスナップショットフィールドを追加。
    */
   public int resolveDamage(Stats victim) {
-    Objects.requireNonNull(victim, "victim");
-    int defense =
-        switch (element) {
-          case PHYSICAL -> victim.physicalDefense();
-          case MAGICAL -> victim.magicalDefense();
-        };
-    return Math.max(1, baseValue - defense);
+    // ADR-22 + DRY: 計算は DamageFormula へ集約。罠は攻撃側ステに依存しない (固定 baseValue) ため resolveWithoutAttacker
+    // を使う。
+    return DamageFormula.resolveWithoutAttacker(baseValue, victim, element);
   }
 }

@@ -173,6 +173,9 @@ public final class EquipmentScreen extends ScreenAdapter {
     sb.append(label).append(value > 0 ? "+" : "").append(value);
   }
 
+  // EquipmentScreen は static rowText 階層が深く DddGame 経由化に大規模リファクタが必要。
+  // Fonts と同様、infrastructure 直接参照は presentation→infrastructure の許容範囲 (CLAUDE.md
+  // 「presentation は application + infrastructure を使う」)。M2 で全 Screen 統一時に対応する。
   private static String grantedCardText(Equipment eq) {
     if (eq.grantedCards().isEmpty()) {
       return "-";
