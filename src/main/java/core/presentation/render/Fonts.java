@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFont
 import com.badlogic.gdx.utils.Disposable;
 import core.domain.entity.EnemyKind;
 import core.domain.layer.LayerEndNode;
+import core.domain.layer.NodeResolveContext;
 import core.domain.tree.SoulTree;
 import core.domain.tree.TreeNode;
 import core.infrastructure.bootstrap.CardCatalog;
@@ -222,12 +223,17 @@ public final class Fonts implements Disposable {
     }
     // LayerEndNode 全 5 種の動的 displayName を網羅 (NodeChoicePopup 文字黒化対策、
     // §15-8 5 候補抽選で表示される全選択肢のグリフを事前生成)。
-    addAllChars(set, new LayerEndNode.HpMaxUp(5).displayName()); // "HP +5"
-    addAllChars(set, new LayerEndNode.SpeedUp(1).displayName()); // "速度 +1"
-    addAllChars(set, new LayerEndNode.Rest().displayName()); // "HP 全回復"
+    // Wave 3 Task A: displayName(NodeResolveContext) に signature 変更。グリフ事前生成専用の
+    // 簡易 context を組み立てて渡す (cards / equipments を Catalog の get に委譲)。
+    NodeResolveContext glyphContext =
+        new NodeResolveContext(cardCatalog::get, equipmentCatalog::get);
+    addAllChars(set, new LayerEndNode.HpMaxUp(5).displayName(glyphContext)); // "HP +5"
+    addAllChars(set, new LayerEndNode.SpeedUp(1).displayName(glyphContext)); // "速度 +1"
+    addAllChars(set, new LayerEndNode.Rest().displayName(glyphContext)); // "HP 全回復"
     // Shop の固定フォーマット "ショップ: %s (金貨 %d)" の文字を網羅
     // (引数 Card の displayName は下のカードマスタ走査で収集される)。
-    addAllChars(set, new LayerEndNode.Shop(0, cardCatalog.all().get(0)).displayName());
+    addAllChars(
+        set, new LayerEndNode.Shop(0, cardCatalog.all().get(0).id()).displayName(glyphContext));
     // Event の displayLabel は DungeonScreen.createNodeChoicePopup でハードコード渡し。
     // 現状の唯一の Event displayLabel をここに転写 (M2 で候補プールを集約して自動化予定)。
     addAllChars(set, "ソウルの祠 (ソウル +30 / HP -5)");

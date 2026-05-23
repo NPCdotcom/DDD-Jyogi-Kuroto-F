@@ -301,11 +301,13 @@ public final class DungeonScreen extends ScreenAdapter {
               eliteCardChoice = null;
               if (choice instanceof LayerEndNode.Shop shop) {
                 boolean jp = game.fonts().isJapaneseAvailable();
+                // Wave 3 Task A: Shop は CardId 保持なので cardCatalog 経由で displayName を解決
+                String cardName = game.cardCatalog().get(shop.cardId()).displayName();
                 showFlash(
                     (jp
                             ? Strings.Ja.CARD_REWARD_GAINED_FORMAT
                             : Strings.En.CARD_REWARD_GAINED_FORMAT)
-                        .formatted(shop.grantedCard().displayName()));
+                        .formatted(cardName));
               }
             });
   }
@@ -344,12 +346,14 @@ public final class DungeonScreen extends ScreenAdapter {
     List<LayerEndNode> choices = new ArrayList<>();
     int n = Math.min(NodeChoicePopup.CHOICE_COUNT, rewards.size());
     for (int i = 0; i < n; i++) {
-      choices.add(new LayerEndNode.Shop(0, rewards.get(i)));
+      // Wave 3 Task A: Shop は CardId 保持に変更されたため card.id() を渡す
+      choices.add(new LayerEndNode.Shop(0, rewards.get(i).id()));
     }
     boolean jp = game.fonts().isJapaneseAvailable();
     String title = jp ? Strings.Ja.ELITE_CARD_REWARD_TITLE : Strings.En.ELITE_CARD_REWARD_TITLE;
     // large(32px) 等倍。hud(16px)+setFontScale(2f) は Scene2D で漢字が黒四角化するため使えない。
-    return new NodeChoicePopup(game.fonts().large(), title, List.copyOf(choices));
+    return new NodeChoicePopup(
+        game.fonts().large(), title, List.copyOf(choices), game.nodeResolveContext());
   }
 
   /** カードマスタ (cards.json) からランダムに 1 枚返す (層末ショップノードのカード抽選用)。 */
@@ -378,7 +382,8 @@ public final class DungeonScreen extends ScreenAdapter {
                 new LayerEndNode.HpMaxUp(5),
                 new LayerEndNode.SpeedUp(1),
                 new LayerEndNode.Rest(),
-                new LayerEndNode.Shop(5, randomCatalogCard()),
+                // Wave 3 Task A: Shop は CardId 保持。ランダム抽選カードを id だけ渡す。
+                new LayerEndNode.Shop(5, randomCatalogCard().id()),
                 new LayerEndNode.Event(30, -5, 0, "ソウルの祠 (ソウル +30 / HP -5)")));
     Collections.shuffle(allCandidates, rng);
     List<LayerEndNode> choices =
@@ -389,7 +394,7 @@ public final class DungeonScreen extends ScreenAdapter {
             ? Strings.Ja.LAYER_END_TITLE
             : Strings.En.LAYER_END_TITLE;
     // large(32px) 等倍。hud(16px)+setFontScale(2f) は Scene2D で漢字が黒四角化するため使えない。
-    return new NodeChoicePopup(game.fonts().large(), title, choices);
+    return new NodeChoicePopup(game.fonts().large(), title, choices, game.nodeResolveContext());
   }
 
   /** 0-indexed の i (0〜2) を NUM_1〜NUM_3 にマップ。範囲外は IAE。 */

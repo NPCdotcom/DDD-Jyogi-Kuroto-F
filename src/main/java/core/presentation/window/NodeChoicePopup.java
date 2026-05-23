@@ -14,6 +14,7 @@ import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import core.domain.layer.LayerEndNode;
+import core.domain.layer.NodeResolveContext;
 import core.presentation.render.RenderLayout;
 import java.util.List;
 import java.util.Objects;
@@ -49,11 +50,15 @@ public final class NodeChoicePopup implements Disposable {
    *     LibGDX バグに遭遇したため、 等倍 32px で運用する。
    * @param title Window タイトル (Strings.Ja/En.LAYER_END_TITLE を呼出側で日英解決して渡す)
    * @param choices サイズ 3 必須、それ以外は IAE
+   * @param context Wave 3 Task A: 各 LayerEndNode の {@link
+   *     LayerEndNode#displayName(NodeResolveContext)} 呼出に渡す Card / Equipment 解決コンテキスト
    */
-  public NodeChoicePopup(BitmapFont font, String title, List<LayerEndNode> choices) {
+  public NodeChoicePopup(
+      BitmapFont font, String title, List<LayerEndNode> choices, NodeResolveContext context) {
     Objects.requireNonNull(font, "font");
     Objects.requireNonNull(title, "title");
     Objects.requireNonNull(choices, "choices");
+    Objects.requireNonNull(context, "context");
     if (choices.size() != CHOICE_COUNT) {
       throw new IllegalArgumentException(
           "exactly " + CHOICE_COUNT + " choices required, got " + choices.size());
@@ -84,8 +89,9 @@ public final class NodeChoicePopup implements Disposable {
     // 参照がずれて漢字が黒四角化する (LibGDX 1.14 既知挙動)。large(32px) を等倍で運用する。
 
     for (int i = 0; i < CHOICE_COUNT; i++) {
+      // Wave 3 Task A: displayName は NodeResolveContext を受けるため、構築時に context を解決して渡す。
       Label line =
-          new Label("  [%d]  %s".formatted(i + 1, choices.get(i).displayName()), labelStyle);
+          new Label("  [%d]  %s".formatted(i + 1, choices.get(i).displayName(context)), labelStyle);
       line.setColor(Color.WHITE);
       window.add(line).left().padBottom(16f).row();
     }

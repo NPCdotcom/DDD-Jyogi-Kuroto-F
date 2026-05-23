@@ -206,6 +206,23 @@ public final class DddGame extends Game {
     return core.infrastructure.bootstrap.InitialStateFactory.cardCatalog();
   }
 
+  /**
+   * 装備マスタ (§15-9)。{@link #cardCatalog()} と同型の窓口 (Wave 3 Task A で追加)。 NodeResolveContext 組み立てや装備画面が
+   * presentation → infrastructure の直接参照を避けるために使う。
+   */
+  public core.infrastructure.bootstrap.EquipmentCatalog equipmentCatalog() {
+    return core.infrastructure.bootstrap.InitialStateFactory.equipmentCatalog();
+  }
+
+  /**
+   * 層末ノード解決用の {@link core.domain.layer.NodeResolveContext} を組み立てて返す (Wave 3 Task A)。 cards /
+   * equipments の resolver はマスタ {@code get} method reference で構成、ドメイン層は Function のみ参照する。
+   */
+  public core.domain.layer.NodeResolveContext nodeResolveContext() {
+    return new core.domain.layer.NodeResolveContext(
+        id -> cardCatalog().get(id), id -> equipmentCatalog().get(id));
+  }
+
   public SoulTree soulTree() {
     return soulTree;
   }
@@ -312,7 +329,8 @@ public final class DddGame extends Game {
    * <p>処理:
    *
    * <ol>
-   *   <li>{@link LayerEndNode#apply(Player)} で Player を強化 (純関数)
+   *   <li>{@link LayerEndNode#apply(Player, core.domain.layer.NodeResolveContext)} で Player を強化
+   *       (純関数)
    *   <li>強化済の Player を含む新 state を {@link InitialStateFactory#advanceLayer} に渡し、次層 state を生成
    *   <li>{@link TurnDirector#advanceFloor} に委譲し、AP リフィル + 1 枚ドロー + イベント発火
    * </ol>
@@ -323,7 +341,8 @@ public final class DddGame extends Game {
   public void resolveLayerEndChoice(LayerEndNode choice) {
     Objects.requireNonNull(choice, "choice");
     DungeonState current = context.state();
-    Player upgraded = choice.apply(current.player());
+    // Wave 3 Task A: Shop は CardId 保持なので cards / equipments resolver を context 経由で渡す
+    Player upgraded = choice.apply(current.player(), nodeResolveContext());
     DungeonState withUpgrade = current.withPlayer(upgraded);
     // GameContext.maxLayer を渡し、SoulTree.LayerExtendEffect で拡張済の最終層番号を反映
     director.advanceFloor(
@@ -336,13 +355,13 @@ public final class DddGame extends Game {
   /**
    * §15-3 / §15-6: 強化個体撃破時にカード追加効果を Player に適用する (層遷移は伴わない)。
    *
-   * <p>{@link LayerEndNode#apply(Player)} を呼ぶだけで、{@link core.application.TurnDirector#advanceFloor}
-   * は呼ばない (戦闘継続中のため)。
+   * <p>{@link LayerEndNode#apply(Player, core.domain.layer.NodeResolveContext)} を呼ぶだけで、{@link
+   * core.application.TurnDirector#advanceFloor} は呼ばない (戦闘継続中のため)。
    */
   public void applyEliteCardReward(LayerEndNode choice) {
     Objects.requireNonNull(choice, "choice");
     DungeonState current = context.state();
-    Player upgraded = choice.apply(current.player());
+    Player upgraded = choice.apply(current.player(), nodeResolveContext());
     context.applyResult(new StepResult(current.withPlayer(upgraded), java.util.List.of()));
     recordObtainedCards(); // §15-3: 強化個体報酬で入手したカードを図鑑に記録
   }
