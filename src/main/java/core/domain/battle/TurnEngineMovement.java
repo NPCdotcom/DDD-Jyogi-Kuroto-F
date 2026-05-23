@@ -31,11 +31,11 @@ final class TurnEngineMovement {
     Player player = state.player();
     boolean usingPendingMove = player.pendingMoveCount() > 0;
     if (!usingPendingMove && !player.actionPoints().canSpend(1)) {
-      return TurnEngine.reject(state, player.id(), "AP 不足");
+      return TurnEngineHelpers.reject(state, player.id(), "AP 不足");
     }
     Position next = player.position().move(direction);
     if (!state.map().isWalkable(next) || state.findEnemyAt(next).isPresent()) {
-      return TurnEngine.reject(state, player.id(), "そこへは移動できない");
+      return TurnEngineHelpers.reject(state, player.id(), "そこへは移動できない");
     }
     Player moved;
     if (usingPendingMove) {
@@ -51,24 +51,24 @@ final class TurnEngineMovement {
       events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.CLEARED));
     }
     // ADR-22: 罠踏み判定 (Player が罠タイルに進入したか)。CLEARED 時もダメージは入る (踏破直前の罠で死亡もあり得る)。
-    afterMove = TurnEngine.checkAndTriggerTrap(afterMove, moved.id(), next, true, events);
+    afterMove = TurnEngineHelpers.checkAndTriggerTrap(afterMove, moved.id(), next, true, events);
     return new StepResult(afterMove, events);
   }
 
   /** 敵の単純移動 (1 マス、AP 1 消費)。移動先が壁・他アクタなら reject、罠タイルなら踏破判定を呼ぶ。 */
   static StepResult applyEnemyMove(DungeonState state, Enemy enemy, Direction direction) {
     if (!enemy.actionPoints().canSpend(1)) {
-      return TurnEngine.reject(state, enemy.id(), "AP 不足");
+      return TurnEngineHelpers.reject(state, enemy.id(), "AP 不足");
     }
     Position next = enemy.position().move(direction);
     if (!state.map().isWalkable(next) || state.isPositionOccupied(next)) {
-      return TurnEngine.reject(state, enemy.id(), "そこへは移動できない");
+      return TurnEngineHelpers.reject(state, enemy.id(), "そこへは移動できない");
     }
     Enemy moved = enemy.withPosition(next).withActionPoints(enemy.actionPoints().spend(1));
     DungeonState afterMove = state.withEnemyReplaced(moved);
     List<BattleEvent> events = new ArrayList<>();
     events.add(new BattleEvent.Moved(enemy.id(), enemy.position(), next));
-    afterMove = TurnEngine.checkAndTriggerTrap(afterMove, moved.id(), next, false, events);
+    afterMove = TurnEngineHelpers.checkAndTriggerTrap(afterMove, moved.id(), next, false, events);
     return new StepResult(afterMove, events);
   }
 }

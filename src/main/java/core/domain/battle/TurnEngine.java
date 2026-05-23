@@ -1,17 +1,12 @@
 package core.domain.battle;
 
 import core.domain.card.ActiveBuff;
-import core.domain.card.TrapLifetime;
-import core.domain.common.Position;
 import core.domain.dungeon.DungeonState;
 import core.domain.dungeon.PlacedTrap;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
 import core.domain.entity.Player;
 import core.domain.entity.PlayerStatuses;
-import core.domain.entity.Stats;
-import core.domain.meta.Gold;
-import core.domain.meta.Soul;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -50,7 +45,7 @@ public final class TurnEngine {
     Objects.requireNonNull(state, "state");
     Objects.requireNonNull(action, "action");
     if (state.phase() != TurnPhase.PLAYER_TURN) {
-      return reject(state, state.player().id(), "プレイヤーのターンではない");
+      return TurnEngineHelpers.reject(state, state.player().id(), "プレイヤーのターンではない");
     }
     return switch (action) {
       case BattleAction.Move move -> TurnEngineMovement.applyPlayerMove(state, move.direction());
@@ -128,11 +123,11 @@ public final class TurnEngine {
     Objects.requireNonNull(enemyId, "enemyId");
     Objects.requireNonNull(action, "action");
     if (state.phase() != TurnPhase.ENEMY_TURN) {
-      return reject(state, enemyId, "敵のターンではない");
+      return TurnEngineHelpers.reject(state, enemyId, "敵のターンではない");
     }
     Optional<Enemy> enemyOpt = state.findEnemy(enemyId);
     if (enemyOpt.isEmpty()) {
-      return reject(state, enemyId, "敵が存在しない");
+      return TurnEngineHelpers.reject(state, enemyId, "敵が存在しない");
     }
     Enemy enemy = enemyOpt.get();
     return switch (action) {
@@ -141,7 +136,8 @@ public final class TurnEngine {
       case BattleAction.UseSkill use ->
           TurnEngineSkillResolver.applyEnemySkill(state, enemy, use.slotIndex());
       // §15-3 / ADR-18: 敵はカードを使わない (Skill ベース)。誤って UseCard が渡されたら reject。
-      case BattleAction.UseCard ignored -> reject(state, enemy.id(), "敵はカードを使えない");
+      case BattleAction.UseCard ignored ->
+          TurnEngineHelpers.reject(state, enemy.id(), "敵はカードを使えない");
       case BattleAction.Wait ignored -> applyEnemyWait(state, enemy);
       case BattleAction.EndTurn ignored -> new StepResult(state, List.of());
     };
@@ -175,7 +171,7 @@ public final class TurnEngine {
   private static StepResult applyPlayerWait(DungeonState state) {
     Player player = state.player();
     if (!player.actionPoints().canSpend(1)) {
-      return reject(state, player.id(), "AP 不足");
+      return TurnEngineHelpers.reject(state, player.id(), "AP 不足");
     }
     Player after = player.withActionPoints(player.actionPoints().spend(1));
     return new StepResult(state.withPlayer(after), List.of());
@@ -190,7 +186,7 @@ public final class TurnEngine {
 
   private static StepResult applyEnemyWait(DungeonState state, Enemy enemy) {
     if (!enemy.actionPoints().canSpend(1)) {
-      return reject(state, enemy.id(), "AP 不足");
+      return TurnEngineHelpers.reject(state, enemy.id(), "AP 不足");
     }
     Enemy after = enemy.withActionPoints(enemy.actionPoints().spend(1));
     return new StepResult(state.withEnemyReplaced(after), List.of());
@@ -202,143 +198,8 @@ public final class TurnEngine {
 
   // Wave 5 W5-α-3: applyEffectByPlayer / applyEffectByEnemy / resolveSkillDamage
   // / resolveDamageToPlayer は {@link TurnEngineSkillResolver} に切り出し済。
-
-  /**
-   * 敵にダメージを適用する共通ヘルパ (ADR-18 で int finalDamage 受け取りに統一)。
-   *
-   * <p>Skill 経路 ({@link #resolveSkillDamage} 計算結果) と Card 経路 ({@code CardEffect.Damage.resolve}
-   * 計算結果) のどちらからも、防御適用済みの確定 int を受け取る。本メソッドは二重減算しない。
-   */
-  static StepResult resolveDamageToEnemy(
-      DungeonState state, int finalDamage, Enemy target, List<BattleEvent> events) {
-    Stats damagedStats = target.stats().damaged(finalDamage);
-    events.add(
-        new BattleEvent.DamageDealt(
-            state.player().id(), target.id(), finalDamage, damagedStats.currentHp()));
-    if (!damagedStats.isAlive()) {
-      events.add(new BattleEvent.ActorDied(target.id()));
-      int soulReward = target.kind().soulReward();
-      int goldReward = target.kind().goldReward();
-      // §15-2: 撃破時に Soul + Gold を加算 (敵種ごとのレート)。
-      Player rewardedPlayer =
-          state.player().addSoul(new Soul(soulReward)).addGold(new Gold(goldReward));
-      events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), soulReward));
-      events.add(new BattleEvent.GoldGained(rewardedPlayer.id(), goldReward));
-      // §15-3 / §15-6: 強化個体撃破時にプレゼン層でカード追加 UI を発火するためのトリガ。
-      if (target.kind().isElite()) {
-        events.add(new BattleEvent.EliteDefeated(target.id()));
-      }
-      DungeonState ns = state.withEnemyRemoved(target.id()).withPlayer(rewardedPlayer);
-      // 階段踏破での CLEARED 遷移は applyPlayerMove で行う。敵全滅では CLEARED にしない
-      // (敵 1 体撃破で即クリアになるのを避けるため)。
-      // §15-6 例外: ボス撃破 = ラン勝利 (RUN_CLEARED)。ボスは最終層・最終部屋にのみ配置され、
-      // そのフロアに階段は無いため、ボス撃破が唯一の進行手段となる。
-      if (target.kind().isBoss()) {
-        ns = ns.withPhase(TurnPhase.RUN_CLEARED);
-        events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.RUN_CLEARED));
-      }
-      return new StepResult(ns, events);
-    }
-    Enemy hit = target.withStats(damagedStats);
-    return new StepResult(state.withEnemyReplaced(hit), events);
-  }
-
-  // ===================================================================================
-  //  Helpers
-  // ===================================================================================
-
-  /**
-   * 失敗アクションを {@link BattleEvent.ActionRejected} で表現する共通ヘルパ。
-   *
-   * <p>Wave 5 W5-α-1 以降、同パッケージの {@link TurnEngineMovement} 等から呼べるよう package-private。
-   */
-  static StepResult reject(DungeonState state, ActorId who, String reason) {
-    return new StepResult(state, List.of(new BattleEvent.ActionRejected(who, reason)));
-  }
-
-  /**
-   * 罠踏み判定 + ダメージ適用の共通ヘルパ (§15-3 / ADR-22)。プレイヤー / 敵どちらの移動でも呼ばれる。
-   *
-   * <ol>
-   *   <li>{@code at} に罠があるか {@link DungeonState#findTrapAt} で確認、無ければ state をそのまま返す
-   *   <li>{@link PlacedTrap#resolveDamage(Stats)} で最終ダメージを確定 (element に応じた物防/魔防参照)
-   *   <li>victim の Stats を damaged で減算、{@link BattleEvent.TrapTriggered} 発火
-   *   <li>{@link TrapLifetime.UntilStepped} なら罠を除去、{@link TrapLifetime.Turns} なら維持
-   *   <li>victim 死亡時は ActorDied + プレイヤーなら GAME_OVER、敵なら撃破報酬 + 除去
-   * </ol>
-   */
-  static DungeonState checkAndTriggerTrap(
-      DungeonState state,
-      ActorId victimId,
-      Position at,
-      boolean isPlayer,
-      List<BattleEvent> events) {
-    Optional<PlacedTrap> trapOpt = state.findTrapAt(at);
-    if (trapOpt.isEmpty()) {
-      return state;
-    }
-    PlacedTrap trap = trapOpt.get();
-    // 防御計算はプレイヤーなら実効ステ (装備/Buff 込み)、敵は素ステを使う。
-    Stats defenseStats =
-        isPlayer
-            ? state.player().effectiveStats()
-            : state.findEnemy(victimId).orElseThrow().stats();
-    int damage = trap.resolveDamage(defenseStats);
-    // HP 減算は素ステに対して行う (effectiveStats を damaged → withStats すると実効値が素ステに焼き付くため)。
-    Stats victimBaseStats =
-        isPlayer ? state.player().stats() : state.findEnemy(victimId).orElseThrow().stats();
-    Stats damagedStats = victimBaseStats.damaged(damage);
-    events.add(new BattleEvent.TrapTriggered(victimId, at, damage, damagedStats.currentHp()));
-
-    // UntilStepped なら除去、Turns なら維持 (3 並列レビュー結論、物理/魔法の対比)。
-    List<PlacedTrap> updatedTraps = new ArrayList<>(state.placedTraps().size());
-    for (PlacedTrap t : state.placedTraps()) {
-      if (t.position().equals(at)) {
-        if (t.lifetime() instanceof TrapLifetime.Turns) {
-          updatedTraps.add(t);
-        }
-        // UntilStepped は除去 (updatedTraps に追加しない)
-      } else {
-        updatedTraps.add(t);
-      }
-    }
-    DungeonState ns = state.withPlacedTraps(updatedTraps);
-
-    if (isPlayer) {
-      Player victimPlayer = state.player().withStats(damagedStats);
-      ns = ns.withPlayer(victimPlayer);
-      if (!damagedStats.isAlive()) {
-        events.add(new BattleEvent.ActorDied(victimPlayer.id()));
-        ns = ns.withPhase(TurnPhase.GAME_OVER);
-        events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.GAME_OVER));
-      }
-    } else {
-      Enemy victimEnemy = state.findEnemy(victimId).orElseThrow().withStats(damagedStats);
-      if (!damagedStats.isAlive()) {
-        events.add(new BattleEvent.ActorDied(victimId));
-        int soulReward = victimEnemy.kind().soulReward();
-        int goldReward = victimEnemy.kind().goldReward();
-        // §15-2: 罠撃破でも通常撃破と同じレートで Soul + Gold を加算。
-        Player rewardedPlayer =
-            ns.player().addSoul(new Soul(soulReward)).addGold(new Gold(goldReward));
-        events.add(new BattleEvent.SoulGained(rewardedPlayer.id(), soulReward));
-        events.add(new BattleEvent.GoldGained(rewardedPlayer.id(), goldReward));
-        // §15-3 / §15-6: Elite が罠で死亡した場合もカード追加 UI を発火。
-        if (victimEnemy.kind().isElite()) {
-          events.add(new BattleEvent.EliteDefeated(victimId));
-        }
-        ns = ns.withEnemyRemoved(victimId).withPlayer(rewardedPlayer);
-        // §15-6 例外: 罠でボスを倒した場合もラン勝利 (resolveDamageToEnemy と同じ扱い)。
-        if (victimEnemy.kind().isBoss()) {
-          ns = ns.withPhase(TurnPhase.RUN_CLEARED);
-          events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.RUN_CLEARED));
-        }
-      } else {
-        ns = ns.withEnemyReplaced(victimEnemy);
-      }
-    }
-    return ns;
-  }
+  // Wave 7 W7-α: resolveDamageToEnemy / reject / checkAndTriggerTrap は {@link TurnEngineHelpers}
+  // に切り出し済 (3 リゾルバ + TurnEngine 本体の共通ヘルパとして集約)。
 
   /** 1 ステップの解決結果。state は常に有効で、accepted 判定は events 側の有無で行う。 */
   public record StepResult(DungeonState state, List<BattleEvent> events) {

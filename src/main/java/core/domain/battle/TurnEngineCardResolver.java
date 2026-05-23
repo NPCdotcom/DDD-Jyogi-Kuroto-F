@@ -38,11 +38,11 @@ final class TurnEngineCardResolver {
     CardPileState piles = player.cardPileState();
     int handIndex = action.handIndex();
     if (handIndex >= piles.hand().size()) {
-      return TurnEngine.reject(state, player.id(), "手札範囲外");
+      return TurnEngineHelpers.reject(state, player.id(), "手札範囲外");
     }
     Card card = piles.hand().get(handIndex);
     if (!player.actionPoints().canSpend(card.apCost())) {
-      return TurnEngine.reject(state, player.id(), "AP 不足");
+      return TurnEngineHelpers.reject(state, player.id(), "AP 不足");
     }
     return switch (card.effect()) {
       case CardEffect.Damage dmg ->
@@ -69,7 +69,7 @@ final class TurnEngineCardResolver {
     Position targetPos = player.position().move(direction);
     Optional<Enemy> targetOpt = state.findEnemyAt(targetPos);
     if (targetOpt.isEmpty()) {
-      return TurnEngine.reject(state, player.id(), "対象がいない");
+      return TurnEngineHelpers.reject(state, player.id(), "対象がいない");
     }
     Enemy target = targetOpt.get();
     int finalDamage = dmg.resolve(player.effectiveStats(), target.stats(), card.element());
@@ -80,7 +80,7 @@ final class TurnEngineCardResolver {
     DungeonState afterCostState = state.withPlayer(afterAction);
     List<BattleEvent> events = new ArrayList<>();
     events.add(new BattleEvent.SkillUsed(player.id(), card.displayName()));
-    return TurnEngine.resolveDamageToEnemy(afterCostState, finalDamage, target, events);
+    return TurnEngineHelpers.resolveDamageToEnemy(afterCostState, finalDamage, target, events);
   }
 
   /**
@@ -143,7 +143,7 @@ final class TurnEngineCardResolver {
     Player player = state.player();
     Position trapPos = player.position().move(direction);
     if (!state.map().isWalkable(trapPos)) {
-      return TurnEngine.reject(state, player.id(), "そこには罠を設置できない");
+      return TurnEngineHelpers.reject(state, player.id(), "そこには罠を設置できない");
     }
     List<PlacedTrap> newTraps = new ArrayList<>(state.placedTraps().size() + 1);
     for (PlacedTrap t : state.placedTraps()) {

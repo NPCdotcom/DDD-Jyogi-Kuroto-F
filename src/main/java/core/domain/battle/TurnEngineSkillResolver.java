@@ -35,15 +35,15 @@ final class TurnEngineSkillResolver {
     Player player = state.player();
     Optional<Skill> skillOpt = player.skillSlot().at(slotIndex);
     if (skillOpt.isEmpty()) {
-      return TurnEngine.reject(state, player.id(), "スキル枠が空");
+      return TurnEngineHelpers.reject(state, player.id(), "スキル枠が空");
     }
     Skill skill = skillOpt.get();
     if (!player.actionPoints().canSpend(skill.apCost())) {
-      return TurnEngine.reject(state, player.id(), "AP 不足");
+      return TurnEngineHelpers.reject(state, player.id(), "AP 不足");
     }
     Optional<Enemy> targetOpt = findAdjacentEnemy(state, player.position());
     if (targetOpt.isEmpty()) {
-      return TurnEngine.reject(state, player.id(), "対象がいない");
+      return TurnEngineHelpers.reject(state, player.id(), "対象がいない");
     }
     Player afterCost = player.withActionPoints(player.actionPoints().spend(skill.apCost()));
     DungeonState afterCostState = state.withPlayer(afterCost);
@@ -54,14 +54,14 @@ final class TurnEngineSkillResolver {
   static StepResult applyEnemySkill(DungeonState state, Enemy enemy, int slotIndex) {
     Optional<Skill> skillOpt = enemy.skillSlot().at(slotIndex);
     if (skillOpt.isEmpty()) {
-      return TurnEngine.reject(state, enemy.id(), "スキル枠が空");
+      return TurnEngineHelpers.reject(state, enemy.id(), "スキル枠が空");
     }
     Skill skill = skillOpt.get();
     if (!enemy.actionPoints().canSpend(skill.apCost())) {
-      return TurnEngine.reject(state, enemy.id(), "AP 不足");
+      return TurnEngineHelpers.reject(state, enemy.id(), "AP 不足");
     }
     if (!enemy.position().isAdjacentTo(state.player().position())) {
-      return TurnEngine.reject(state, enemy.id(), "対象がいない");
+      return TurnEngineHelpers.reject(state, enemy.id(), "対象がいない");
     }
     Enemy afterCost = enemy.withActionPoints(enemy.actionPoints().spend(skill.apCost()));
     DungeonState afterCostState = state.withEnemyReplaced(afterCost);
@@ -74,7 +74,7 @@ final class TurnEngineSkillResolver {
     return switch (skill.effect()) {
       // ADR-17 改訂: スキルダメージも被弾側 (敵) の防御を通す。
       case SkillEffect.Damage dmg ->
-          TurnEngine.resolveDamageToEnemy(
+          TurnEngineHelpers.resolveDamageToEnemy(
               state,
               resolveSkillDamage(dmg.amount(), target.stats(), dmg.element()),
               target,
