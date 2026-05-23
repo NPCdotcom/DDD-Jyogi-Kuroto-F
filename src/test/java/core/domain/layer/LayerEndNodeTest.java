@@ -3,6 +3,7 @@ package core.domain.layer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -308,15 +309,44 @@ class LayerEndNodeTest {
     assertEquals(hpBeforeHeal + 7, after.stats().currentHp());
   }
 
+  // Wave 3 Task C: バリデーション緩和。負値 soulDelta / goldDelta は許容 (治療の泉 / 賢者の助言 等)、
+  // ゼロ値だけの「何も変化しないイベント」を拒否する仕様に変更。
   @Test
-  void eventRejectsNegativeSoulOrGoldDelta() {
-    assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.Event(-1, 0, 0, "x"));
-    assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.Event(0, 0, -1, "x"));
+  void eventAcceptsNegativeSoulDelta() {
+    // 治療の泉 (HP +20 / ソウル -10) の構築が成功すること (旧テスト eventRejectsNegativeSoulOrGoldDelta の代替)
+    LayerEndNode.Event healing = new LayerEndNode.Event(-10, 20, 0, "治療の泉");
+    assertEquals(-10, healing.soulDelta());
+    assertEquals(20, healing.hpDelta());
+  }
+
+  @Test
+  void eventAcceptsNegativeGoldDelta() {
+    // 賢者の助言 (将来 Gold コスト型イベント) の構築が成功すること
+    LayerEndNode.Event sage = new LayerEndNode.Event(0, 0, -20, "賢者の助言");
+    assertEquals(-20, sage.goldDelta());
+  }
+
+  @Test
+  void eventRejectsAllZeroDeltas() {
+    // すべて 0 = 何も変化しない無意味イベントは拒否される (緩和後の唯一の compact constructor 拒否条件)
+    assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.Event(0, 0, 0, "無意味イベント"));
+  }
+
+  @Test
+  void eventSilentFailWhenInsufficientSoul() {
+    // 治療の泉 (soulDelta=-10) で player のソウル不足時は silent fail (player そのまま返す)
+    // initialPlayer は Soul.zero() で起動するため、ソウル不足条件を満たす
+    Player p = initialPlayer();
+    assertEquals(0, p.soul().amount(), "前提: 初期 player の soul は 0");
+    LayerEndNode.Event healing = new LayerEndNode.Event(-10, 20, 0, "治療の泉");
+    Player after = healing.apply(p, testContext());
+    assertSame(p, after, "soul 不足時は player をそのまま返す");
   }
 
   @Test
   void eventRejectsBlankDisplayLabel() {
-    assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.Event(0, 0, 0, ""));
+    // ブランク label は依然拒否 (ただし全 0 delta も同時に違反するので、変化があるパラメータでテスト)
+    assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.Event(1, 0, 0, ""));
   }
 
   // ---------------- ShopEquipment (Wave 3 Task B) ----------------

@@ -96,6 +96,18 @@ public record Player(
         id, position, soul.add(delta), gold, statuses, cardPileState, pendingMoveCount);
   }
 
+  /**
+   * §15-2 / §15-8: ソウルを差し引いた新 Player を返す純関数 (addSoul の対称)。
+   *
+   * <p>ソウル不足時 (現在量 &lt; delta) は {@link Soul#subtract(Soul)} が {@link IllegalStateException} を投げる。
+   * 呼出側は事前に {@code player.soul().amount() >= delta.amount()} を検証することを推奨 (例: LayerEndNode.Event の
+   * 「治療の泉」で silent fail パターンで使用)。
+   */
+  public Player subtractSoul(Soul delta) {
+    return new Player(
+        id, position, soul.subtract(delta), gold, statuses, cardPileState, pendingMoveCount);
+  }
+
   /** §15-2 / §15-9: 金貨を加算した新 Player を返す純関数。 */
   public Player addGold(Gold delta) {
     return new Player(

@@ -244,8 +244,10 @@ public final class Fonts implements Disposable {
               .displayName(glyphContext));
     }
     // Event の displayLabel は DungeonScreen.createNodeChoicePopup でハードコード渡し。
-    // 現状の唯一の Event displayLabel をここに転写 (M2 で候補プールを集約して自動化予定)。
+    // Wave 3 Task C で多様化した 3 種を転写 (M2 で候補プールを集約して自動化予定)。
     addAllChars(set, "ソウルの祠 (ソウル +30 / HP -5)");
+    addAllChars(set, "治療の泉 (HP +20 / ソウル -10)");
+    addAllChars(set, "黄金の宝箱 (金貨 +50)");
     // カードマスタ (cards.json) 全カードの displayName グリフを網羅。
     for (var card : cardCatalog.all()) {
       addAllChars(set, card.displayName());

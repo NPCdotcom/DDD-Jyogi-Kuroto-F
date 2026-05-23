@@ -180,11 +180,11 @@ public sealed interface LayerEndNode
   record Event(int soulDelta, int hpDelta, int goldDelta, String displayLabel)
       implements LayerEndNode {
     public Event {
-      if (soulDelta < 0) {
-        throw new IllegalArgumentException("soulDelta must be non-negative: " + soulDelta);
-      }
-      if (goldDelta < 0) {
-        throw new IllegalArgumentException("goldDelta must be non-negative: " + goldDelta);
+      // §UI 改善 Wave 3 Task C: 「治療の泉」(soulDelta=-10) などの負値 delta を許容するため
+      // 個別非負拒否を撤廃し、「すべて 0 = 何も変化がない無意味イベント」のみを拒否する。
+      // Soul/Gold が負値の場合は不足時 silent fail (apply 側で対処)。
+      if (soulDelta == 0 && hpDelta == 0 && goldDelta == 0) {
+        throw new IllegalArgumentException("at least one delta must be non-zero");
       }
       Objects.requireNonNull(displayLabel, "displayLabel");
       if (displayLabel.isBlank()) {
@@ -194,10 +194,19 @@ public sealed interface LayerEndNode
 
     @Override
     public Player apply(Player player, NodeResolveContext context) {
-      // context は未使用 (signature 追従のみ)
+      // context は未使用 (signature 追従のみ)。
+      // §UI 改善 Wave 3 Task C: ソウル/金貨が不足する負値 delta は silent fail (player そのまま返す)。
+      if (soulDelta < 0 && player.soul().amount() < -soulDelta) {
+        return player;
+      }
+      if (goldDelta < 0 && player.gold().amount() < -goldDelta) {
+        return player;
+      }
       Player after = player;
       if (soulDelta > 0) {
         after = after.addSoul(new Soul(soulDelta));
+      } else if (soulDelta < 0) {
+        after = after.subtractSoul(new Soul(-soulDelta));
       }
       if (hpDelta != 0) {
         Stats currentStats = after.stats();
@@ -207,6 +216,8 @@ public sealed interface LayerEndNode
       }
       if (goldDelta > 0) {
         after = after.addGold(new Gold(goldDelta));
+      } else if (goldDelta < 0) {
+        after = after.spendGold(new Gold(-goldDelta));
       }
       return after;
     }

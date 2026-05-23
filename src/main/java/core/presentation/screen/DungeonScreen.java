@@ -404,7 +404,11 @@ public final class DungeonScreen extends ScreenAdapter {
                 // Wave 3 Task A: Shop は CardId 保持。ランダム抽選カードを id だけ渡す。
                 new LayerEndNode.Shop(5, randomCatalogCard().id()),
                 new LayerEndNode.Event(30, -5, 0, "ソウルの祠 (ソウル +30 / HP -5)"),
-                // Wave 3 Task B: 装備購入ノード (層末 5 候補 → 6 候補、3 提示は変えない)。
+                // Wave 3 Task C: イベントノード多様化。soulDelta / goldDelta が負値も許容できるよう
+                // Event の compact constructor を緩和済 (LayerEndNode.java)。
+                new LayerEndNode.Event(-10, 20, 0, "治療の泉 (HP +20 / ソウル -10)"),
+                new LayerEndNode.Event(0, 0, 50, "黄金の宝箱 (金貨 +50)"),
+                // Wave 3 Task B: 装備購入ノード (層末 6 候補 → 8 候補、3 提示は変えない)。
                 new LayerEndNode.ShopEquipment(15, randomEquipmentId())));
     Collections.shuffle(allCandidates, rng);
     List<LayerEndNode> choices =
