@@ -231,38 +231,47 @@ public final class HudRenderer {
     // 描画ステート初期化 (前段の描画から色が引き継がれないよう保険、§UI ブレンドモード明示)
     batch.setColor(Color.WHITE);
 
+    // Wave 10 W10-γ: カード枠 (card_frame.png) が CardImageRegistry にあれば CardRenderer 経由で合成描画、
+    // 無ければ既存テキスト/画像フォールバックを維持 (graceful)。
+    Texture cardFrame = (images != null) ? images.frame() : null;
+
     // カード画像列 — 各カードは固定 X 位置 (handCardBounds と DRY)。選択中は Y を持ち上げ + 黄色ティント。
     for (int i = 0; i < cards.size(); i++) {
       Card card = cards.get(i);
       boolean selected = (i == pendingCardIndex);
       Rectangle bounds = handCardBounds(i);
       float y = bounds.y + (selected ? RenderLayout.HAND_CARD_SELECTED_LIFT : 0f);
+      Texture cardImage = (images != null) ? images.get(card.id()) : null;
+      Color tint = selected ? new Color(1f, 1f, 0.6f, 1f) : Color.WHITE;
 
-      if (images != null) {
-        Texture tex = images.get(card.id());
-        if (tex != null) {
-          batch.setColor(selected ? new Color(1f, 1f, 0.6f, 1f) : Color.WHITE);
-          batch.draw(tex, bounds.x, y, bounds.width, bounds.height);
-          batch.setColor(Color.WHITE);
-        } else {
-          // テクスチャ取得失敗時はテキストフォールバック (既存挙動)
-          font.setColor(selected ? Color.YELLOW : Color.WHITE);
-          font.draw(
-              batch,
-              "[%d]%s".formatted(i + 1, card.displayName()),
-              bounds.x,
-              y + bounds.height / 2f);
-        }
+      if (cardFrame != null && cardImage != null) {
+        // Wave 10 W10-γ: 枠 + イラスト + コスト + 名前 + element 色 を合成描画
+        CardRenderer.drawCard(
+            batch,
+            font,
+            card,
+            cardImage,
+            cardFrame,
+            bounds.x,
+            y,
+            bounds.width,
+            bounds.height,
+            tint);
+      } else if (cardImage != null) {
+        // 枠未投入時の旧描画パス (graceful フォールバック)
+        batch.setColor(tint);
+        batch.draw(cardImage, bounds.x, y, bounds.width, bounds.height);
+        batch.setColor(Color.WHITE);
+        font.setColor(Color.WHITE);
+        font.draw(batch, "AP%d".formatted(card.apCost()), bounds.x + bounds.width - 60f, y + 28f);
       } else {
-        // CardImageRegistry 未注入時はテキストフォールバック (テスト・後方互換)
+        // CardImageRegistry 未注入 or テクスチャ欠落時はテキストフォールバック (テスト・後方互換)
         font.setColor(selected ? Color.YELLOW : Color.WHITE);
         font.draw(
             batch, "[%d]%s".formatted(i + 1, card.displayName()), bounds.x, y + bounds.height / 2f);
+        font.setColor(Color.WHITE);
+        font.draw(batch, "AP%d".formatted(card.apCost()), bounds.x + bounds.width - 60f, y + 28f);
       }
-
-      // AP コスト小書き (画像右下、視認性のため)。選択非選択問わず常時表示。
-      font.setColor(Color.WHITE);
-      font.draw(batch, "AP%d".formatted(card.apCost()), bounds.x + bounds.width - 60f, y + 28f);
     }
 
     // §15-3: 選択中カードのみ詳細テキストを画像群の下 (HAND_DETAIL_TEXT_Y) に表示。

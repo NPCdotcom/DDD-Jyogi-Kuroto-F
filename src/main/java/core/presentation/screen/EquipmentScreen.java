@@ -38,6 +38,12 @@ public final class EquipmentScreen extends ScreenAdapter {
   private static final Color EQUIPPED_COLOR = new Color(0.55f, 1f, 0.6f, 1f);
   private static final Color AVAILABLE_COLOR = new Color(0.82f, 0.82f, 0.88f, 1f);
 
+  /** 装備アイコンの 1 辺サイズ (px、ROW_HEIGHT=56f より小さく、行頭に左寄せ配置)。 */
+  private static final float ICON_SIZE = 40f;
+
+  /** 装備アイコンの X 座標 (LIST_X=90f の左、行頭マージン)。 */
+  private static final float ICON_X = 36f;
+
   private final DddGame game;
   private final List<Equipment> allEquipment;
 
@@ -46,6 +52,13 @@ public final class EquipmentScreen extends ScreenAdapter {
   private SpriteBatch batch;
   private float scrollOffset;
   private float maxScroll;
+
+  /**
+   * 装備アイコン Texture のキャッシュ (Wave 10 W10-γ)。show() で iconPath を持つ装備全件を 1 度だけ Texture 化、 dispose()
+   * で全件解放 (VRAM リーク完全防止、Wave 8 W8-β GameResources パターン継承)。
+   */
+  private java.util.Map<core.domain.equipment.EquipmentId, com.badlogic.gdx.graphics.Texture>
+      equipmentIcons;
 
   public EquipmentScreen(DddGame game) {
     this.game = game;
@@ -61,6 +74,25 @@ public final class EquipmentScreen extends ScreenAdapter {
     viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
     batch = new SpriteBatch();
     maxScroll = Math.max(0f, allEquipment.size() * ROW_HEIGHT - (LIST_TOP_Y - LIST_BOTTOM_Y));
+    // Wave 10 W10-γ: iconPath を持つ装備全件を 1 度だけ Texture 化してキャッシュ。
+    equipmentIcons = new java.util.HashMap<>();
+    for (Equipment eq : allEquipment) {
+      eq.iconPath()
+          .ifPresent(
+              path -> {
+                try {
+                  com.badlogic.gdx.graphics.Texture tex =
+                      new com.badlogic.gdx.graphics.Texture(Gdx.files.internal(path));
+                  tex.setFilter(
+                      com.badlogic.gdx.graphics.Texture.TextureFilter.Nearest,
+                      com.badlogic.gdx.graphics.Texture.TextureFilter.Nearest);
+                  equipmentIcons.put(eq.id(), tex);
+                } catch (Exception e) {
+                  Gdx.app.log(
+                      "EquipmentScreen", "Icon load failed for " + eq.id().value() + ": " + path);
+                }
+              });
+    }
   }
 
   @Override
@@ -127,6 +159,12 @@ public final class EquipmentScreen extends ScreenAdapter {
       }
       Equipment eq = allEquipment.get(i);
       boolean equipped = eq.equals(loadout.get(eq.slot()));
+      // Wave 10 W10-γ: 行頭にアイコン描画 (iconPath ありの装備のみ、欠落は描画スキップ)
+      com.badlogic.gdx.graphics.Texture icon = equipmentIcons.get(eq.id());
+      if (icon != null) {
+        // テキストベースライン (y) より上にアイコン底辺を合わせる: y - ICON_SIZE + フォント高さ調整
+        batch.draw(icon, ICON_X, y - ICON_SIZE + 8f, ICON_SIZE, ICON_SIZE);
+      }
       font.setColor(equipped ? EQUIPPED_COLOR : AVAILABLE_COLOR);
       font.draw(batch, rowText(eq, equipped, jp), LIST_X, y);
     }
@@ -247,6 +285,21 @@ public final class EquipmentScreen extends ScreenAdapter {
   public void dispose() {
     if (batch != null) {
       batch.dispose();
+    }
+    // Wave 10 W10-γ: 装備アイコン Texture 群をループで全件 dispose (VRAM リーク絶対防衛、
+    // Wave 8 W8-β GameResources パターン継承で個別 try-catch)
+    if (equipmentIcons != null) {
+      for (com.badlogic.gdx.graphics.Texture tex : equipmentIcons.values()) {
+        if (tex != null) {
+          try {
+            tex.dispose();
+          } catch (Exception e) {
+            Gdx.app.log("EquipmentScreen", "Icon dispose failed: " + e.getMessage());
+          }
+        }
+      }
+      equipmentIcons.clear();
+      equipmentIcons = null;
     }
   }
 }

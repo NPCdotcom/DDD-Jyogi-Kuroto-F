@@ -110,13 +110,21 @@ public final class EquipmentCatalog {
             ? Optional.of(themeNode.asText())
             : Optional.empty();
 
+    // Wave 10 W10-γ: iconPath は省略可能 (素材未投入の装備は描画スキップ)。
+    JsonNode iconNode = n.get("iconPath");
+    Optional<String> iconPath =
+        (iconNode != null && !iconNode.isNull())
+            ? Optional.of(iconNode.asText())
+            : Optional.empty();
+
     return new Equipment(
         EquipmentId.of(text(n, "id")),
         text(n, "displayName"),
         EquipmentSlot.valueOf(text(n, "slot")),
         bonus,
         granted,
-        themeName);
+        themeName,
+        iconPath);
   }
 
   private static String text(JsonNode n, String field) {
