@@ -15,6 +15,7 @@ import core.domain.equipment.Equipment;
 import core.domain.equipment.EquipmentSlot;
 import core.domain.layer.LayerEndNode;
 import core.domain.meta.Bestiary;
+import core.domain.meta.PlayerProgress;
 import core.domain.meta.Soul;
 import core.domain.tree.NodeId;
 import core.domain.tree.SoulTree;
@@ -63,26 +64,17 @@ public final class DddGame extends Game {
    */
   private Random runRng;
 
-  /** ソウルツリー (§15-7 / E-2)。ラン跨ぎで持続する永続強化状態。セーブは §15-11 で実装済み、層境界ごとにセーブされる。タイトル画面のソウルツリー画面で操作する。 */
-  private SoulTree soulTree = SoulTree.empty();
-
   /**
-   * ラン外のプレイヤー所持ソウル (§15-2 / §15-7)。ラン終了時に Player.soul から書き戻され、 次ラン開始時に新 Player.soul
-   * として注入される。タイトル画面のソウルツリー解放でも消費する。 E-9 セーブ未実装のため JVM 終了でリセット (デフォルト 0)。
+   * ラン外で持続するプレイヤー進捗を集約した不変 record (§15-2/-5/-7/-9/-10/-11、Wave 6 W6-γ で導入)。
+   *
+   * <p>従来 DddGame に散在していた 7 個別フィールド (soulTree / playerSoul / tutorialSeen / runCount /
+   * obtainedCards / bestiary / loadout) を 1 集約に置換。各 setter は {@code progress =
+   * progress.withXxx(...)} で新インスタンスを返す純関数 + 代入で更新する (Escape Analysis でチェイン生成は GC 負荷なし)。
+   *
+   * <p>Screen 公開 API は当面 {@link #soulTree} / {@link #playerSoul} 等の中継 getter で互換維持。 公開 API の
+   * PlayerProgress 直接公開は Wave 7 以降に breaking change として移行予定。
    */
-  private Soul playerSoul = Soul.zero();
-
-  /**
-   * チュートリアル既読フラグ (§15-10 / E-10)。初回起動時のタイトル画面で TutorialOverlay を 1 回表示し、 閉じたら true 化する。E-9
-   * セーブ未実装のため JVM 終了でリセット (起動ごとに 1 回表示で許容)。
-   */
-  private boolean tutorialSeen = false;
-
-  /**
-   * 周回数 (= 完了したラン数、§15-7 / E-2)。{@link #onRunEnded()} で +1 される。1 以上で タイトル画面のソウルツリー動線 (T キー) を解禁する
-   * (1 周目はツリー非表示、1 周目終了時に 初公開)。
-   */
-  private int runCount = 0;
+  private PlayerProgress progress = PlayerProgress.initial(defaultLoadout());
 
   /** セーブ / ロードを担当する (§15-11)。 */
   private final SaveManager saveManager = new SaveManager();
@@ -92,24 +84,6 @@ public final class DddGame extends Game {
 
   /** 現在の設定 (§15-1)。起動時にロードし、SettingsScreen で更新する。 */
   private Settings settings = Settings.DEFAULT;
-
-  /**
-   * これまでに入手したカードの ID 集合 (§15-3 カード図鑑)。カード図鑑の解放判定に使う (入手済 = 解放)。 初期デッキ / 強化個体報酬 /
-   * 層末ショップで入手するたびに記録する。E-9 セーブ未実装のため JVM 終了でリセット。
-   */
-  private final Set<CardId> obtainedCards = new HashSet<>();
-
-  /**
-   * 撃破済み敵種の Bestiary (§15-5 / E-7、ラン内記憶)。次行動予告 UI は M2 送りだが、撃破記録は本セッションで通す。 SaveData への永続化は未対応 (M2
-   * 申し送り)。
-   */
-  private Bestiary bestiary = Bestiary.empty();
-
-  /**
-   * 装備ロードアウト (§15-9)。装備スロット → 装備。EquipmentScreen で編集し、{@link #startNewRun()} で Player に
-   * 反映する。デフォルトはぼろい短剣のみ。E-9 セーブ未実装のため JVM 終了でリセット。
-   */
-  private final Map<EquipmentSlot, Equipment> loadout = defaultLoadout();
 
   private static Map<EquipmentSlot, Equipment> defaultLoadout() {
     Equipment dagger = InitialStateFactory.tatteredDagger();
@@ -122,9 +96,9 @@ public final class DddGame extends Game {
     return context;
   }
 
-  /** 現在の装備ロードアウト (装備画面表示用、防御コピー)。 */
+  /** 現在の装備ロードアウト (装備画面表示用、PlayerProgress 内で既に防御コピー済)。 */
   public Map<EquipmentSlot, Equipment> loadout() {
-    return Map.copyOf(loadout);
+    return progress.loadout();
   }
 
   /**
@@ -134,13 +108,15 @@ public final class DddGame extends Game {
    * themeName=empty} の場合は {@link UiTheme#defaultTheme()} にフォールバック。
    */
   public UiTheme activeUiTheme() {
-    return UiThemeResolver.resolve(loadout);
+    return UiThemeResolver.resolve(progress.loadout());
   }
 
   /** 装備をそのスロットに装着する (同スロットの既存装備は置き換え、§15-9、次ラン開始時に反映)。 */
   public void equipInLoadout(Equipment equipment) {
     Objects.requireNonNull(equipment, "equipment");
-    loadout.put(equipment.slot(), equipment);
+    Map<EquipmentSlot, Equipment> next = new HashMap<>(progress.loadout());
+    next.put(equipment.slot(), equipment);
+    progress = progress.withLoadout(next);
   }
 
   /**
@@ -150,20 +126,22 @@ public final class DddGame extends Game {
    */
   public void unequipSlot(EquipmentSlot slot) {
     Objects.requireNonNull(slot, "slot");
-    if (loadout.size() <= 1) {
+    if (progress.loadout().size() <= 1) {
       return; // 最後の装備は外さない (空デッキ防止)
     }
-    loadout.remove(slot);
+    Map<EquipmentSlot, Equipment> next = new HashMap<>(progress.loadout());
+    next.remove(slot);
+    progress = progress.withLoadout(next);
   }
 
-  /** これまでに入手したカード ID の集合 (カード図鑑の解放判定用、防御コピー)。 */
+  /** これまでに入手したカード ID の集合 (カード図鑑の解放判定用、PlayerProgress 内で既に防御コピー済)。 */
   public Set<CardId> obtainedCards() {
-    return Set.copyOf(obtainedCards);
+    return progress.obtainedCards();
   }
 
   /** 撃破済敵種の Bestiary (§15-5、不変 record、防御コピー不要)。 */
   public Bestiary bestiary() {
-    return bestiary;
+    return progress.bestiary();
   }
 
   /**
@@ -172,7 +150,7 @@ public final class DddGame extends Game {
    * @param kind 撃破した敵の種別
    */
   public void recordEnemyDefeated(EnemyKind kind) {
-    this.bestiary = bestiary.withDefeated(kind);
+    progress = progress.withBestiary(progress.bestiary().withDefeated(kind));
   }
 
   /** 現在の Player が保持する全カード (山札 + 手札 + 捨て札) の ID を入手済として記録する。 */
@@ -181,15 +159,17 @@ public final class DddGame extends Game {
       return;
     }
     CardPileState piles = context.state().player().cardPileState();
+    Set<CardId> next = new HashSet<>(progress.obtainedCards());
     for (Card c : piles.drawPile().cards()) {
-      obtainedCards.add(c.id());
+      next.add(c.id());
     }
     for (Card c : piles.hand().cards()) {
-      obtainedCards.add(c.id());
+      next.add(c.id());
     }
     for (Card c : piles.discardPile().cards()) {
-      obtainedCards.add(c.id());
+      next.add(c.id());
     }
+    progress = progress.withObtainedCards(next);
   }
 
   public TurnDirector director() {
@@ -236,55 +216,56 @@ public final class DddGame extends Game {
   }
 
   public SoulTree soulTree() {
-    return soulTree;
+    return progress.soulTree();
   }
 
   public Soul playerSoul() {
-    return playerSoul;
+    return progress.playerSoul();
   }
 
   public boolean isTutorialSeen() {
-    return tutorialSeen;
+    return progress.tutorialSeen();
   }
 
   /** §15-10 / E-10: チュートリアル overlay を閉じた時に呼び、次回以降の自動表示を抑制する。 */
   public void markTutorialSeen() {
-    this.tutorialSeen = true;
+    progress = progress.withTutorialSeen(true);
   }
 
   /** 完了したラン数 (§15-7 / E-2: 1 以上でソウルツリー動線を解禁)。 */
   public int runCount() {
-    return runCount;
+    return progress.runCount();
   }
 
   /** ラン外のソウルツリー画面でノード解放した結果を受け取る (§15-7)。 */
   public void unlockTreeNode(NodeId nodeId) {
-    SoulTree.UnlockResult result = soulTree.unlock(nodeId, playerSoul);
-    this.soulTree = result.newTree();
-    this.playerSoul = result.newSoul();
+    SoulTree.UnlockResult result = progress.soulTree().unlock(nodeId, progress.playerSoul());
+    progress = progress.withSoulTree(result.newTree()).withPlayerSoul(result.newSoul());
   }
 
   /** ラン外のソウルツリー画面でリセットボタン押下時に呼ぶ (ADR-09)。 */
   public void resetTree() {
-    SoulTree.ResetResult result = soulTree.reset();
-    this.soulTree = result.newTree();
-    this.playerSoul = playerSoul.add(result.refundedSoul());
+    SoulTree.ResetResult result = progress.soulTree().reset();
+    progress =
+        progress
+            .withSoulTree(result.newTree())
+            .withPlayerSoul(progress.playerSoul().add(result.refundedSoul()));
   }
 
   /** ラン終了時 (GameOverScreen 表示時) に Player.soul をラン外保持に書き戻す (§15-7)。 */
   public void preserveSoulFromRun() {
     if (context != null) {
-      this.playerSoul = context.state().player().soul();
+      progress = progress.withPlayerSoul(context.state().player().soul());
     }
   }
 
   /**
-   * ラン終了時 (GameOverScreen 表示時) に呼ぶ (§15-7 / E-2)。{@link #preserveSoulFromRun()} で
-   * 獲得ソウルをラン外保持に退避し、{@link #runCount} を 1 増やす。runCount が 1 以上になることで 以降ソウルツリー動線 (タイトルの T キー) が解禁される。
+   * ラン終了時 (GameOverScreen 表示時) に呼ぶ (§15-7 / E-2)。{@link #preserveSoulFromRun()} で 獲得ソウルをラン外保持に退避し、
+   * runCount を 1 増やす。runCount が 1 以上になることで 以降ソウルツリー動線 (タイトルの T キー) が解禁される。
    */
   public void onRunEnded() {
     preserveSoulFromRun();
-    runCount++;
+    progress = progress.withRunCount(progress.runCount() + 1);
   }
 
   /** 現在の {@link Random} (ダンジョン生成・ターン進行用、{@link DungeonScreen} への注入に使う)。 */
@@ -301,14 +282,14 @@ public final class DddGame extends Game {
     // generateLayerState がボス配置のために最大層数を必要とするため、firstFloor 前に計算する。
     int extendAmount = totalLayerExtendAmount();
     int maxLayer = InitialStateFactory.DEFAULT_MAX_LAYER + extendAmount;
-    DungeonState state = InitialStateFactory.firstFloor(runRng, loadout, maxLayer);
+    DungeonState state = InitialStateFactory.firstFloor(runRng, progress.loadout(), maxLayer);
     // §15-7: ソウルツリーの解放済み効果を Player に適用 (素ステ補正 / カード追加 / 枠拡張)
     // LayerExtendEffect は Player に副作用がないため、ループは no-op (副作用は GameContext.maxLayer 側で集約済)。
-    Player applied = soulTree.applyTo(state.player(), InitialStateFactory::resolveCard);
+    Player applied = progress.soulTree().applyTo(state.player(), InitialStateFactory::resolveCard);
     // §15-2 / §15-7: ラン外のソウル保持を Player に注入 (前回ランからの持ち越し)
-    Player withSoul = applied.addSoul(playerSoul);
+    Player withSoul = applied.addSoul(progress.playerSoul());
     // 注入後は外部保持を 0 に (重複加算防止、preserveSoulFromRun でラン終了時に書き戻る)
-    this.playerSoul = Soul.zero();
+    progress = progress.withPlayerSoul(Soul.zero());
     this.context = GameContext.startNewRun(state.withPlayer(withSoul));
     if (extendAmount > 0) {
       this.context.extendMaxLayer(extendAmount);
@@ -323,7 +304,7 @@ public final class DddGame extends Game {
    */
   private int totalLayerExtendAmount() {
     int total = 0;
-    for (NodeId id : soulTree.unlockedNodes()) {
+    for (NodeId id : progress.soulTree().unlockedNodes()) {
       core.domain.tree.TreeNode node = SoulTree.allNodes().get(id);
       if (node == null) {
         continue;
@@ -454,13 +435,13 @@ public final class DddGame extends Game {
         SaveDataConverter.toSaveData(
             state.player(),
             nextLayerNumber,
-            playerSoul.amount(),
-            runCount,
-            soulTree,
-            obtainedCards,
-            loadout,
-            bestiary,
-            tutorialSeen);
+            progress.playerSoul().amount(),
+            progress.runCount(),
+            progress.soulTree(),
+            progress.obtainedCards(),
+            progress.loadout(),
+            progress.bestiary(),
+            progress.tutorialSeen());
     saveManager.save(data);
   }
 
@@ -479,30 +460,33 @@ public final class DddGame extends Game {
     }
     SaveData data = optData.get();
 
-    // メタ進捗を復元
-    this.runCount = data.runCount();
-    this.soulTree = SaveDataConverter.toSoulTree(data);
-    this.loadout.clear();
-    this.loadout.putAll(SaveDataConverter.toLoadout(data));
-    this.obtainedCards.clear();
-    this.obtainedCards.addAll(SaveDataConverter.toObtainedCards(data));
-    // Wave 6 W6-β: bestiary + tutorialSeen を復元 (v1 セーブは graceful に空 / false)
-    this.bestiary = SaveDataConverter.toBestiary(data);
-    this.tutorialSeen = data.tutorialSeen();
+    // メタ進捗を一括復元 (Wave 6 W6-γ: PlayerProgress 1 record で集約)
+    // playerSoul はラン状態の Player にこの直後注入するため一旦 zero。SaveData の soulTotal は
+    // savedSoul として下方の Player.addSoul で注入される。
+    progress =
+        new PlayerProgress(
+            Soul.zero(),
+            data.runCount(),
+            data.tutorialSeen(),
+            SaveDataConverter.toObtainedCards(data),
+            SaveDataConverter.toBestiary(data),
+            SaveDataConverter.toLoadout(data),
+            SaveDataConverter.toSoulTree(data));
 
     // ラン状態を復元: 指定層からの新規マップ生成 + プレイヤーステ / デッキ注入
     runRng = new Random();
     // §15-6 / SoulTree LayerExtend: ロード再開でも最大層数を再計算 (SaveData の SoulTree から派生)。
     int extendAmount = totalLayerExtendAmount();
     int maxLayer = InitialStateFactory.DEFAULT_MAX_LAYER + extendAmount;
-    DungeonState baseState = InitialStateFactory.restoreLayer(data, loadout, runRng, maxLayer);
+    DungeonState baseState =
+        InitialStateFactory.restoreLayer(data, progress.loadout(), runRng, maxLayer);
     // §15-7 CRITICAL FIX: ロード時にソウルツリー効果を再適用しない (SaveData は補正済 Stats/Deck/SkillSlot を
     // 保存しているため、再適用すると HP / カード / スキル枠が二重加算される)。
     Player withTree = baseState.player();
     // ランに保持するソウルは SaveData.soulTotal から復元 (playerSoul → Player に注入)
     Soul savedSoul = new Soul(data.soulTotal());
     Player withSoul = withTree.addSoul(savedSoul);
-    this.playerSoul = Soul.zero(); // 注入済みなのでラン外保持は 0
+    // playerSoul はもう Soul.zero() (前段の new PlayerProgress で初期化済)、注入後の保持は維持
 
     DungeonState restoredState = baseState.withPlayer(withSoul);
     this.context = GameContext.startNewRun(restoredState);
