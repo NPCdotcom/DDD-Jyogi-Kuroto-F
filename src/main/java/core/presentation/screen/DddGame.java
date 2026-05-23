@@ -413,8 +413,9 @@ public final class DddGame extends Game {
     // ラン状態を復元: 指定層からの新規マップ生成 + プレイヤーステ / デッキ注入
     runRng = new Random();
     DungeonState baseState = InitialStateFactory.restoreLayer(data, loadout, runRng);
-    // ソウルツリー効果を再適用
-    Player withTree = soulTree.applyTo(baseState.player(), InitialStateFactory::resolveCard);
+    // §15-7 CRITICAL FIX: ロード時にソウルツリー効果を再適用しない (SaveData は補正済 Stats/Deck/SkillSlot を
+    // 保存しているため、再適用すると HP / カード / スキル枠が二重加算される)。
+    Player withTree = baseState.player();
     // ランに保持するソウルは SaveData.soulTotal から復元 (playerSoul → Player に注入)
     Soul savedSoul = new Soul(data.soulTotal());
     Player withSoul = withTree.addSoul(savedSoul);

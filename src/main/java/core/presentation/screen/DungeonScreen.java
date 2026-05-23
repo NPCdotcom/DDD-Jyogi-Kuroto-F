@@ -580,8 +580,12 @@ public final class DungeonScreen extends ScreenAdapter {
     DungeonState s = game.context().state();
     float px = s.player().position().x() * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f;
     float py = s.player().position().y() * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f;
-    camera.position.set(px, py, 0f);
-    // §15-6 UI/UX: 端クランプ撤廃 — プレイヤー常に画面中央、マップ外領域が見えても許容する設計。
+    // §15-6 UI/UX: HUD パネル (画面下 300px) で下半分が隠れるため、プレイヤーを画面 Y=540 ではなく
+    // 可視範囲中央 (HUD 上端 Y=300 〜 画面上端 Y=1080 の中心 Y=690) に置く。
+    // camera.position.y を上にシフト = world unit で -75 (zoom 0.5 適用後の 150 screen px 相当)。
+    float hudPanelHalfWorld = (RenderLayout.HUD_BOTTOM_PANEL_HEIGHT / 2f) * camera.zoom;
+    camera.position.set(px, py - hudPanelHalfWorld, 0f);
+    // §15-6 UI/UX: 端クランプ撤廃 — プレイヤー常に可視範囲中央、マップ外領域が見えても許容する設計。
     if (shakeRemaining > 0f) {
       float intensity = shakeAmplitude * (shakeRemaining / SHAKE_DURATION);
       float angle = (float) (Math.random() * Math.PI * 2.0);

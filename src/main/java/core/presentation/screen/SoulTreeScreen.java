@@ -15,13 +15,18 @@ import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import core.domain.tree.NodeEffect;
 import core.domain.tree.NodeId;
 import core.domain.tree.SoulTree;
 import core.domain.tree.TreeNode;
 import core.presentation.render.Fonts;
+import core.presentation.render.NodeIconPathResolver;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
+import core.presentation.window.SoulNodeUnlockDialog;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -87,7 +92,18 @@ public final class SoulTreeScreen extends ScreenAdapter {
   private Viewport viewport;
   private SpriteBatch batch;
   private ShapeRenderer shape;
-  private Texture nodeTexture;
+
+  /** §15-7 UI 改善: ノード種別ごとのアイコンテクスチャ。CardGrant は CardImageRegistry 経由のため本マップには入れない。 */
+  private final Map<NodeId, Texture> nodeIconTextures = new HashMap<>();
+
+  /** 自前ロードに失敗したノード用の fallback (test.png)。CardImageRegistry のテクスチャとは別所有。 */
+  private Texture fallbackNodeTexture;
+
+  /** §15-7 UI 改善: ノード解放確認モーダル (null = 非表示、非 null = 表示中、入力モーダル化)。 */
+  private SoulNodeUnlockDialog pendingUnlock;
+
+  /** ダイアログで「解放する」と返した時に実際に解放するためのノード ID 保持。 */
+  private NodeId pendingUnlockId;
 
   /** マウスクリック直後の一時メッセージ ("Soul 不足" 等、~2 秒で消える)。 */
   private String flashMessage;
@@ -110,7 +126,9 @@ public final class SoulTreeScreen extends ScreenAdapter {
   }
 
   private static Map<NodeId, Vector2> positions() {
-    Map<NodeId, Vector2> m = new HashMap<>();
+    // §15-7 UI 改善: LinkedHashMap で挿入順を保持し、tryUnlockAt のイテレーションを決定的にする
+    // (HashMap だとシルエットノードが先にヒットして可視ノードを無視するバグの温床)。
+    Map<NodeId, Vector2> m = new LinkedHashMap<>();
     m.put(SoulTree.ROOT, new Vector2(CENTER_X, CENTER_Y));
     m.put(NodeId.of("hp_up_1"), polar(0, 200));
     m.put(NodeId.of("speed_up_1"), polar(60, 200));
@@ -135,7 +153,7 @@ public final class SoulTreeScreen extends ScreenAdapter {
     m.put(NodeId.of("mag_atk_up_2"), polar(180, 700));
     m.put(NodeId.of("phys_def_up_2"), polar(240, 700));
     m.put(NodeId.of("mag_def_up_2"), polar(300, 700));
-    return Map.copyOf(m);
+    return Collections.unmodifiableMap(m);
   }
 
   private static Vector2 polar(double degrees, float radius) {
@@ -156,9 +174,37 @@ public final class SoulTreeScreen extends ScreenAdapter {
     hudCamera.setToOrtho(false, RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT);
     batch = new SpriteBatch();
     shape = new ShapeRenderer();
-    // assets/icons/cards/test.png をプレースホルダとして全ノードで使い回し (Plan 方針)。
-    // ファイル欠損時のフォールバックとして 1x1 灰色テクスチャを生成。
-    nodeTexture = loadOrPlaceholder("icons/cards/test.png");
+    // §15-7 UI 改善: ノード種別ごとに NodeIconPathResolver でアイコンパスを解決し、自前ロード。
+    // CardGrant は CardImageRegistry から都度参照 (本マップには入れない、二重解放を避ける)。
+    fallbackNodeTexture = loadOrPlaceholder("icons/cards/test.png");
+    for (Map.Entry<NodeId, TreeNode> entry : SoulTree.allNodes().entrySet()) {
+      NodeEffect effect = entry.getValue().effect();
+      String path = NodeIconPathResolver.resolve(effect);
+      if (path == null) {
+        continue; // CardGrantEffect は CardImageRegistry 経由
+      }
+      try {
+        if (Gdx.files.internal(path).exists()) {
+          nodeIconTextures.put(entry.getKey(), new Texture(Gdx.files.internal(path)));
+        }
+      } catch (RuntimeException ignored) {
+        // 欠損時は fallbackNodeTexture で代替
+      }
+    }
+  }
+
+  /**
+   * 指定ノードに対応する描画用 Texture を返す。CardGrant は CardImageRegistry から取得、 Stats/Slot/None は自前ロード、それ以外は
+   * fallback。
+   */
+  private Texture nodeIconFor(NodeId id, NodeEffect effect) {
+    if (effect instanceof NodeEffect.CardGrantEffect cg) {
+      Texture tex =
+          game.cardImageRegistry() != null ? game.cardImageRegistry().get(cg.cardId()) : null;
+      return tex != null ? tex : fallbackNodeTexture;
+    }
+    Texture tex = nodeIconTextures.get(id);
+    return tex != null ? tex : fallbackNodeTexture;
   }
 
   private static Texture loadOrPlaceholder(String path) {
@@ -241,10 +287,11 @@ public final class SoulTreeScreen extends ScreenAdapter {
       if (!visible && !silhouette) {
         continue;
       }
+      Texture nodeTex = nodeIconFor(id, node.effect());
       if (silhouette) {
         batch.setColor(0.3f, 0.3f, 0.36f, 0.75f);
         batch.draw(
-            nodeTexture,
+            nodeTex,
             pos.x - NODE_TEX_SIZE / 2,
             pos.y - NODE_TEX_SIZE / 2,
             NODE_TEX_SIZE,
@@ -265,7 +312,7 @@ public final class SoulTreeScreen extends ScreenAdapter {
         batch.setColor(0.35f, 0.35f, 0.4f, 1f);
       }
       batch.draw(
-          nodeTexture,
+          nodeTex,
           pos.x - NODE_TEX_SIZE / 2,
           pos.y - NODE_TEX_SIZE / 2,
           NODE_TEX_SIZE,
@@ -316,10 +363,16 @@ public final class SoulTreeScreen extends ScreenAdapter {
 
     // 4) 非カメラ入力 (ESC / R / flash タイマ)
     handleInput(delta);
+
+    // 5) §15-7 UI: 解放確認ダイアログ (最前面、モーダル) + 結果取得
+    renderAndConsumeUnlockDialog(delta);
   }
 
   /** WASD / 矢印キーでパン、Z / X でズーム。 */
   private void handleCameraInput(float delta) {
+    if (pendingUnlock != null) {
+      return; // モーダル中はパン/ズーム凍結
+    }
     float pan = PAN_SPEED * delta * camera.zoom;
     if (Gdx.input.isKeyPressed(Keys.LEFT) || Gdx.input.isKeyPressed(Keys.A)) {
       camera.position.x -= pan;
@@ -347,6 +400,9 @@ public final class SoulTreeScreen extends ScreenAdapter {
    * unproject は前フレームの カメラ行列を使う (クリック中はカメラ移動がほぼ無いため 1 フレーム遅れは無視できる)。
    */
   private void handlePointer() {
+    if (pendingUnlock != null) {
+      return; // モーダル中はポインタ凍結 (ダイアログが入力を取る)
+    }
     boolean down = Gdx.input.isTouched();
     if (down && !pointerDown) {
       touchStartX = Gdx.input.getX();
@@ -387,6 +443,9 @@ public final class SoulTreeScreen extends ScreenAdapter {
         flashMessage = null;
       }
     }
+    if (pendingUnlock != null) {
+      return; // モーダル中は ESC / R を飲み込む (ダイアログが Y/N/ESC を解決する)
+    }
     if (Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
       game.changeScreen(new TitleScreen(game));
       return;
@@ -398,32 +457,75 @@ public final class SoulTreeScreen extends ScreenAdapter {
     }
   }
 
+  /**
+   * §15-7 UI 改善: 解放確認ダイアログの描画・結果消費。ダイアログが Y/N/ESC で完了したら、結果に 応じて {@code game.unlockTreeNode}
+   * を呼ぶ。フラッシュメッセージは日英ローカライズ済を使う。
+   */
+  private void renderAndConsumeUnlockDialog(float delta) {
+    if (pendingUnlock == null) {
+      return;
+    }
+    pendingUnlock.render(delta);
+    java.util.Optional<Boolean> r = pendingUnlock.consume();
+    if (r.isEmpty()) {
+      return;
+    }
+    if (r.get()) {
+      try {
+        game.unlockTreeNode(pendingUnlockId);
+        showFlash("解放: " + SoulTree.allNodes().get(pendingUnlockId).displayName());
+      } catch (IllegalStateException ex) {
+        boolean jp = game.fonts().isJapaneseAvailable();
+        showFlash(jp ? "ソウルが不足しています" : "Insufficient soul");
+      } catch (IllegalArgumentException ex) {
+        boolean jp = game.fonts().isJapaneseAvailable();
+        showFlash(jp ? "無効なノードです" : "Invalid node");
+      }
+    }
+    pendingUnlock.dispose();
+    pendingUnlock = null;
+    pendingUnlockId = null;
+  }
+
   private void tryUnlockAt(float worldX, float worldY) {
+    // §15-7 UI 改善: 「最近傍の可視ノード」採用 (旧: HashMap 順で最初にヒットしたノードを即解放
+    // → シルエットノードが先にヒットすると可視ノードを無視するバグの温床)。
+    NodeId bestId = null;
+    float bestDistSq = Float.MAX_VALUE;
     for (Map.Entry<NodeId, Vector2> entry : POSITIONS.entrySet()) {
       Vector2 pos = entry.getValue();
       float dx = worldX - pos.x;
       float dy = worldY - pos.y;
-      if (dx * dx + dy * dy <= NODE_RADIUS * NODE_RADIUS) {
-        NodeId clicked = entry.getKey();
-        if (!game.soulTree().isVisible(clicked)) {
-          // 未開示ノード (シルエット) のクリック: 無反応だと混乱するため、前提解放を促す。
-          showFlash(
-              game.fonts().isJapaneseAvailable()
-                  ? Strings.Ja.SOUL_TREE_LOCKED_FLASH
-                  : Strings.En.SOUL_TREE_LOCKED_FLASH);
-          return;
-        }
-        try {
-          game.unlockTreeNode(clicked);
-          showFlash("解放: " + SoulTree.allNodes().get(clicked).displayName());
-        } catch (IllegalStateException ex) {
-          showFlash("解放不可: " + ex.getMessage());
-        } catch (IllegalArgumentException ex) {
-          showFlash("無効ノード: " + ex.getMessage());
-        }
-        return;
+      float distSq = dx * dx + dy * dy;
+      if (distSq > NODE_RADIUS * NODE_RADIUS) {
+        continue;
+      }
+      NodeId candidate = entry.getKey();
+      if (!game.soulTree().isVisible(candidate)) {
+        continue; // シルエットノードは候補から除外
+      }
+      if (distSq < bestDistSq) {
+        bestDistSq = distSq;
+        bestId = candidate;
       }
     }
+    if (bestId == null) {
+      return;
+    }
+    // §15-7 UI 改善: 即解放せず確認ダイアログを開く (誤クリック対策)
+    TreeNode node = SoulTree.allNodes().get(bestId);
+    NodeEffect effect = node.effect();
+    Texture iconTex = nodeIconFor(bestId, effect);
+    boolean isCardGrant = effect instanceof NodeEffect.CardGrantEffect;
+    this.pendingUnlock =
+        new SoulNodeUnlockDialog(
+            game.fonts().title(),
+            game.fonts().large(),
+            node,
+            iconTex,
+            game.playerSoul().amount(),
+            isCardGrant);
+    this.pendingUnlockId = bestId;
   }
 
   private static boolean allPrereqsUnlocked(TreeNode node, SoulTree tree) {
@@ -464,8 +566,20 @@ public final class SoulTreeScreen extends ScreenAdapter {
     if (shape != null) {
       shape.dispose();
     }
-    if (nodeTexture != null) {
-      nodeTexture.dispose();
+    if (fallbackNodeTexture != null) {
+      fallbackNodeTexture.dispose();
+    }
+    for (Texture t : nodeIconTextures.values()) {
+      try {
+        t.dispose();
+      } catch (RuntimeException ignored) {
+        // 二重 dispose 等の安全弁
+      }
+    }
+    nodeIconTextures.clear();
+    if (pendingUnlock != null) {
+      pendingUnlock.dispose();
+      pendingUnlock = null;
     }
   }
 }

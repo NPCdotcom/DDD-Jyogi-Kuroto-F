@@ -133,6 +133,9 @@ public final class RenderLayout {
   /** 手札 1 枚目の左下 X 座標 (9 枚センター配置: (1920 - 9*120 - 8*16) / 2 = 356)。 */
   public static final int HAND_FIRST_X = 356;
 
+  /** 画面下の HUD パネル (手札背景) の高さ (px、§15-3 / §15-6 カメラオフセット計算で使う)。 */
+  public static final int HUD_BOTTOM_PANEL_HEIGHT = 300;
+
   // --- TitleScreen / GameOverScreen 用レイアウト定数 ---
 
   /** タイトル文字列の描画 X 座標 (水平中央付近)。 */
