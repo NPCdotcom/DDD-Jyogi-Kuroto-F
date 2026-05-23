@@ -8,9 +8,9 @@
 
 ---
 
-## 2026-05-24 セッション最終アップデート + Wave 1〜8 完了
+## 2026-05-24 セッション最終アップデート + Wave 1〜9 完了
 
-本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1〜7 + M2 Wave 8 (3 段階 α/β/γ) を完了。テスト 545 → 697 件 (+152)。残った M2 着手項目:
+本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1〜8 + M2 Wave 9 (3 段階 α/β/γ) を完了。テスト 545 → 697 件 (+152)。DddGame は 9 Wave 通算で 700+ → 549 行 = ~22% 削減、責務 4 集約 (RunSession / GameResources / PlayerProgress / PersistenceServices) に分離。残った M2 着手項目:
 
 - **完了 (P2-P4)**: JSON 欠損 graceful、セーブ後ドロー仕様確認、Texture リーク、ダメージ計算 DRY 集約、
   BuffKindLabels 集約、HAND_DETAIL_TEXT_Y 文字数上限、EnemyKind isElite/isBoss、Optional 可読性、
@@ -42,9 +42,13 @@
 - **完了 (M2 Wave 8)**: LayerEndNode の displayName 撤去 + EventKind enum 化 + LayerEndNodeLabels 新設で
   ドメイン日本語汚染を完全排除 + Strings 8 キー追加 (W8-α)、DddGame の LibGDX リソース 3 件を GameResources に集約
   + 完全なる防衛的 dispose (try-catch + null チェック内包、W8-β)
-- **M2 送り (Wave 8 残置)**: Bestiary 次行動の点線予告 UI (AI 設計絡み、チームメイト領域)、
+- **完了 (M2 Wave 9)**: DddGame の application 層を RunSession record に集約 + Optional<RunSession> でラン未開始
+  を型表現 + onRunEnded() で Optional.empty() ライフサイクル同期 + requireRunSession() で IllegalStateException
+  デバッグ性向上 (W9-α)、DddGame の永続化層を PersistenceServices final class に集約 + apply はデータ層純粋
+  + LibGDX 副作用 (フルスクリーン / 音量) は DddGame.updateHardwareConfigurations に分離 (W9-β)
+- **M2 送り (Wave 9 残置)**: Bestiary 次行動の点線予告 UI (AI 設計絡み、チームメイト領域)、
   装備テーマのセット装備複合 / 漸進的アニメーション (equipment.json 仕様拡張がチームメイト領域)、
-  DddGame の application 層集約 (GameContext / TurnDirector / SaveManager / SettingsManager を別クラスへ、Wave 9+)
+  壁床バリエーション機構 (チームメイト素材投入待ち)、Android 対応 (Phase D、M2 後半)
 - **M2 送り**: 階段専用テクスチャ (チームメイト素材待ち)、
   Bestiary 次行動の点線予告 (AI 戦術絡み、M2 送り)、
   装備テーマのセット装備複合 / 漸進的アニメーション (M2 送り)

@@ -246,3 +246,46 @@
 - **解放順序**: CardImageRegistry (Texture[]) → SoundManager (Music + Sound) → Fonts (FreeTypeFontGenerator + BitmapFont)。順序判断は「重い・無依存なリソースから順、フォントは最後 (テキスト系のクラッシュログを最後まで出せる)」
 - **学び**: **リソースライフサイクル管理クラスは record ではなく final class、dispose は防衛的 try-catch で個別解放**。理由 (1) record は immutable 思想 + value 比較が前提で、リソースの生死を扱うのと合わない (2) Disposable パターンは LibGDX のお作法、自前実装でも順序と例外を意識した実装が必須 (3) DddGame からは `if (resources != null) resources.dispose()` の 2 行に集約され、リソース系の責務が DddGame から完全分離される
 - **適用範囲**: GUI / ゲームフレームワーク (LibGDX / JavaFX / Swing) のリソース集約全般。dispose / close ライフサイクルがある型の集約は record ではなく final class
+
+### 2026-05-24: Optional の透過性 — null チェック散在を型で撤廃
+
+- **状況**: Wave 9 W9-α で DddGame の 3 個別フィールド (context / director / runRng) を Optional<RunSession> に集約。旧 `if (context == null) return` の null チェック散在を型で撤廃
+- **判断**: 「ラン未開始」の意味を **`Optional.empty()` で型表現** する。旧設計では 3 フィールドが独立に null になり得たが、新設計では「セッション全体が存在するか / しないか」の 1 軸に縮約
+- **`.get()` 防衛策**: Screen 側は `.get()` ではなく **`.orElseThrow(() -> new IllegalStateException(...))`** で明示メッセージ付き失敗を保証 (NoSuchElementException 即死 → IllegalStateException + スタックトレース)
+- **ライフサイクル完全同期**: `onRunEnded()` で **`runSession = Optional.empty()`** を明示クリア。これで「前回ランの GameContext が次回ランにリバウンドする」事故を構造的に防止、Android (Phase D) のメモリ圧迫も回避
+- **学び**: **Optional 化は「null チェック撤廃」より「型による意味表現」の効果が大きい**。理由 (1) Optional は `if (xxx == null)` ではなく `if (opt.isEmpty())` で読み手の意図が明示される (2) `requireXxx()` ヘルパで「必須」を表現すれば 1 度の get で済み、各呼出側で `.orElseThrow` を書く冗長性を回避 (3) ライフサイクル明示クリア (`Optional.empty()` 代入) を加えることで「リバウンドバグ」を排除
+- **適用範囲**: 「ラン単位 / セッション単位の揮発状態」全般。シングルプレイヤーゲームの run state / オンラインゲームの connection state 等
+
+### 2026-05-24: 集約クラスの 3 タイプ使い分け (Wave 5-9 で確立した判断軸)
+
+- **状況**: Wave 5-9 で DddGame の散在フィールドを 4 つの集約クラスに分離。各集約クラスは「ライフサイクル × 不変性」の組み合わせで型が違う
+- **3 タイプの判断軸**:
+  1. **immutable record** (例: PlayerProgress, RunSession): 不変性 + 値オブジェクト的、`with*` メソッドで新インスタンス。状態遷移が「新インスタンスへの置き換え」で表現できる場合に最適
+  2. **final class with dispose** (例: GameResources): LibGDX 等のリソースを保持し、自分の生死を管理する場合。Disposable interface 実装 + 防衛的 dispose (try-catch 個別、null チェック)
+  3. **final class with mutable update** (例: PersistenceServices): フィールドが mutable update を受けるが dispose は不要な場合。record にはできない (record は不変原則) ので final class、ただし副作用は最小化
+- **判断フローチャート**:
+  ```
+  状態遷移は新インスタンス?
+   ├── YES → record (immutable)
+   └── NO (mutable update)
+       │
+       └── dispose() が必要?
+            ├── YES → final class + Disposable + try-catch 防衛 dispose
+            └── NO → final class (シンプル)
+  ```
+- **責務純度の担保**: PersistenceServices は **LibGDX 非依存** に保つ。Settings 更新時の副作用 (フルスクリーン / 音量) は呼出側 (DddGame) で仲介する。infrastructure 層の純粋性 + テスト容易性が向上
+- **学び**: **「集約クラス = record」ではない**。ライフサイクル (生成 / 破棄 / 状態遷移) と不変性 (新インスタンス vs mutable update) の両軸で型を選ぶ。Wave 5-9 でこの判断軸を 4 集約に適用し、責務が型で表現される設計を確立した
+- **適用範囲**: God Object 分割 / 散在フィールドの集約全般。フレームワーク (LibGDX / Spring 等) のリソース系を含む大型 holder クラス
+
+### 2026-05-24: 9 Wave 段階的リファクタの収束形 — DddGame の責務 4 分割完了
+
+- **状況**: Wave 1-9 を通じて DddGame の 700+ 行を 549 行に縮小、責務を 4 集約クラスに分離した収束形が確立
+- **DddGame の最終構造**:
+  - `RunSession` (Optional): ラン単位の application 層状態 (GameContext + TurnDirector + Random)
+  - `GameResources` (final): LibGDX リソース 3 件 (Fonts + SoundManager + CardImageRegistry)
+  - `PlayerProgress` (record): ラン外進捗 7 要素 (soulTree / playerSoul / runCount / tutorialSeen / obtainedCards / bestiary / loadout)
+  - `PersistenceServices` (final): 永続化 3 件 (SaveManager + SettingsManager + Settings)
+- **DddGame に残った責務**: Screen 切替 (changeScreen) / startNewRun / loadFromSave / resolveLayerEndChoice / applyEliteCardReward / applySettings (副作用仲介) / dispose 統合 — 「ゲーム全体の orchestration のみ」に絞り込み完了
+- **段階的リファクタの教訓**: **9 Wave かけて 1 つずつ集約を確立した**。各 Wave で 1 つの集約クラスを抽出し、check 緑を保ちつつ進めた結果、テスト破壊 0 件 + 機能変更 0 件で大規模リファクタが完了。「一気にやろうとしない」の重要性が改めて確認された
+- **学び**: **God Object 分割は「Wave 単位 + 1 集約 / Wave」の段階リズムが最適**。理由 (1) 各 Wave の差分が小さく review しやすい (2) check 緑を保ちながら積み上げできる (3) 集約クラスの 3 タイプ判断軸が Wave を重ねるごとに洗練される (4) Wave またぎの「中継 getter → 直接公開化」のような撤去フェーズも段階的に進められる
+- **適用範囲**: 500+ 行のクラスの責務分割全般、特に「フレームワーク基底クラス (Game / Application / Controller 等)」のリファクタ
