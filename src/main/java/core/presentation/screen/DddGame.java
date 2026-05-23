@@ -27,6 +27,7 @@ import core.infrastructure.save.SaveManager;
 import core.infrastructure.save.Settings;
 import core.infrastructure.save.SettingsManager;
 import core.presentation.render.Fonts;
+import core.presentation.render.GameResources;
 import core.presentation.render.UiTheme;
 import core.presentation.render.UiThemeResolver;
 import java.util.HashMap;
@@ -51,11 +52,14 @@ public final class DddGame extends Game {
 
   private GameContext context;
   private TurnDirector director;
-  private Fonts fonts;
-  private SoundManager soundManager;
 
-  /** カード画像レジストリ (§15-3、カード ID → Texture、未マッピング/欠損は test.png fallback)。 */
-  private CardImageRegistry cardImageRegistry;
+  /**
+   * LibGDX リソース系 3 コンポーネント (Fonts / SoundManager / CardImageRegistry) の集約 (Wave 8 W8-β)。
+   *
+   * <p>create() で {@link GameResources#load} により一括初期化、dispose() で防衛的解放。 旧 3 個別フィールドへの直接参照は中継 getter
+   * ({@link #fonts()} 等) 経由に置換済。
+   */
+  private GameResources resources;
 
   /**
    * ランごとの乱数源 (ADR-19)。{@link #startNewRun()} で新しいシードに切り替え、{@link DungeonScreen} へ注入する。 同一シードを渡すことで
@@ -70,8 +74,8 @@ public final class DddGame extends Game {
    * obtainedCards / bestiary / loadout) を 1 集約に置換。各 setter は {@code progress =
    * progress.withXxx(...)} で新インスタンスを返す純関数 + 代入で更新する (Escape Analysis でチェイン生成は GC 負荷なし)。
    *
-   * <p>Wave 7 W7-β で {@link #progress()} を公開し、旧 7 中継 getter (playerSoul / runCount / soulTree
-   * / bestiary / loadout / obtainedCards / isTutorialSeen) は撤去済。Screen 側は {@code
+   * <p>Wave 7 W7-β で {@link #progress()} を公開し、旧 7 中継 getter (playerSoul / runCount / soulTree /
+   * bestiary / loadout / obtainedCards / isTutorialSeen) は撤去済。Screen 側は {@code
    * game.progress().playerSoul()} 等で field にアクセスする。
    */
   private PlayerProgress progress = PlayerProgress.initial(defaultLoadout());
@@ -170,17 +174,17 @@ public final class DddGame extends Game {
   }
 
   public Fonts fonts() {
-    return fonts;
+    return resources.fonts();
   }
 
   /** サウンドマネージャ (BGM / SE 再生の窓口)。 */
   public SoundManager soundManager() {
-    return soundManager;
+    return resources.soundManager();
   }
 
   /** カード画像レジストリ (CardCollectionScreen / HudRenderer から参照)。 */
   public CardImageRegistry cardImageRegistry() {
-    return cardImageRegistry;
+    return resources.cardImageRegistry();
   }
 
   /**
@@ -381,8 +385,8 @@ public final class DddGame extends Game {
       com.badlogic.gdx.Gdx.graphics.setWindowedMode(1920, 1080);
     }
     // §15-5: サウンドマネージャに音量を即時反映する。
-    if (soundManager != null) {
-      soundManager.applySettings(newSettings);
+    if (resources != null && resources.soundManager() != null) {
+      resources.soundManager().applySettings(newSettings);
     }
   }
 
@@ -493,16 +497,15 @@ public final class DddGame extends Game {
     // §設計原則 / Wave 5 W5-γ: SoulTree のノードマスタ Supplier を最初に注入
     // (domain → infrastructure 依存方向違反を解消、Logger 級の単発 init setter)。
     SoulTree.setNodeProvider(core.infrastructure.bootstrap.InitialStateFactory::soulTreeNodes);
-    fonts =
-        new Fonts(
+    // §15-1: 設定をロード (ファイルなし時は DEFAULT、resources 初期化前に確定)
+    this.settings = settingsManager.load();
+    // Wave 8 W8-β: LibGDX リソース 3 件 (Fonts / SoundManager / CardImageRegistry) を GameResources
+    // で一括初期化
+    this.resources =
+        GameResources.load(
+            settings,
             core.infrastructure.bootstrap.InitialStateFactory.cardCatalog(),
             core.infrastructure.bootstrap.InitialStateFactory.equipmentCatalog());
-    // §15-1: 設定をロード (ファイルなし時は DEFAULT)
-    this.settings = settingsManager.load();
-    // §15-5: サウンドマネージャを初期化 (ファイル欠損時は no-op で継続)
-    soundManager = new SoundManager(settings);
-    // §15-3: カード画像レジストリ (起動時に全 PNG をロード、欠損は test.png fallback)
-    cardImageRegistry = CardImageRegistry.load();
     // §15-7 / E-2: startNewRun() はラン開始の瞬間 (TitleScreen の ENTER) でのみ呼ぶ。
     // ここで呼ぶと獲得前の playerSoul が Player に注入・ゼロ化され、ソウルツリーで使えなく
     // なる (ソウル消失バグの根治)。context / director は最初のラン開始まで null。
@@ -517,14 +520,9 @@ public final class DddGame extends Game {
   @Override
   public void dispose() {
     super.dispose();
-    if (fonts != null) {
-      fonts.dispose();
-    }
-    if (soundManager != null) {
-      soundManager.dispose();
-    }
-    if (cardImageRegistry != null) {
-      cardImageRegistry.dispose();
+    // Wave 8 W8-β: GameResources で防衛的 dispose (try-catch + null check 内包)
+    if (resources != null) {
+      resources.dispose();
     }
   }
 }
