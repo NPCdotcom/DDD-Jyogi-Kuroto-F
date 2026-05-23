@@ -102,6 +102,13 @@ public final class DungeonScreen extends ScreenAdapter {
   /** マップタイル: 床テクスチャ (チームメイト素材、ピクセルアート、Nearest filter)。 */
   private com.badlogic.gdx.graphics.Texture floorTexture;
 
+  /** プレイヤースプライト (Wave 10 W10-β、チームメイト素材)。 */
+  private com.badlogic.gdx.graphics.Texture playerTexture;
+
+  /** 敵スプライト群 (Wave 10 W10-β、EnemyKind → Texture、ELITE_SLIME は SLIME を流用)。 */
+  private java.util.Map<core.domain.entity.EnemyKind, com.badlogic.gdx.graphics.Texture>
+      enemyTextures;
+
   public DungeonScreen(DddGame game) {
     this.game = game;
     // Wave 9 W9-α: rng は RunSession 経由で取得 (ラン未開始時は IllegalStateException)
@@ -133,8 +140,31 @@ public final class DungeonScreen extends ScreenAdapter {
     floorTexture.setFilter(
         com.badlogic.gdx.graphics.Texture.TextureFilter.Nearest,
         com.badlogic.gdx.graphics.Texture.TextureFilter.Nearest);
+    // Wave 10 W10-β: キャラスプライトをロード (player + 4 種の敵 Texture、Nearest filter)
+    playerTexture = loadPixelTexture("sprites/player.png");
+    com.badlogic.gdx.graphics.Texture slimeTex = loadPixelTexture("sprites/slime.png");
+    enemyTextures = new java.util.EnumMap<>(core.domain.entity.EnemyKind.class);
+    enemyTextures.put(core.domain.entity.EnemyKind.SLIME, slimeTex);
+    enemyTextures.put(
+        core.domain.entity.EnemyKind.SWIFT_SLIME, loadPixelTexture("sprites/goblin.png"));
+    enemyTextures.put(
+        core.domain.entity.EnemyKind.TOUGH_SLIME, loadPixelTexture("sprites/skeleton.png"));
+    // ELITE_SLIME は SLIME と同じ Texture を流用、DungeonRenderer 側で SpriteBatch.setColor の赤ティント
+    enemyTextures.put(core.domain.entity.EnemyKind.ELITE_SLIME, slimeTex);
+    enemyTextures.put(
+        core.domain.entity.EnemyKind.BOSS, loadPixelTexture("sprites/dragon_boss.png"));
     // §15-5: ダンジョン BGM を開始 (既に再生中なら no-op)
     game.soundManager().playBgm(BgmKind.DUNGEON);
+  }
+
+  /** ピクセルアート Texture を Nearest filter でロードするヘルパ (Wave 10 W10-β)。 */
+  private static com.badlogic.gdx.graphics.Texture loadPixelTexture(String internalPath) {
+    com.badlogic.gdx.graphics.Texture tex =
+        new com.badlogic.gdx.graphics.Texture(Gdx.files.internal(internalPath));
+    tex.setFilter(
+        com.badlogic.gdx.graphics.Texture.TextureFilter.Nearest,
+        com.badlogic.gdx.graphics.Texture.TextureFilter.Nearest);
+    return tex;
   }
 
   @Override
@@ -343,7 +373,13 @@ public final class DungeonScreen extends ScreenAdapter {
     batch.setProjectionMatrix(camera.combined);
     shapes.setProjectionMatrix(camera.combined);
     DungeonRenderer.draw(
-        batch, shapes, game.requireRunSession().context().state(), wallTexture, floorTexture);
+        batch,
+        shapes,
+        game.requireRunSession().context().state(),
+        wallTexture,
+        floorTexture,
+        playerTexture,
+        enemyTextures);
     batch.begin();
     effects.drawPopups(batch, game.fonts().large());
     batch.end();
@@ -561,6 +597,21 @@ public final class DungeonScreen extends ScreenAdapter {
     if (floorTexture != null) {
       floorTexture.dispose();
       floorTexture = null;
+    }
+    // Wave 10 W10-β: スプライト Texture を順次解放 (ELITE_SLIME は SLIME と同 Texture 共有のため重複 dispose 回避)
+    if (playerTexture != null) {
+      playerTexture.dispose();
+      playerTexture = null;
+    }
+    if (enemyTextures != null) {
+      java.util.Set<com.badlogic.gdx.graphics.Texture> seen = new java.util.HashSet<>();
+      for (com.badlogic.gdx.graphics.Texture tex : enemyTextures.values()) {
+        if (tex != null && seen.add(tex)) {
+          tex.dispose();
+        }
+      }
+      enemyTextures.clear();
+      enemyTextures = null;
     }
     // playerInputs は LibGDX リソースを持たないので dispose 不要、reset のみ
     if (playerInputs != null) {
