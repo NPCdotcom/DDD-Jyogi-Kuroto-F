@@ -23,6 +23,7 @@ import core.presentation.render.Fonts;
 import core.presentation.render.NodeIconPathResolver;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
+import core.presentation.window.ConfirmationDialog;
 import core.presentation.window.SoulNodeUnlockDialog;
 import java.util.Collections;
 import java.util.HashMap;
@@ -106,6 +107,9 @@ public final class SoulTreeScreen extends ScreenAdapter {
 
   /** ダイアログで「解放する」と返した時に実際に解放するためのノード ID 保持。 */
   private NodeId pendingUnlockId;
+
+  /** §UI 改善 (M2 backlog): R キー押下時のツリーリセット確認モーダル (誤押下防止)。 */
+  private ConfirmationDialog pendingResetConfirm;
 
   /** マウスクリック直後の一時メッセージ ("Soul 不足" 等、~2 秒で消える)。 */
   private String flashMessage;
@@ -382,11 +386,18 @@ public final class SoulTreeScreen extends ScreenAdapter {
 
     // 5) §15-7 UI: 解放確認ダイアログ (最前面、モーダル) + 結果取得
     renderAndConsumeUnlockDialog(delta);
+    // 6) §UI 改善: R キーリセット確認ダイアログ (最前面、モーダル) + 結果取得
+    renderAndConsumeResetConfirm(delta);
+  }
+
+  /** モーダルダイアログ (解放確認 or リセット確認) が表示中か。入力凍結判定に使う。 */
+  private boolean hasActiveModal() {
+    return pendingUnlock != null || pendingResetConfirm != null;
   }
 
   /** WASD / 矢印キーでパン、Z / X でズーム。 */
   private void handleCameraInput(float delta) {
-    if (pendingUnlock != null) {
+    if (hasActiveModal()) {
       return; // モーダル中はパン/ズーム凍結
     }
     float pan = PAN_SPEED * delta * camera.zoom;
@@ -416,7 +427,7 @@ public final class SoulTreeScreen extends ScreenAdapter {
    * unproject は前フレームの カメラ行列を使う (クリック中はカメラ移動がほぼ無いため 1 フレーム遅れは無視できる)。
    */
   private void handlePointer() {
-    if (pendingUnlock != null) {
+    if (hasActiveModal()) {
       // モーダル中はポインタ凍結 (ダイアログが入力を取る)。
       // 「固まる」バグ防止: pointerDown / dragged を消費しないと、ダイアログ閉じた次フレームで
       // `down=false / pointerDown=true / dragged=false` のまま else-if (pointerDown && !dragged)
@@ -482,7 +493,7 @@ public final class SoulTreeScreen extends ScreenAdapter {
         flashMessage = null;
       }
     }
-    if (pendingUnlock != null) {
+    if (hasActiveModal()) {
       return; // モーダル中は ESC / R を飲み込む (ダイアログが Y/N/ESC を解決する)
     }
     if (Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
@@ -490,9 +501,17 @@ public final class SoulTreeScreen extends ScreenAdapter {
       return;
     }
     if (Gdx.input.isKeyJustPressed(Keys.R)) {
-      game.resetTree();
+      // §UI 改善: R キーは無確認リセットだと誤押下でラン外貯蓄を消失するため、確認ダイアログを挟む。
       boolean jp = game.fonts().isJapaneseAvailable();
-      showFlash(jp ? Strings.Ja.SOUL_TREE_FLASH_RESET : Strings.En.SOUL_TREE_FLASH_RESET);
+      pendingResetConfirm =
+          new ConfirmationDialog(
+              game.fonts().large(),
+              game.fonts().large(),
+              jp ? "ツリーリセット" : "Tree Reset",
+              jp
+                  ? "解放した全ノードをリセットしてソウルを払い戻します。よろしいですか?"
+                  : "Reset all unlocked nodes and refund their soul cost?",
+              jp ? "[Y] 確定   [N] / [ESC] やめる" : "[Y] Confirm   [N] / [ESC] Cancel");
     }
   }
 
@@ -553,6 +572,39 @@ public final class SoulTreeScreen extends ScreenAdapter {
     pendingUnlock = null;
     pendingUnlockId = null;
     // 二重防御: ダイアログ閉じ直後にポインタ状態を確実に同期する (handlePointer の早期 return と対)。
+    pointerDown = false;
+    dragged = false;
+  }
+
+  /**
+   * §UI 改善: R キーリセット確認ダイアログの描画・結果消費。Y で確定なら {@code game.resetTree()} を呼び、 払い戻し flash を出す。N/ESC
+   * でキャンセルなら何もしない。
+   */
+  private void renderAndConsumeResetConfirm(float delta) {
+    if (pendingResetConfirm == null) {
+      return;
+    }
+    try {
+      pendingResetConfirm.render(delta);
+    } catch (RuntimeException ex) {
+      Gdx.app.error("SoulTree", "Reset confirm dialog render failed", ex);
+      pendingResetConfirm.dispose();
+      pendingResetConfirm = null;
+      pointerDown = false;
+      dragged = false;
+      return;
+    }
+    java.util.Optional<Boolean> r = pendingResetConfirm.consume();
+    if (r.isEmpty()) {
+      return;
+    }
+    if (r.get()) {
+      game.resetTree();
+      boolean jp = game.fonts().isJapaneseAvailable();
+      showFlash(jp ? Strings.Ja.SOUL_TREE_FLASH_RESET : Strings.En.SOUL_TREE_FLASH_RESET);
+    }
+    pendingResetConfirm.dispose();
+    pendingResetConfirm = null;
     pointerDown = false;
     dragged = false;
   }
@@ -657,6 +709,9 @@ public final class SoulTreeScreen extends ScreenAdapter {
     if (pendingUnlock != null) {
       pendingUnlock.resize(width, height);
     }
+    if (pendingResetConfirm != null) {
+      pendingResetConfirm.resize(width, height);
+    }
   }
 
   @Override
@@ -681,6 +736,10 @@ public final class SoulTreeScreen extends ScreenAdapter {
     if (pendingUnlock != null) {
       pendingUnlock.dispose();
       pendingUnlock = null;
+    }
+    if (pendingResetConfirm != null) {
+      pendingResetConfirm.dispose();
+      pendingResetConfirm = null;
     }
   }
 }
