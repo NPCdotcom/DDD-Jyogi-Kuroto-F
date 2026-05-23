@@ -116,3 +116,11 @@
 - **判断**: 現状の static API 互換性 + 既存テスト 579 件互換を優先し、依存方向違反を**意図的に許容**。Wave 5 (DddGame 集約抽出時) で Supplier 注入パターン (`SoulTree.setNodeProvider(Supplier)` を `DddGame.create()` で呼ぶ) に置換する流れを M2 backlog に記録
 - **学び**: 設計原則違反は「全部直す or 全部我慢」ではなく「コストと範囲を計算して段階的に解消」が正解。Wave 単位で「今やる / 後で」を明確化することで進捗と品質を両立できる。違反は lessons.md と m2_backlog.md に記録して忘却防止
 - **適用範囲**: 大規模リファクタで静的 API の透過置換 vs 依存注入のいずれかを選ぶ判断全般 (特に Tier 1 ルール違反だが Tier 2 互換性を優先する状況)
+
+### 2026-05-23: Resolver 単体ではなく Context record でラップする (NodeResolveContext パターン)
+
+- **状況**: M2 Wave 3 Task A で LayerEndNode.Shop を `Card` 直接保持から `CardId + cardResolver` に変更する計画。最初の plan では `apply(Player, Function<CardId, Card>)` と直接 Function を引数にする案だった
+- **指摘 (ユーザー)**: 「Function を直接渡すと将来 equipmentResolver や itemResolver を追加するとき LayerEndNode.apply の全 variant + 全 callsite の signature が破壊される。Resolver のペアを `NodeResolveContext` record でラップして 1 引数にすれば、将来の resolver 追加は record フィールド追加だけで signature 不変」
+- **判断 (受け入れ)**: Task A の段階で `NodeResolveContext(Function<CardId, Card> cards, Function<EquipmentId, Equipment> equipments)` を新設し、すべての LayerEndNode variant が `apply(Player, NodeResolveContext)` を受ける設計に変更。これにより Task B (ShopEquipment) で context.equipments() を読むだけで本物の装備名表示ができ、追加引数の連鎖修正を避けられた
+- **学び**: **Resolver / Service が複数になる予感があるなら、最初から Context record でラップする**。「今は 1 つだから Function でいい」と思って単体注入すると、2 つ目を追加する時に全箇所書き換えが必要になる (OCP 違反)。Context record にしておけば「フィールド追加 + null チェック追加」だけで済む。これは Wave 3 Task A → Task B の連続実装で実際に効果を確認 (Task B では引数 signature を一切変えずに displayName が完璧に解決できた)
+- **適用範囲**: domain layer の純関数 API で「外部リソース解決のための Function 引数」を複数渡したくなる場面全般 (cardResolver / equipmentResolver / itemResolver / buffResolver 等)。「1 つでも将来 2 つになる予感があるなら Context record」をデフォルトに
