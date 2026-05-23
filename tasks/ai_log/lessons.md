@@ -94,3 +94,17 @@
 - **指摘 / 失敗**: Skill 内の `!`git status`/`git diff`` 出力をそのまま信頼して PR 作成していたら、develop の最新コードをほぼ全部消す災害的 PR になっていた。`context: fork` 指定が無い Skill でも、過去の fork で生成された worktree が残っていると cwd 汚染が後続 Skill にも連鎖する。さらに `git worktree remove --force` を試みても **Claude Code セッション中はファイルロックで Permission denied** になり、セッション終了まで残留する
 - **学び**: (1) Skill 内の git 出力は信用せず、必ず main session 側で `git -C <main-repo-path> ...` の明示パスで再確認する。(2) `context: fork` 付き Skill 実行後は `git worktree list` で残留確認 → 不要なら `git worktree remove --force <path>` で削除する (セッション中に失敗したらセッション終了後に手動削除)。これは Claude Code 既知バグ ([GitHub Issue #40968](https://github.com/anthropics/claude-code/issues/40968))。(3) `gh pr create` / `git commit` 等の **不可逆操作を含む Bash 実行は必ず `-C <main-repo-path>` 付き** で行う
 - **適用範囲**: `context: fork` を持つすべての Skill (現状 `~/.claude/skills/architect-review/` のみ)、および git 情報を出力する全 Skill (`japanese-pr-create` を含む)
+
+### 2026-05-23: LibGDX `new FitViewport()` 直後の `viewport.update()` 漏れで描画が見えない
+
+- **状況**: `SoulNodeUnlockDialog` のコンストラクタで `this.viewport = new FitViewport(1920, 1080, camera)` を呼んだ直後に `viewport.update(...)` を呼んでおらず、後で `viewport.apply()` した時に内部の `screenWidth/Height` が 0 のまま → `Gdx.gl.glViewport(0, 0, 0, 0)` で 0×0 領域に描画 → 画面に何も見えないが render() コード自体は走る
+- **指摘 / 失敗**: 「ダイアログの render() が走っているのに見えない」という症状の真因を、最初は「描画順序」「描画完走の中断」「unproject 誤差」と仮定して 4 回別の修正を試した。実機ログで `render() call × 4` が出ていたのに見えない事実から「viewport 初期化漏れ」に辿り着くまで 3 セッション費やした
+- **学び**: (1) LibGDX で**動的生成された Popup / Dialog** (LibGDX framework の `resize()` ライフサイクル外) は、コンストラクタで `viewport.update(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), true)` を必ず呼ぶ。(2) Scene2D の `Stage(viewport)` 経由なら Stage コンストラクタが内部で update() を呼ぶので不要。自前 `SpriteBatch + ShapeRenderer` 構成のときだけ要注意。(3) 「描画コードは走るが画面に何も出ない」症状 = ほぼ間違いなく `glViewport(0,0,0,0)` か `setColor` で透明化、見たら viewport の初期化を疑う
+- **適用範囲**: LibGDX で `new FitViewport / ScreenViewport / ExtendViewport` 等を直接 new するすべてのコンポーネント (Screen サブクラス以外)
+
+### 2026-05-23: ハッカソン直前の record signature 変更は M2 送り判断
+
+- **状況**: A6 final-architect が「LayerEndNode.Shop が Card 直接保持、NodeEffect.CardGrantEffect は CardId + cardResolver、表現が非統一」と指摘。本セッションで統一する候補だった
+- **指摘 / 失敗**: ハッカソン本番前日 (5/23) に record signature を変更すると、シリアライズパス・既存テスト・複数 callsite の連鎖修正が大規模になりリスクが大きい
+- **学び**: ハッカソン本番直前 (T-24h 以内) の **record signature 変更 / sealed permit 追加 / コンストラクタ引数追加** は原則 M2 送り。すでに動いているテスト 545 件を緑に保つ方が優先。「驚き最小」の整合性は M2 で取る
+- **適用範囲**: ハッカソン / 提出締切前の最終リファクタフェーズ全般
