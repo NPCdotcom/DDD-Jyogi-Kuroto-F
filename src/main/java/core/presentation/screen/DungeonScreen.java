@@ -26,6 +26,7 @@ import core.presentation.render.DungeonRenderer;
 import core.presentation.render.HudRenderer;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
+import core.presentation.render.UiTheme;
 import core.presentation.window.NodeChoicePopup;
 import core.presentation.window.StatusPopup;
 import java.util.ArrayList;
@@ -326,6 +327,9 @@ public final class DungeonScreen extends ScreenAdapter {
   private void drawFrame() {
     updateMapCamera(); // §15-6: プレイヤー追従 + 画面シェイク + マップ端クランプ
 
+    // §7-2 / W4-ε: 現在の装備ロードアウトから UI テーマを取得 (毎フレーム解決、コスト無視できる程度)。
+    UiTheme theme = game.activeUiTheme();
+
     ScreenUtils.clear(0.08f, 0.08f, 0.1f, 1f);
     viewport.apply();
 
@@ -347,9 +351,9 @@ public final class DungeonScreen extends ScreenAdapter {
     // §15-3 UI 改善: 手札パネル背景を完全黒 (α=1) にしてマップタイルが透けないようにする
     shapes.setColor(0f, 0f, 0f, 1f);
     shapes.rect(0f, 0f, RenderLayout.SCREEN_WIDTH, 300f);
-    // §7-2 / C-2: HP <= 30% で画面端を脈動する赤フレームで警告表示。
+    // §7-2 / W4-ε: HP <= 30% で画面端を脈動するフレームで警告表示 (色はテーマ依存)。
     core.domain.entity.Stats playerStats = game.context().state().player().stats();
-    effects.drawLowHpWarning(shapes, playerStats);
+    effects.drawLowHpWarning(shapes, playerStats, theme);
     shapes.end();
 
     batch.setProjectionMatrix(hudCamera.combined);
@@ -360,8 +364,9 @@ public final class DungeonScreen extends ScreenAdapter {
         game.context(),
         playerInputs.pendingCardIndex(),
         game.cardImageRegistry(),
-        game.settings().uiPreset());
-    effects.drawFlash(batch, game.fonts().large());
+        game.settings().uiPreset(),
+        theme);
+    effects.drawFlash(batch, game.fonts().large(), theme);
     batch.end();
   }
 

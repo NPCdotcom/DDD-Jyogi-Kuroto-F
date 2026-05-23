@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -102,12 +103,20 @@ public final class EquipmentCatalog {
         granted.add(CardId.of(c.asText()));
       }
     }
+    // §7-2 / W4-ε: themeName は省略可能 (既存 JSON への後方互換)。
+    JsonNode themeNode = n.get("themeName");
+    Optional<String> themeName =
+        (themeNode != null && !themeNode.isNull())
+            ? Optional.of(themeNode.asText())
+            : Optional.empty();
+
     return new Equipment(
         EquipmentId.of(text(n, "id")),
         text(n, "displayName"),
         EquipmentSlot.valueOf(text(n, "slot")),
         bonus,
-        granted);
+        granted,
+        themeName);
   }
 
   private static String text(JsonNode n, String field) {

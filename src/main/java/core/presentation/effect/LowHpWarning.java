@@ -1,5 +1,6 @@
 package core.presentation.effect;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import core.presentation.render.RenderLayout;
 
@@ -42,18 +43,19 @@ public final class LowHpWarning {
   }
 
   /**
-   * 警告フレーム (画面端の赤い枠) を描画する。{@code shapes.begin(Filled)} 〜 {@code end()} は呼出側が管理する。 α ブレンドのため {@code
+   * 警告フレーム (画面端の枠) を描画する。{@code shapes.begin(Filled)} 〜 {@code end()} は呼出側が管理する。 α ブレンドのため {@code
    * GL_BLEND} が有効になっている必要がある。
    *
    * @param shapes 描画用 ShapeRenderer (Filled モードで begin 済み)
    * @param animTimeSeconds アニメ時刻 (累積秒)
+   * @param frameColor 枠の色 (R/G/B を使い、alpha は脈動値で上書きする)
    */
-  public static void draw(ShapeRenderer shapes, float animTimeSeconds) {
+  public static void draw(ShapeRenderer shapes, float animTimeSeconds, Color frameColor) {
     float alpha = ALPHA_BASE + ALPHA_AMP * (float) Math.sin(animTimeSeconds * PULSE_SPEED);
     if (alpha < 0f) {
       alpha = 0f;
     }
-    shapes.setColor(0.85f, 0.15f, 0.20f, alpha);
+    shapes.setColor(frameColor.r, frameColor.g, frameColor.b, alpha);
     float w = RenderLayout.SCREEN_WIDTH;
     float h = RenderLayout.SCREEN_HEIGHT;
     float t = FRAME_THICKNESS;
@@ -62,5 +64,15 @@ public final class LowHpWarning {
     shapes.rect(0f, h - t, w, t); // 上
     shapes.rect(0f, t, t, h - 2f * t); // 左
     shapes.rect(w - t, t, t, h - 2f * t); // 右
+  }
+
+  /**
+   * 警告フレームをデフォルト色 (赤) で描画する (後方互換オーバーロード)。
+   *
+   * @param shapes 描画用 ShapeRenderer (Filled モードで begin 済み)
+   * @param animTimeSeconds アニメ時刻 (累積秒)
+   */
+  public static void draw(ShapeRenderer shapes, float animTimeSeconds) {
+    draw(shapes, animTimeSeconds, new Color(0.85f, 0.15f, 0.20f, 1f));
   }
 }

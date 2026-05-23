@@ -36,6 +36,7 @@ public final class HudRenderer {
    * @param fonts フォント群
    * @param context ゲームコンテキスト
    * @param pendingCardIndex PlayerInputs から取得したカード選択中インデックス (-1 = 未選択)
+   * @param theme 現在の UI テーマ (§7-2 / W4-ε、null の場合は defaultTheme() を使う)
    */
   public static void draw(
       SpriteBatch batch,
@@ -43,18 +44,20 @@ public final class HudRenderer {
       GameContext context,
       int pendingCardIndex,
       CardImageRegistry images,
-      UiPreset preset) {
+      UiPreset preset,
+      UiTheme theme) {
     // §UI 拡大方針: HUD / 手札 / ログをまとめて large (32px) で描画 (視認性最優先)。
     BitmapFont font = fonts.large();
     boolean jp = fonts.isJapaneseAvailable();
     Player p = context.state().player();
+    UiTheme t = (theme != null) ? theme : UiTheme.defaultTheme();
 
     // §15-4 / ADR-25: HP / 速度 は effectiveStats() (素ステ + 装備 + Buff 合算) を使う。
     // 装備で maxHp が増える場合の表示整合性を確保。差分は素ステとの差で算出して "(+N)" 表記。
     core.domain.entity.Stats baseStats = p.stats();
     core.domain.entity.Stats effStats = p.effectiveStats();
 
-    font.setColor(Color.WHITE);
+    font.setColor(t.textColor());
     font.draw(
         batch,
         "%s: %d / %d%s"
@@ -114,7 +117,22 @@ public final class HudRenderer {
         preset);
     drawLog(batch, font, jp, context.latestEvents(RenderLayout.LOG_LINES_VISIBLE));
     drawHand(batch, font, jp, p, pendingCardIndex, images);
-    drawSkillSlots(batch, font, jp, p);
+    drawSkillSlots(batch, font, jp, p, t);
+  }
+
+  /**
+   * 後方互換オーバーロード (theme なし)。{@code theme = null} → {@link UiTheme#defaultTheme()} が使われる。
+   *
+   * @see #draw(SpriteBatch, Fonts, GameContext, int, CardImageRegistry, UiPreset, UiTheme)
+   */
+  public static void draw(
+      SpriteBatch batch,
+      Fonts fonts,
+      GameContext context,
+      int pendingCardIndex,
+      CardImageRegistry images,
+      UiPreset preset) {
+    draw(batch, fonts, context, pendingCardIndex, images, preset, null);
   }
 
   /**
@@ -123,7 +141,7 @@ public final class HudRenderer {
    * <p>既存の static 呼び出しがある場合に備えて残す。
    */
   public static void draw(SpriteBatch batch, Fonts fonts, GameContext context) {
-    draw(batch, fonts, context, -1, null, UiPreset.STANDARD);
+    draw(batch, fonts, context, -1, null, UiPreset.STANDARD, null);
   }
 
   /**
@@ -149,10 +167,11 @@ public final class HudRenderer {
   /**
    * スキル枠 UI を画面左下 (手札の上) に常時描画する (§15-5 / Wave2 Task C)。
    *
-   * <p>maxSize に関わらず常に 4 枠固定表示する。装着済みスロットは緑系、空スロットは暗灰色で表示する。 キー表示 "[F1]"〜"[F4]" を左上に、スキル名を中央に描く。
-   * SpriteBatch のみで完結し、ShapeRenderer は使わない (HudRenderer.draw のシグネチャを変更しない制約)。
+   * <p>maxSize に関わらず常に 4 枠固定表示する。装着済みスロットは {@code theme.skillSlotColor()}、 空スロットは暗灰色で表示する。 キー表示
+   * "[F1]"〜"[F4]" を左上に、スキル名を中央に描く。 SpriteBatch のみで完結し、ShapeRenderer は使わない。
    */
-  private static void drawSkillSlots(SpriteBatch batch, BitmapFont font, boolean jp, Player p) {
+  private static void drawSkillSlots(
+      SpriteBatch batch, BitmapFont font, boolean jp, Player p, UiTheme theme) {
     SkillSlot slot = p.skillSlot();
     // 常に 4 枠表示 (§15-5 スキル枠 4 枠常時表示)
     int displayCount = 4;
@@ -169,11 +188,16 @@ public final class HudRenderer {
       boolean equipped = i < slot.skills().size();
       if (equipped) {
         Skill skill = slot.skills().get(i);
-        // 装着済: 緑系でスキル名を表示
-        font.setColor(new Color(0.55f, 1f, 0.6f, 1f));
+        // 装着済: theme.skillSlotColor() でスキル名を表示 (§7-2 / W4-ε テーマ連動)
+        font.setColor(theme.skillSlotColor());
         font.draw(batch, "[F%d]".formatted(i + 1), x, y);
         // スキル名は 1 行下 (y - 40) に shorter 形式で (フォント 32px、行間考慮)
-        font.setColor(new Color(0.7f, 1f, 0.75f, 1f));
+        // 装着済スキル名の色を skillSlotColor よりやや明るく (alpha 固定で R/G/B を少し上げる)
+        font.setColor(
+            Math.min(1f, theme.skillSlotColor().r + 0.15f),
+            Math.min(1f, theme.skillSlotColor().g + 0.15f),
+            Math.min(1f, theme.skillSlotColor().b + 0.15f),
+            1f);
         String name = skill.displayName();
         // スキル枠幅 (SKILL_SLOT_SIZE=60) を超える長名は先頭 3 文字で省略 (small フォントなし暫定対応)
         if (name.length() > 4) {
@@ -188,7 +212,7 @@ public final class HudRenderer {
         font.draw(batch, jp ? "空" : "---", x, y - 36f);
       }
     }
-    font.setColor(Color.WHITE);
+    font.setColor(Color.WHITE); // 後続描画への影響をリセット
   }
 
   /** 手札を画面下部にカード画像 120×168 で描画する (§15-3 / UI 改善)。 */
@@ -371,6 +395,7 @@ public final class HudRenderer {
       font.draw(batch, LOG_PREFIX + describe(jp, e), RenderLayout.LOG_X, y);
       y -= RenderLayout.LOG_LINE_HEIGHT;
     }
+    font.setColor(Color.WHITE); // 後続描画への影響をリセット
   }
 
   private static String phaseLabel(boolean jp, TurnPhase phase) {

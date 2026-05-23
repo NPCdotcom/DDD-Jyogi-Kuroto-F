@@ -27,6 +27,8 @@ import core.infrastructure.save.SaveManager;
 import core.infrastructure.save.Settings;
 import core.infrastructure.save.SettingsManager;
 import core.presentation.render.Fonts;
+import core.presentation.render.UiTheme;
+import core.presentation.render.UiThemeResolver;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -123,6 +125,16 @@ public final class DddGame extends Game {
   /** 現在の装備ロードアウト (装備画面表示用、防御コピー)。 */
   public Map<EquipmentSlot, Equipment> loadout() {
     return Map.copyOf(loadout);
+  }
+
+  /**
+   * 現在のロードアウトから UI テーマを動的に決定する (§7-2 / W4-ε)。
+   *
+   * <p>主武器優先で {@code themeName} が設定されている装備を探し、{@link UiThemeResolver} で解決する。 全装備が {@code
+   * themeName=empty} の場合は {@link UiTheme#defaultTheme()} にフォールバック。
+   */
+  public UiTheme activeUiTheme() {
+    return UiThemeResolver.resolve(loadout);
   }
 
   /** 装備をそのスロットに装着する (同スロットの既存装備は置き換え、§15-9、次ラン開始時に反映)。 */

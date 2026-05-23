@@ -12,6 +12,7 @@ import core.domain.entity.Stats;
 import core.presentation.effect.DamagePopup;
 import core.presentation.effect.LowHpWarning;
 import core.presentation.render.RenderLayout;
+import core.presentation.render.UiTheme;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -202,15 +203,28 @@ public final class ScreenEffects {
    *
    * @param batch 描画中の SpriteBatch
    * @param font 描画フォント (large 推奨)
+   * @param theme 現在の UI テーマ (accentColor をフラッシュ色に使う、null でデフォルト)
    */
-  public void drawFlash(SpriteBatch batch, BitmapFont font) {
+  public void drawFlash(SpriteBatch batch, BitmapFont font, UiTheme theme) {
     if (!isShowingFlash()) {
       return;
     }
     float alpha = flashAlpha();
-    font.setColor(1f, 0.85f, 0.3f, alpha);
+    UiTheme t = (theme != null) ? theme : UiTheme.defaultTheme();
+    Color ac = t.accentColor();
+    font.setColor(ac.r, ac.g, ac.b, alpha);
     font.draw(batch, flashMessage, 80f, RenderLayout.SCREEN_HEIGHT - 200f);
     font.setColor(Color.WHITE);
+  }
+
+  /**
+   * フラッシュメッセージを画面中央上部に描画する (後方互換オーバーロード、theme=null → defaultTheme)。
+   *
+   * @param batch 描画中の SpriteBatch
+   * @param font 描画フォント (large 推奨)
+   */
+  public void drawFlash(SpriteBatch batch, BitmapFont font) {
+    drawFlash(batch, font, null);
   }
 
   /**
@@ -220,11 +234,23 @@ public final class ScreenEffects {
    *
    * @param shapes 描画中の ShapeRenderer (Filled モードで begin 済み)
    * @param playerStats プレイヤーの Stats (HP 比率判定用)
+   * @param theme 現在の UI テーマ (warnFrameColor を警告枠色に使う、null でデフォルト)
+   */
+  public void drawLowHpWarning(ShapeRenderer shapes, Stats playerStats, UiTheme theme) {
+    if (LowHpWarning.shouldDraw(playerStats.currentHp(), playerStats.maxHp())) {
+      UiTheme t = (theme != null) ? theme : UiTheme.defaultTheme();
+      LowHpWarning.draw(shapes, lowHpAnimTime, t.warnFrameColor());
+    }
+  }
+
+  /**
+   * HP 低下警告フレームを描画する (後方互換オーバーロード、theme=null → defaultTheme)。
+   *
+   * @param shapes 描画中の ShapeRenderer (Filled モードで begin 済み)
+   * @param playerStats プレイヤーの Stats (HP 比率判定用)
    */
   public void drawLowHpWarning(ShapeRenderer shapes, Stats playerStats) {
-    if (LowHpWarning.shouldDraw(playerStats.currentHp(), playerStats.maxHp())) {
-      LowHpWarning.draw(shapes, lowHpAnimTime);
-    }
+    drawLowHpWarning(shapes, playerStats, null);
   }
 
   // -------------------------------------------------------------------------
