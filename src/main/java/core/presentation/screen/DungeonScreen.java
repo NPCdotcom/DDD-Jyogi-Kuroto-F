@@ -104,7 +104,8 @@ public final class DungeonScreen extends ScreenAdapter {
 
   public DungeonScreen(DddGame game) {
     this.game = game;
-    this.rng = game.runRng();
+    // Wave 9 W9-α: rng は RunSession 経由で取得 (ラン未開始時は IllegalStateException)
+    this.rng = game.requireRunSession().rng();
   }
 
   @Override
@@ -120,7 +121,7 @@ public final class DungeonScreen extends ScreenAdapter {
     playerInputs = new PlayerInputs();
     // §15-5 Wave2 Task C: F1〜F4 スキル発動のため、スキルスロット装着済み数を供給する。
     playerInputs.bindSkillSlotSizeSupplier(
-        () -> game.context().state().player().skillSlot().size());
+        () -> game.requireRunSession().context().state().player().skillSlot().size());
     statusPopup = new StatusPopup(game.fonts().large(), game.fonts().isJapaneseAvailable());
     eliteReward = new EliteRewardOrchestrator(game, rng, effects);
     // マップタイルテクスチャをロード (ピクセルアート → Nearest filter で 80px 拡大時のボケ防止)。
@@ -154,7 +155,7 @@ public final class DungeonScreen extends ScreenAdapter {
     }
     eliteReward.render(delta);
     if (statusPanelOpen) {
-      statusPopup.updateValues(game.context().state().player());
+      statusPopup.updateValues(game.requireRunSession().context().state().player());
       statusPopup.render(delta);
     }
     transitionIfGameOver();
@@ -174,21 +175,21 @@ public final class DungeonScreen extends ScreenAdapter {
     }
     boolean otherPopupActive = nodeChoice != null || eliteReward.isActive();
     if (!otherPopupActive
-        && game.context().state().phase() == TurnPhase.PLAYER_TURN
+        && game.requireRunSession().context().state().phase() == TurnPhase.PLAYER_TURN
         && Gdx.input.isKeyJustPressed(Keys.TAB)) {
       statusPanelOpen = true;
     }
   }
 
   private void updateState(float delta) {
-    TurnDirector director = game.director();
-    TurnPhase phase = game.context().state().phase();
+    TurnDirector director = game.requireRunSession().director();
+    TurnPhase phase = game.requireRunSession().context().state().phase();
     if (phase == TurnPhase.PLAYER_TURN) {
       enemyStepTimer = 0f;
       // §15-3 UI 改善: マウスクリックでカード選択 (キーボード入力に先んじて処理)
       handleHandMouseClick();
       // poll(state) に移行: 状態2 (移動権保持中) の判定にドメインの pendingMoveCount を使う (ADR-21)
-      Optional<BattleAction> action = playerInputs.poll(game.context().state());
+      Optional<BattleAction> action = playerInputs.poll(game.requireRunSession().context().state());
       action.ifPresent(director::applyPlayerAction);
     } else if (phase == TurnPhase.ENEMY_TURN) {
       // §15-5: 敵ターンを ENEMY_STEP_INTERVAL ごとに 1 アクションずつ進め、敵が 1 体ずつ動くのを見せる。
@@ -231,7 +232,8 @@ public final class DungeonScreen extends ScreenAdapter {
               // Gold 不足等で apply が no-op だったと判断、HUD フラッシュで通知する。
               // 注: resolveLayerEndChoice は層遷移を行い state.player() を AP リフィル / ドローで
               // 書き換えるため、before は resolveLayerEndChoice の前にキャプチャしておく。
-              core.domain.entity.Player before = game.context().state().player();
+              core.domain.entity.Player before =
+                  game.requireRunSession().context().state().player();
               game.resolveLayerEndChoice(choice);
               boolean jp = game.fonts().isJapaneseAvailable();
               if (choice instanceof LayerEndNode.Shop shop
@@ -340,7 +342,8 @@ public final class DungeonScreen extends ScreenAdapter {
     // マップ層: 追従カメラで描画 (タイルテクスチャ → 境界線 → 罠/敵/プレイヤー → ダメージポップアップ)。
     batch.setProjectionMatrix(camera.combined);
     shapes.setProjectionMatrix(camera.combined);
-    DungeonRenderer.draw(batch, shapes, game.context().state(), wallTexture, floorTexture);
+    DungeonRenderer.draw(
+        batch, shapes, game.requireRunSession().context().state(), wallTexture, floorTexture);
     batch.begin();
     effects.drawPopups(batch, game.fonts().large());
     batch.end();
@@ -356,7 +359,8 @@ public final class DungeonScreen extends ScreenAdapter {
     shapes.setColor(0f, 0f, 0f, 1f);
     shapes.rect(0f, 0f, RenderLayout.SCREEN_WIDTH, 300f);
     // §7-2 / W4-ε: HP <= 30% で画面端を脈動するフレームで警告表示 (色はテーマ依存)。
-    core.domain.entity.Stats playerStats = game.context().state().player().stats();
+    core.domain.entity.Stats playerStats =
+        game.requireRunSession().context().state().player().stats();
     effects.drawLowHpWarning(shapes, playerStats, theme);
     shapes.end();
 
@@ -365,7 +369,7 @@ public final class DungeonScreen extends ScreenAdapter {
     HudRenderer.draw(
         batch,
         game.fonts(),
-        game.context(),
+        game.requireRunSession().context(),
         playerInputs.pendingCardIndex(),
         game.cardImageRegistry(),
         game.settings().uiPreset(),
@@ -381,19 +385,19 @@ public final class DungeonScreen extends ScreenAdapter {
    */
   private void processNewEvents() {
     // §15-5 / E-7: 生存中の敵 ID → kind を更新 (ActorDied 時の Bestiary 記録に使う、kind は ActorDied 自体に無い)。
-    for (Enemy en : game.context().state().enemies()) {
+    for (Enemy en : game.requireRunSession().context().state().enemies()) {
       enemyKindMemory.recordEnemy(en.id(), en.kind());
     }
-    long current = game.context().totalEventsEmitted();
+    long current = game.requireRunSession().context().totalEventsEmitted();
     if (current <= lastSeenEventCount) {
       return;
     }
     int delta = (int) Math.min(current - lastSeenEventCount, 64L);
-    List<BattleEvent> newEvents = game.context().latestEvents(delta);
-    ActorId playerId = game.context().state().player().id();
+    List<BattleEvent> newEvents = game.requireRunSession().context().latestEvents(delta);
+    ActorId playerId = game.requireRunSession().context().state().player().id();
     for (BattleEvent e : newEvents) {
       if (e instanceof BattleEvent.DamageDealt d) {
-        effects.spawnPopup(d, playerId, game.context().state());
+        effects.spawnPopup(d, playerId, game.requireRunSession().context().state());
         // §15-5: 与ダメ / 被ダメ SE
         if (d.to().equals(playerId)) {
           game.soundManager().playSe(SeKind.PLAYER_DAMAGED);
@@ -463,7 +467,8 @@ public final class DungeonScreen extends ScreenAdapter {
     float hudX = Gdx.input.getX() * (RenderLayout.SCREEN_WIDTH / screenW);
     float hudY =
         RenderLayout.SCREEN_HEIGHT - (Gdx.input.getY() * (RenderLayout.SCREEN_HEIGHT / screenH));
-    int handSize = game.context().state().player().cardPileState().hand().size();
+    int handSize =
+        game.requireRunSession().context().state().player().cardPileState().hand().size();
     for (int i = 0; i < handSize && i < 9; i++) {
       Rectangle bounds = HudRenderer.handCardBounds(i);
       if (bounds.contains(hudX, hudY)) {
@@ -474,7 +479,7 @@ public final class DungeonScreen extends ScreenAdapter {
   }
 
   private void updateMapCamera() {
-    DungeonState s = game.context().state();
+    DungeonState s = game.requireRunSession().context().state();
     float px = s.player().position().x() * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f;
     float py = s.player().position().y() * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f;
     // §15-6 UI/UX: HUD パネル (画面下 300px) で下半分が隠れるため、プレイヤーを画面 Y=540 ではなく
@@ -492,7 +497,7 @@ public final class DungeonScreen extends ScreenAdapter {
   }
 
   private void transitionIfGameOver() {
-    TurnPhase phase = game.context().state().phase();
+    TurnPhase phase = game.requireRunSession().context().state().phase();
     if (phase == TurnPhase.GAME_OVER) {
       game.changeScreen(new GameOverScreen(game, false));
     } else if (phase == TurnPhase.RUN_CLEARED) {

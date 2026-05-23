@@ -3,6 +3,7 @@ package core.presentation.screen;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Screen;
 import core.application.GameContext;
+import core.application.RunSession;
 import core.application.TurnDirector;
 import core.domain.battle.TurnEngine.StepResult;
 import core.domain.card.Card;
@@ -50,8 +51,16 @@ import java.util.Set;
  */
 public final class DddGame extends Game {
 
-  private GameContext context;
-  private TurnDirector director;
+  /**
+   * ラン単位の application 層状態の集約 (Wave 9 W9-α、{@link RunSession} record)。
+   *
+   * <p>従来 3 個別フィールド (context / director / runRng) として保持していたものを 1 つの Optional に置換。 ラン未開始の意味を {@code
+   * Optional.empty()} で型表現することで、{@code if (context == null) return} 等の null チェック散在を撤廃する。
+   *
+   * <p>Screen 側からのアクセスは {@link #requireRunSession()} を推奨 ({@link IllegalStateException} を含み、
+   * ラン未開始時の NoSuchElementException 即死を回避してデバッグ性を高める)。
+   */
+  private Optional<RunSession> runSession = Optional.empty();
 
   /**
    * LibGDX リソース系 3 コンポーネント (Fonts / SoundManager / CardImageRegistry) の集約 (Wave 8 W8-β)。
@@ -60,12 +69,6 @@ public final class DddGame extends Game {
    * ({@link #fonts()} 等) 経由に置換済。
    */
   private GameResources resources;
-
-  /**
-   * ランごとの乱数源 (ADR-19)。{@link #startNewRun()} で新しいシードに切り替え、{@link DungeonScreen} へ注入する。 同一シードを渡すことで
-   * テストでの再現が可能。本番プレイは非再現的。
-   */
-  private Random runRng;
 
   /**
    * ラン外で持続するプレイヤー進捗を集約した不変 record (§15-2/-5/-7/-9/-10/-11、Wave 6 W6-γ で導入)。
@@ -96,8 +99,22 @@ public final class DddGame extends Game {
     return m;
   }
 
-  public GameContext context() {
-    return context;
+  /**
+   * 現在のラン状態を返す (Wave 9 W9-α、ラン未開始時は {@link Optional#empty()})。内部利用 (saveAtLayerBoundary 等)
+   * で「ラン未開始ならスキップ」を表現するときに使う。Screen 側は通常 {@link #requireRunSession()} を使うこと。
+   */
+  public Optional<RunSession> runSession() {
+    return runSession;
+  }
+
+  /**
+   * 現在のラン状態を返す。ラン未開始時は {@link IllegalStateException} を投げる (Wave 9 W9-α、CTO レビュー反映 #2)。
+   *
+   * <p>Screen 側から `game.requireRunSession().context()` 等で参照する。`.get()` で NoSuchElementException 即死を
+   * 回避し、IllegalStateException + 明示メッセージでデバッグ性を高める。
+   */
+  public RunSession requireRunSession() {
+    return runSession.orElseThrow(() -> new IllegalStateException("Run session not active"));
   }
 
   /**
@@ -152,10 +169,10 @@ public final class DddGame extends Game {
 
   /** 現在の Player が保持する全カード (山札 + 手札 + 捨て札) の ID を入手済として記録する。 */
   private void recordObtainedCards() {
-    if (context == null) {
+    if (runSession.isEmpty()) {
       return;
     }
-    CardPileState piles = context.state().player().cardPileState();
+    CardPileState piles = runSession.get().context().state().player().cardPileState();
     Set<CardId> next = new HashSet<>(progress.obtainedCards());
     for (Card c : piles.drawPile().cards()) {
       next.add(c.id());
@@ -167,10 +184,6 @@ public final class DddGame extends Game {
       next.add(c.id());
     }
     progress = progress.withObtainedCards(next);
-  }
-
-  public TurnDirector director() {
-    return director;
   }
 
   public Fonts fonts() {
@@ -234,35 +247,33 @@ public final class DddGame extends Game {
 
   /** ラン終了時 (GameOverScreen 表示時) に Player.soul をラン外保持に書き戻す (§15-7)。 */
   public void preserveSoulFromRun() {
-    if (context != null) {
-      progress = progress.withPlayerSoul(context.state().player().soul());
-    }
+    runSession.ifPresent(
+        session -> progress = progress.withPlayerSoul(session.context().state().player().soul()));
   }
 
   /**
    * ラン終了時 (GameOverScreen 表示時) に呼ぶ (§15-7 / E-2)。{@link #preserveSoulFromRun()} で 獲得ソウルをラン外保持に退避し、
    * runCount を 1 増やす。runCount が 1 以上になることで 以降ソウルツリー動線 (タイトルの T キー) が解禁される。
+   *
+   * <p>Wave 9 W9-α CTO レビュー反映 #1: ラン揮発状態を {@link Optional#empty()} で明示クリアし、前回ランの GameContext が
+   * 次回ランにリバウンドする事故を構造的に防ぐ。Android (Phase D) のメモリ圧迫回避にも寄与。
    */
   public void onRunEnded() {
     preserveSoulFromRun();
     progress = progress.withRunCount(progress.runCount() + 1);
+    runSession = Optional.empty();
   }
 
-  /** 現在の {@link Random} (ダンジョン生成・ターン進行用、{@link DungeonScreen} への注入に使う)。 */
-  public Random runRng() {
-    return runRng;
-  }
-
-  /** 新しいラン (= ダンジョン挑戦) を開始する。context と director を作り直す。 */
+  /** 新しいラン (= ダンジョン挑戦) を開始する。RunSession を作り直す。 */
   public void startNewRun() {
     // ADR-19: Random は引数注入で再現性を呼出元に委ねる (初期手札シャッフル + 毎ターンドロー)。
     // ラン毎に new Random() で異なるシード = 本番プレイは非再現的 (テストでは固定シードを渡す)。
-    runRng = new Random();
+    Random newRng = new Random();
     // §15-6 / SoulTree LayerExtend: 解放済みの LayerExtendEffect の合計値からラン最大層数を算出。
     // generateLayerState がボス配置のために最大層数を必要とするため、firstFloor 前に計算する。
     int extendAmount = totalLayerExtendAmount();
     int maxLayer = InitialStateFactory.DEFAULT_MAX_LAYER + extendAmount;
-    DungeonState state = InitialStateFactory.firstFloor(runRng, progress.loadout(), maxLayer);
+    DungeonState state = InitialStateFactory.firstFloor(newRng, progress.loadout(), maxLayer);
     // §15-7: ソウルツリーの解放済み効果を Player に適用 (素ステ補正 / カード追加 / 枠拡張)
     // LayerExtendEffect は Player に副作用がないため、ループは no-op (副作用は GameContext.maxLayer 側で集約済)。
     Player applied = progress.soulTree().applyTo(state.player(), InitialStateFactory::resolveCard);
@@ -270,11 +281,12 @@ public final class DddGame extends Game {
     Player withSoul = applied.addSoul(progress.playerSoul());
     // 注入後は外部保持を 0 に (重複加算防止、preserveSoulFromRun でラン終了時に書き戻る)
     progress = progress.withPlayerSoul(Soul.zero());
-    this.context = GameContext.startNewRun(state.withPlayer(withSoul));
+    GameContext newContext = GameContext.startNewRun(state.withPlayer(withSoul));
     if (extendAmount > 0) {
-      this.context.extendMaxLayer(extendAmount);
+      newContext.extendMaxLayer(extendAmount);
     }
-    this.director = new TurnDirector(this.context, runRng);
+    TurnDirector newDirector = new TurnDirector(newContext, newRng);
+    runSession = Optional.of(new RunSession(newContext, newDirector, newRng));
     recordObtainedCards(); // §15-3: 初期デッキを図鑑に記録
   }
 
@@ -313,7 +325,8 @@ public final class DddGame extends Game {
    */
   public void resolveLayerEndChoice(LayerEndNode choice) {
     Objects.requireNonNull(choice, "choice");
-    DungeonState current = context.state();
+    RunSession session = requireRunSession();
+    DungeonState current = session.context().state();
     Player before = current.player();
     // Wave 3 Task A: Shop は CardId 保持なので cards / equipments resolver を context 経由で渡す
     Player upgraded = choice.apply(before, nodeResolveContext());
@@ -326,8 +339,11 @@ public final class DddGame extends Game {
     }
     DungeonState withUpgrade = current.withPlayer(upgraded);
     // GameContext.maxLayer を渡し、SoulTree.LayerExtendEffect で拡張済の最終層番号を反映
-    director.advanceFloor(
-        InitialStateFactory.advanceLayer(withUpgrade, runRng, context.maxLayer()));
+    session
+        .director()
+        .advanceFloor(
+            InitialStateFactory.advanceLayer(
+                withUpgrade, session.rng(), session.context().maxLayer()));
     recordObtainedCards(); // §15-3: ショップノードで入手したカードを図鑑に記録
     // §15-11: 層境界 (次層に進入する前) でセーブする。
     saveAtLayerBoundary();
@@ -341,9 +357,12 @@ public final class DddGame extends Game {
    */
   public void applyEliteCardReward(LayerEndNode choice) {
     Objects.requireNonNull(choice, "choice");
-    DungeonState current = context.state();
+    RunSession session = requireRunSession();
+    DungeonState current = session.context().state();
     Player upgraded = choice.apply(current.player(), nodeResolveContext());
-    context.applyResult(new StepResult(current.withPlayer(upgraded), java.util.List.of()));
+    session
+        .context()
+        .applyResult(new StepResult(current.withPlayer(upgraded), java.util.List.of()));
     recordObtainedCards(); // §15-3: 強化個体報酬で入手したカードを図鑑に記録
   }
 
@@ -405,10 +424,10 @@ public final class DddGame extends Game {
    * <p>context が null (ラン未開始) の場合は何もしない (ガード)。
    */
   public void saveAtLayerBoundary() {
-    if (context == null) {
+    if (runSession.isEmpty()) {
       return;
     }
-    DungeonState state = context.state();
+    DungeonState state = runSession.get().context().state();
     // ロード後に進入する層番号 = 現在の次層番号 (advanceFloor 済みなので state.layer() が次層)
     int nextLayerNumber = state.layer().number();
     SaveData data =
@@ -454,12 +473,12 @@ public final class DddGame extends Game {
             SaveDataConverter.toSoulTree(data));
 
     // ラン状態を復元: 指定層からの新規マップ生成 + プレイヤーステ / デッキ注入
-    runRng = new Random();
+    Random newRng = new Random();
     // §15-6 / SoulTree LayerExtend: ロード再開でも最大層数を再計算 (SaveData の SoulTree から派生)。
     int extendAmount = totalLayerExtendAmount();
     int maxLayer = InitialStateFactory.DEFAULT_MAX_LAYER + extendAmount;
     DungeonState baseState =
-        InitialStateFactory.restoreLayer(data, progress.loadout(), runRng, maxLayer);
+        InitialStateFactory.restoreLayer(data, progress.loadout(), newRng, maxLayer);
     // §15-7 CRITICAL FIX: ロード時にソウルツリー効果を再適用しない (SaveData は補正済 Stats/Deck/SkillSlot を
     // 保存しているため、再適用すると HP / カード / スキル枠が二重加算される)。
     Player withTree = baseState.player();
@@ -469,11 +488,12 @@ public final class DddGame extends Game {
     // playerSoul はもう Soul.zero() (前段の new PlayerProgress で初期化済)、注入後の保持は維持
 
     DungeonState restoredState = baseState.withPlayer(withSoul);
-    this.context = GameContext.startNewRun(restoredState);
+    GameContext newContext = GameContext.startNewRun(restoredState);
     if (extendAmount > 0) {
-      this.context.extendMaxLayer(extendAmount);
+      newContext.extendMaxLayer(extendAmount);
     }
-    this.director = new TurnDirector(this.context, runRng);
+    TurnDirector newDirector = new TurnDirector(newContext, newRng);
+    runSession = Optional.of(new RunSession(newContext, newDirector, newRng));
     // セーブデータは引き継がず: ロードして再開したら次層進入時に上書きセーブされる
     return true;
   }
