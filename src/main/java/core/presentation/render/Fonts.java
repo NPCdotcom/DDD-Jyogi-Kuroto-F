@@ -13,6 +13,8 @@ import core.domain.entity.EnemyKind;
 import core.domain.layer.LayerEndNode;
 import core.domain.tree.SoulTree;
 import core.domain.tree.TreeNode;
+import core.infrastructure.bootstrap.CardCatalog;
+import core.infrastructure.bootstrap.EquipmentCatalog;
 import core.infrastructure.bootstrap.InitialStateFactory;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -87,13 +89,26 @@ public final class Fonts implements Disposable {
   private final FreeTypeFontGenerator generator;
   private final boolean japaneseAvailable;
 
+  /** カードマスタ (グリフ事前生成で displayName を集める用、A7 multi-perspective 経由化)。 */
+  private final CardCatalog cardCatalog;
+
+  /** 装備マスタ (グリフ事前生成で displayName を集める用、A7 multi-perspective 経由化)。 */
+  private final EquipmentCatalog equipmentCatalog;
+
   /** {@link #generate(int)} が生成する PixmapPacker を保持する (dispose 対象)。 */
   private PixmapPacker hudPacker;
 
   private PixmapPacker largePacker;
   private PixmapPacker titlePacker;
 
-  public Fonts() {
+  /**
+   * @param cardCatalog グリフ事前生成で displayName を集める用 (presentation→infrastructure 経由化、 A7
+   *     multi-perspective Must 対応)
+   * @param equipmentCatalog 同上
+   */
+  public Fonts(CardCatalog cardCatalog, EquipmentCatalog equipmentCatalog) {
+    this.cardCatalog = cardCatalog;
+    this.equipmentCatalog = equipmentCatalog;
     FileHandle jp = Gdx.files.internal(JP_FONT_PATH);
     if (jp.exists()) {
       generator = new FreeTypeFontGenerator(jp);
@@ -154,7 +169,7 @@ public final class Fonts implements Disposable {
    * <p>層 2 の動的収集で例外が出た場合は層 1 のみで動作 ({@code Gdx.app.log} でログ出力)。 これで Card / Equipment / SoulTree
    * の追加時にも自動的にグリフ生成され、豆腐文字を予防する。
    */
-  private static String buildAllCharacters() {
+  private String buildAllCharacters() {
     TreeSet<Character> chars = new TreeSet<>();
     addAllChars(chars, ASCII_CHARS);
     addAllChars(chars, GAME_GLYPH_CHARS);
@@ -183,7 +198,7 @@ public final class Fonts implements Disposable {
    * <p>新カード / 新装備を追加した場合、本メソッドが自動で文字を拾うため、{@code GAME_GLYPH_CHARS} の手動拡張が 基本的に不要になる (将来の事故予防、5
    * 視点レビュー teammate-pov の懸念対応)。
    */
-  private static void collectDynamicCharacters(TreeSet<Character> set) {
+  private void collectDynamicCharacters(TreeSet<Character> set) {
     // Strings.Ja の全 static final String を抽出
     for (Field f : Strings.Ja.class.getDeclaredFields()) {
       if (Modifier.isStatic(f.getModifiers()) && f.getType() == String.class) {
@@ -212,20 +227,21 @@ public final class Fonts implements Disposable {
     addAllChars(set, new LayerEndNode.Rest().displayName()); // "HP 全回復"
     // Shop の固定フォーマット "ショップ: %s (金貨 %d)" の文字を網羅
     // (引数 Card の displayName は下のカードマスタ走査で収集される)。
-    addAllChars(
-        set,
-        new LayerEndNode.Shop(0, InitialStateFactory.cardCatalog().all().get(0)).displayName());
+    addAllChars(set, new LayerEndNode.Shop(0, cardCatalog.all().get(0)).displayName());
     // Event の displayLabel は DungeonScreen.createNodeChoicePopup でハードコード渡し。
     // 現状の唯一の Event displayLabel をここに転写 (M2 で候補プールを集約して自動化予定)。
     addAllChars(set, "ソウルの祠 (ソウル +30 / HP -5)");
     // カードマスタ (cards.json) 全カードの displayName グリフを網羅。
-    for (var card : InitialStateFactory.cardCatalog().all()) {
+    for (var card : cardCatalog.all()) {
       addAllChars(set, card.displayName());
     }
     // 装備マスタ: equipment.json 全装備 + 初期装備 2 種の displayName グリフを網羅 (§15-9)。
-    for (var equipment : InitialStateFactory.equipmentCatalog().all()) {
+    for (var equipment : equipmentCatalog.all()) {
       addAllChars(set, equipment.displayName());
     }
+    // 初期装備 (ぼろい靴 / ぼろい短剣) は InitialStateFactory のハードコード初期値で、equipmentCatalog
+    // には含まれないので別途グリフ収集する (ドメイン初期データの直接参照は presentation→infrastructure
+    // の許容範囲)。
     addAllChars(set, InitialStateFactory.tatteredBoots().displayName());
     addAllChars(set, InitialStateFactory.tatteredDagger().displayName());
   }

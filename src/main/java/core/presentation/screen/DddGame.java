@@ -452,7 +452,10 @@ public final class DddGame extends Game {
 
   @Override
   public void create() {
-    fonts = new Fonts();
+    fonts =
+        new Fonts(
+            core.infrastructure.bootstrap.InitialStateFactory.cardCatalog(),
+            core.infrastructure.bootstrap.InitialStateFactory.equipmentCatalog());
     // §15-1: 設定をロード (ファイルなし時は DEFAULT)
     this.settings = settingsManager.load();
     // §15-5: サウンドマネージャを初期化 (ファイル欠損時は no-op で継続)

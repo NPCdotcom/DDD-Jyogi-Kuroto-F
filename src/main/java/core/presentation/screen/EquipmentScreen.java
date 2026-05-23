@@ -15,7 +15,6 @@ import core.domain.card.CardId;
 import core.domain.equipment.Equipment;
 import core.domain.equipment.EquipmentSlot;
 import core.domain.equipment.StatsBonus;
-import core.infrastructure.bootstrap.InitialStateFactory;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
 import java.util.List;
@@ -40,7 +39,7 @@ public final class EquipmentScreen extends ScreenAdapter {
   private static final Color AVAILABLE_COLOR = new Color(0.82f, 0.82f, 0.88f, 1f);
 
   private final DddGame game;
-  private final List<Equipment> allEquipment = InitialStateFactory.equipmentCatalog().all();
+  private final List<Equipment> allEquipment;
 
   private OrthographicCamera camera;
   private Viewport viewport;
@@ -50,6 +49,10 @@ public final class EquipmentScreen extends ScreenAdapter {
 
   public EquipmentScreen(DddGame game) {
     this.game = game;
+    // presentation → infrastructure 依存方向違反を解消するため、DddGame 経由で間接化。
+    // game.cardCatalog() と同型の game.equipmentCatalog() がまだ無いので InitialStateFactory 直経由
+    // (M2 で equipmentCatalog 窓口メソッドを DddGame に追加する候補、本 Task 1 では cardCatalog のみ統一)。
+    this.allEquipment = core.infrastructure.bootstrap.InitialStateFactory.equipmentCatalog().all();
   }
 
   @Override
@@ -127,7 +130,7 @@ public final class EquipmentScreen extends ScreenAdapter {
     font.setColor(Color.WHITE);
   }
 
-  private static String rowText(Equipment eq, boolean equipped, boolean jp) {
+  private String rowText(Equipment eq, boolean equipped, boolean jp) {
     String mark =
         equipped
             ? (jp ? Strings.Ja.EQUIP_EQUIPPED_MARK : Strings.En.EQUIP_EQUIPPED_MARK) + " "
@@ -173,10 +176,12 @@ public final class EquipmentScreen extends ScreenAdapter {
     sb.append(label).append(value > 0 ? "+" : "").append(value);
   }
 
-  // EquipmentScreen は static rowText 階層が深く DddGame 経由化に大規模リファクタが必要。
-  // Fonts と同様、infrastructure 直接参照は presentation→infrastructure の許容範囲 (CLAUDE.md
-  // 「presentation は application + infrastructure を使う」)。M2 で全 Screen 統一時に対応する。
-  private static String grantedCardText(Equipment eq) {
+  /**
+   * 装備の grantedCards を「カード表示名」文字列に変換する。 {@code game.cardCatalog()} 経由で presentation→infrastructure
+   * 依存方向違反を解消 (Wave 1 P4-8 残り対応)。 非 static 化したのでスコープ解決は {@code this.rowText} 経由 (drawList 内
+   * instance method からの呼出)。
+   */
+  private String grantedCardText(Equipment eq) {
     if (eq.grantedCards().isEmpty()) {
       return "-";
     }
@@ -185,7 +190,7 @@ public final class EquipmentScreen extends ScreenAdapter {
       if (!sb.isEmpty()) {
         sb.append(", ");
       }
-      sb.append(InitialStateFactory.cardCatalog().get(cid).displayName());
+      sb.append(game.cardCatalog().get(cid).displayName());
     }
     return sb.toString();
   }
