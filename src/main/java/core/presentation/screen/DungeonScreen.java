@@ -260,19 +260,26 @@ public final class DungeonScreen extends ScreenAdapter {
             choice -> {
               // §15-9 / Shop silent fail 通知: 適用前後の Player を比較し、変化が無ければ
               // Gold 不足等で apply が no-op だったと判断、HUD フラッシュで通知する。
+              // 注: resolveLayerEndChoice は層遷移を行い state.player() を AP リフィル / ドローで
+              // 書き換えるため、before は resolveLayerEndChoice の前にキャプチャしておく。
               core.domain.entity.Player before = game.context().state().player();
               game.resolveLayerEndChoice(choice);
-              core.domain.entity.Player after = game.context().state().player();
+              boolean jp = game.fonts().isJapaneseAvailable();
               if (choice instanceof LayerEndNode.Shop shop
-                  && before.gold().amount() == after.gold().amount()
-                  && before.cardPileState().drawPile().size()
-                      == after.cardPileState().drawPile().size()) {
-                boolean jp = game.fonts().isJapaneseAvailable();
+                  && before.gold().amount() < shop.goldCost()) {
                 showFlash(
                     (jp
                             ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
                             : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
                         .formatted(shop.goldCost()));
+              } else if (choice instanceof LayerEndNode.ShopEquipment se
+                  && before.gold().amount() < se.goldCost()) {
+                // Wave 3 Task B: 装備購入ノードでも同じ silent fail フラッシュを流用。
+                showFlash(
+                    (jp
+                            ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
+                            : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
+                        .formatted(se.goldCost()));
               }
               nodeChoice.dispose();
               nodeChoice = null;
@@ -363,6 +370,18 @@ public final class DungeonScreen extends ScreenAdapter {
     return all.get(0);
   }
 
+  /**
+   * 装備マスタ (equipment.json) からランダムに 1 件の EquipmentId を返す (Wave 3 Task B、 装備購入ノードの抽選用)。空カタログ時は IAE
+   * (起動時に EquipmentCatalog が空ならハードコードで詰む設計)。
+   */
+  private core.domain.equipment.EquipmentId randomEquipmentId() {
+    List<core.domain.equipment.Equipment> all = new ArrayList<>(game.equipmentCatalog().all());
+    if (all.isEmpty()) {
+      throw new IllegalStateException("equipment catalog is empty; cannot draw ShopEquipment");
+    }
+    return all.get(rng.nextInt(all.size())).id();
+  }
+
   private void showFlash(String message) {
     this.flashMessage = message;
     this.flashTimer = 2.5f;
@@ -384,7 +403,9 @@ public final class DungeonScreen extends ScreenAdapter {
                 new LayerEndNode.Rest(),
                 // Wave 3 Task A: Shop は CardId 保持。ランダム抽選カードを id だけ渡す。
                 new LayerEndNode.Shop(5, randomCatalogCard().id()),
-                new LayerEndNode.Event(30, -5, 0, "ソウルの祠 (ソウル +30 / HP -5)")));
+                new LayerEndNode.Event(30, -5, 0, "ソウルの祠 (ソウル +30 / HP -5)"),
+                // Wave 3 Task B: 装備購入ノード (層末 5 候補 → 6 候補、3 提示は変えない)。
+                new LayerEndNode.ShopEquipment(15, randomEquipmentId())));
     Collections.shuffle(allCandidates, rng);
     List<LayerEndNode> choices =
         List.copyOf(allCandidates.subList(0, NodeChoicePopup.CHOICE_COUNT));

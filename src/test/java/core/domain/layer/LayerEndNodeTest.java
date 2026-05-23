@@ -43,14 +43,37 @@ class LayerEndNodeTest {
 
   /**
    * テスト用 {@link NodeResolveContext}。cards は {@link InitialStateFactory#resolveCard} に委譲、 equipments
-   * は本 test では未使用なのでスタブ ({@link IllegalStateException} を投げる) を渡す。
+   * は本 test では未使用な variant 向けにスタブ ({@link IllegalStateException} を投げる) を渡す。
    *
    * <p>こうすることで「equipments resolver は今回の variant ロジックで使われない」ことを構造的に保証する (誤って equipments を呼んだ瞬間に
    * テストが失敗する safety net)。
+   *
+   * <p>Wave 3 Task B: {@link LayerEndNode.ShopEquipment} は equipments resolver を実際に使うため、 別途 {@link
+   * #equipmentContext()} を用意する。
    */
   private static NodeResolveContext testContext() {
     return new NodeResolveContext(
         InitialStateFactory::resolveCard, TestContextHelpers::unusedEquipment);
+  }
+
+  /**
+   * Wave 3 Task B: {@link LayerEndNode.ShopEquipment} 用の {@link NodeResolveContext}。equipments
+   * resolver は {@link InitialStateFactory#equipmentCatalog()} の {@code get} に委譲する (本物のマスタを使うことで
+   * displayName が実装現実と一致することを検証できる)。
+   */
+  private static NodeResolveContext equipmentContext() {
+    return new NodeResolveContext(
+        InitialStateFactory::resolveCard, id -> InitialStateFactory.equipmentCatalog().get(id));
+  }
+
+  /** equipment.json の先頭装備 ID (ShopEquipment テストでは displayName 検証に使う)。 */
+  private static EquipmentId sampleEquipmentId() {
+    return InitialStateFactory.equipmentCatalog().all().get(0).id();
+  }
+
+  /** 先頭装備の本物 displayName (resolver 経由解決の検証用)。 */
+  private static String sampleEquipmentDisplayName() {
+    return InitialStateFactory.equipmentCatalog().all().get(0).displayName();
   }
 
   /** equipments resolver は本テストでは未使用、呼ばれたら fail させる stub。 */
@@ -167,15 +190,17 @@ class LayerEndNodeTest {
 
   @Test
   void allPermitsAreReachableViaPatternSwitch() {
-    // §15-8 / E-6: sealed permits の全 5 種が pattern switch で網羅的に処理できることを確認
+    // §15-8 / E-6: sealed permits の全 6 種が pattern switch で網羅的に処理できることを確認
     // Wave 3 Task A: Shop は CardId 保持に変更。網羅性チェックは ID で構築する。
+    // Wave 3 Task B: ShopEquipment を permits に追加、case 追加で網羅性検証。
     LayerEndNode[] allKinds =
         new LayerEndNode[] {
           new LayerEndNode.HpMaxUp(1),
           new LayerEndNode.SpeedUp(1),
           new LayerEndNode.Rest(),
           new LayerEndNode.Shop(5, sampleCardId()),
-          new LayerEndNode.Event(10, -3, 0, "テスト")
+          new LayerEndNode.Event(10, -3, 0, "テスト"),
+          new LayerEndNode.ShopEquipment(15, sampleEquipmentId())
         };
     for (LayerEndNode node : allKinds) {
       String tag =
@@ -185,6 +210,7 @@ class LayerEndNodeTest {
             case LayerEndNode.Rest ignored -> "rest";
             case LayerEndNode.Shop ignored -> "shop";
             case LayerEndNode.Event ignored -> "event";
+            case LayerEndNode.ShopEquipment ignored -> "shopEquipment";
           };
       assertFalse(tag.isEmpty(), "switch arm が空文字を返してはいけない: " + node);
     }
@@ -291,5 +317,78 @@ class LayerEndNodeTest {
   @Test
   void eventRejectsBlankDisplayLabel() {
     assertThrows(IllegalArgumentException.class, () -> new LayerEndNode.Event(0, 0, 0, ""));
+  }
+
+  // ---------------- ShopEquipment (Wave 3 Task B) ----------------
+
+  @Test
+  void shopEquipmentRejectsNegativeGoldCost() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new LayerEndNode.ShopEquipment(-1, sampleEquipmentId()));
+  }
+
+  @Test
+  void shopEquipmentRejectsNullEquipmentId() {
+    assertThrows(NullPointerException.class, () -> new LayerEndNode.ShopEquipment(15, null));
+  }
+
+  @Test
+  void shopEquipmentConsumesGoldWhenSufficient() {
+    // Wave 3 Task B: apply は Gold 消費のみ行う純関数 (loadout 装着は presentation 層責務)。
+    Player p = initialPlayer().addGold(new core.domain.meta.Gold(20));
+    Player after =
+        new LayerEndNode.ShopEquipment(15, sampleEquipmentId()).apply(p, equipmentContext());
+    assertEquals(5, after.gold().amount(), "20 - 15 = 5");
+    // Player 自体は装備を保持しないため、デッキ / Stats は不変であることを確認
+    assertEquals(p.cardPileState(), after.cardPileState(), "デッキは ShopEquipment.apply で変化しない");
+    assertEquals(p.stats(), after.stats(), "Stats は ShopEquipment.apply で変化しない");
+  }
+
+  @Test
+  void shopEquipmentSilentFailWhenInsufficientGold() {
+    Player p = initialPlayer(); // gold 0
+    Player after =
+        new LayerEndNode.ShopEquipment(15, sampleEquipmentId()).apply(p, equipmentContext());
+    // Gold 不足: apply は引数の Player をそのまま返す (silent fail、Shop と同型)
+    assertEquals(p.gold().amount(), after.gold().amount(), "Gold 不変");
+    assertEquals(p, after, "Player 全体が不変");
+  }
+
+  @Test
+  void shopEquipmentDisplayNameIncludesEquipmentNameAndCost() {
+    String label =
+        new LayerEndNode.ShopEquipment(15, sampleEquipmentId()).displayName(equipmentContext());
+    assertTrue(label.contains("装備購入"), "displayName に '装備購入' プレフィックスが含まれる");
+    assertTrue(label.contains("15"), "displayName に goldCost が含まれる");
+    // 本物の装備名を resolver 経由で解決していることを確認
+    assertTrue(
+        label.contains(sampleEquipmentDisplayName()),
+        "displayName に resolver で解決した装備名が含まれる: " + label);
+  }
+
+  @Test
+  void shopEquipmentApplyRequiresNonNullContext() {
+    Player p = initialPlayer().addGold(new core.domain.meta.Gold(20));
+    assertThrows(
+        NullPointerException.class,
+        () -> new LayerEndNode.ShopEquipment(15, sampleEquipmentId()).apply(p, null));
+  }
+
+  @Test
+  void shopEquipmentDisplayNameRequiresNonNullContext() {
+    assertThrows(
+        NullPointerException.class,
+        () -> new LayerEndNode.ShopEquipment(15, sampleEquipmentId()).displayName(null));
+  }
+
+  @Test
+  void shopEquipmentZeroGoldCostIsAllowed() {
+    // 無料装備購入も将来の Event 報酬等で使う想定 (goldCost >= 0 は許可、コンストラクタは IAE を投げない)
+    Player p = initialPlayer();
+    Player after =
+        new LayerEndNode.ShopEquipment(0, sampleEquipmentId()).apply(p, equipmentContext());
+    assertEquals(p.gold().amount(), after.gold().amount(), "Gold 不変");
+    assertEquals(p, after, "Player は変化しない (goldCost 0 ノードは spendGold をスキップ)");
   }
 }

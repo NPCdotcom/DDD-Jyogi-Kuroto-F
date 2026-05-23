@@ -341,8 +341,16 @@ public final class DddGame extends Game {
   public void resolveLayerEndChoice(LayerEndNode choice) {
     Objects.requireNonNull(choice, "choice");
     DungeonState current = context.state();
+    Player before = current.player();
     // Wave 3 Task A: Shop は CardId 保持なので cards / equipments resolver を context 経由で渡す
-    Player upgraded = choice.apply(current.player(), nodeResolveContext());
+    Player upgraded = choice.apply(before, nodeResolveContext());
+    // Wave 3 Task B: ShopEquipment は apply 内で Gold 消費のみ行う純関数。Gold が減っていれば
+    // 購入成功 = ロードアウトに装着する (装着は次ラン反映、ADR-25 / ADR-26)。
+    if (choice instanceof LayerEndNode.ShopEquipment se
+        && before.gold().amount() != upgraded.gold().amount()) {
+      Equipment eq = equipmentCatalog().get(se.equipmentId());
+      equipInLoadout(eq);
+    }
     DungeonState withUpgrade = current.withPlayer(upgraded);
     // GameContext.maxLayer を渡し、SoulTree.LayerExtendEffect で拡張済の最終層番号を反映
     director.advanceFloor(

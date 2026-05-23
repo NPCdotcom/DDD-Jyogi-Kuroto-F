@@ -6,6 +6,8 @@ import core.domain.card.CardPileState;
 import core.domain.card.DrawPile;
 import core.domain.entity.Player;
 import core.domain.entity.Stats;
+import core.domain.equipment.Equipment;
+import core.domain.equipment.EquipmentId;
 import core.domain.meta.Gold;
 import core.domain.meta.Soul;
 import java.util.ArrayList;
@@ -32,7 +34,8 @@ public sealed interface LayerEndNode
         LayerEndNode.SpeedUp,
         LayerEndNode.Rest,
         LayerEndNode.Shop,
-        LayerEndNode.Event {
+        LayerEndNode.Event,
+        LayerEndNode.ShopEquipment {
 
   /**
    * 効果を適用した新しい Player を返す (純関数)。
@@ -211,6 +214,45 @@ public sealed interface LayerEndNode
     @Override
     public String displayName(NodeResolveContext context) {
       return displayLabel;
+    }
+  }
+
+  /**
+   * 装備購入ノード (§15-8 / §15-9 / Wave 3 Task B)。{@code goldCost} 分の金貨を消費し、{@code equipmentId} で示される装備を
+   * 「次ラン以降のロードアウトへ装着」する。
+   *
+   * <p>ドメイン層の {@link Player} record は装備ロードアウトを保持しない設計 (装備管理は {@code DddGame.loadout} に 集約、ADR-25 /
+   * ADR-26)。そのため本 record の {@link #apply} は<b>純関数として Gold 消費のみ</b>を行い、 実際の装備装着 (loadout への反映) は呼出元
+   * ({@code DddGame.resolveLayerEndChoice}) で {@code apply 前後で Gold が変化した = 購入成功} を検出した時に {@code
+   * equipInLoadout} を呼ぶ責務分割とする。
+   *
+   * <p>Gold 不足時は silent fail (Shop と同型: apply が引数の Player をそのまま返す)。 呼出元は Gold 差分が無いことを検知して
+   * SHOP_INSUFFICIENT_GOLD_FORMAT フラッシュを出す。
+   */
+  record ShopEquipment(int goldCost, EquipmentId equipmentId) implements LayerEndNode {
+    public ShopEquipment {
+      if (goldCost < 0) {
+        throw new IllegalArgumentException("goldCost must be non-negative: " + goldCost);
+      }
+      Objects.requireNonNull(equipmentId, "equipmentId");
+    }
+
+    @Override
+    public Player apply(Player player, NodeResolveContext context) {
+      Objects.requireNonNull(context, "context");
+      if (player.gold().amount() < goldCost) {
+        return player; // silent fail
+      }
+      // 装着 (loadout 反映) は presentation 層の責務。ここでは Gold 消費のみで純関数性を維持する。
+      return goldCost > 0 ? player.spendGold(new Gold(goldCost)) : player;
+    }
+
+    @Override
+    public String displayName(NodeResolveContext context) {
+      Objects.requireNonNull(context, "context");
+      Equipment eq = context.equipments().apply(equipmentId);
+      Objects.requireNonNull(eq, "context.equipments() returned null for " + equipmentId.value());
+      return "装備購入: %s (金貨 %d)".formatted(eq.displayName(), goldCost);
     }
   }
 }

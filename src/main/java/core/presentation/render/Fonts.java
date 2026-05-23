@@ -234,6 +234,15 @@ public final class Fonts implements Disposable {
     // (引数 Card の displayName は下のカードマスタ走査で収集される)。
     addAllChars(
         set, new LayerEndNode.Shop(0, cardCatalog.all().get(0).id()).displayName(glyphContext));
+    // Wave 3 Task B: ShopEquipment の固定フォーマット "装備購入: %s (金貨 %d)" の文字を網羅
+    // (引数 Equipment.displayName は下の装備マスタ走査で収集される)。
+    // 空 EquipmentCatalog 時はスキップ (グリフ生成側は空 catalog でも起動を継続する設計)。
+    if (!equipmentCatalog.all().isEmpty()) {
+      addAllChars(
+          set,
+          new LayerEndNode.ShopEquipment(0, equipmentCatalog.all().get(0).id())
+              .displayName(glyphContext));
+    }
     // Event の displayLabel は DungeonScreen.createNodeChoicePopup でハードコード渡し。
     // 現状の唯一の Event displayLabel をここに転写 (M2 で候補プールを集約して自動化予定)。
     addAllChars(set, "ソウルの祠 (ソウル +30 / HP -5)");
