@@ -117,6 +117,19 @@ public final class Strings {
     public static final String SOUL_TREE_FLASH_RESET = "ツリーをリセットしました";
     public static final String TITLE_OPEN_TREE_HINT_FORMAT = "[T] ソウルツリーを開く (所持ソウル: %d)";
 
+    // §15-7 W6-α: ソウルツリー解放失敗時の flash メッセージ
+    public static final String SOUL_TREE_FLASH_INSUFFICIENT_SOUL = "ソウルが不足しています";
+    public static final String SOUL_TREE_FLASH_PREREQUISITE_NOT_UNLOCKED = "前提ノードが未解放です";
+    public static final String SOUL_TREE_FLASH_CANNOT_UNLOCK = "解放できません";
+    public static final String SOUL_TREE_FLASH_INVALID_NODE = "無効なノードです";
+
+    // §15-9 W6-α: EquipmentScreen の StatsBonus 表示用短縮ラベル (STATUS_* とは別、bonusText 専用)
+    public static final String BONUS_STAT_SPEED_SHORT = "速";
+    public static final String BONUS_STAT_PHYSICAL_ATTACK_SHORT = "物攻";
+    public static final String BONUS_STAT_MAGICAL_ATTACK_SHORT = "魔攻";
+    public static final String BONUS_STAT_PHYSICAL_DEFENSE_SHORT = "物防";
+    public static final String BONUS_STAT_MAGICAL_DEFENSE_SHORT = "魔防";
+
     // §15-3 カード図鑑
     public static final String COLLECTION_TITLE = "カード図鑑";
     public static final String COLLECTION_LOCKED = "？？？ (未入手)";
@@ -297,6 +310,20 @@ public final class Strings {
         "[Click] Unlock  [WASD/Arrows] Pan  [Z/X] Zoom  [R] Reset  [ESC] Back";
     public static final String SOUL_TREE_FLASH_RESET = "Tree reset";
     public static final String TITLE_OPEN_TREE_HINT_FORMAT = "[T] Open Soul Tree (Soul: %d)";
+
+    // §15-7 W6-α: Soul Tree unlock failure flash messages
+    public static final String SOUL_TREE_FLASH_INSUFFICIENT_SOUL = "Insufficient soul";
+    public static final String SOUL_TREE_FLASH_PREREQUISITE_NOT_UNLOCKED =
+        "Prerequisite not unlocked";
+    public static final String SOUL_TREE_FLASH_CANNOT_UNLOCK = "Cannot unlock";
+    public static final String SOUL_TREE_FLASH_INVALID_NODE = "Invalid node";
+
+    // §15-9 W6-α: EquipmentScreen StatsBonus short labels (separate from STATUS_*, bonusText only)
+    public static final String BONUS_STAT_SPEED_SHORT = "SPD";
+    public static final String BONUS_STAT_PHYSICAL_ATTACK_SHORT = "PAtk";
+    public static final String BONUS_STAT_MAGICAL_ATTACK_SHORT = "MAtk";
+    public static final String BONUS_STAT_PHYSICAL_DEFENSE_SHORT = "PDef";
+    public static final String BONUS_STAT_MAGICAL_DEFENSE_SHORT = "MDef";
 
     // §15-3 Card collection
     public static final String COLLECTION_TITLE = "Card Collection";

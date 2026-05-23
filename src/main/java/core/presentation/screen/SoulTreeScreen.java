@@ -564,15 +564,25 @@ public final class SoulTreeScreen extends ScreenAdapter {
         // で投げる。メッセージ文字列で判別して適切な flash を出す。
         String msg = ex.getMessage() != null ? ex.getMessage() : "";
         if (msg.startsWith("Insufficient soul")) {
-          showFlash(jp ? "ソウルが不足しています" : "Insufficient soul");
+          showFlash(
+              jp
+                  ? Strings.Ja.SOUL_TREE_FLASH_INSUFFICIENT_SOUL
+                  : Strings.En.SOUL_TREE_FLASH_INSUFFICIENT_SOUL);
         } else if (msg.startsWith("Prerequisite not unlocked")) {
-          showFlash(jp ? "前提ノードが未解放です" : "Prerequisite not unlocked");
+          showFlash(
+              jp
+                  ? Strings.Ja.SOUL_TREE_FLASH_PREREQUISITE_NOT_UNLOCKED
+                  : Strings.En.SOUL_TREE_FLASH_PREREQUISITE_NOT_UNLOCKED);
         } else {
-          showFlash(jp ? "解放できません" : "Cannot unlock");
+          showFlash(
+              jp
+                  ? Strings.Ja.SOUL_TREE_FLASH_CANNOT_UNLOCK
+                  : Strings.En.SOUL_TREE_FLASH_CANNOT_UNLOCK);
         }
       } catch (IllegalArgumentException ex) {
         boolean jp = game.fonts().isJapaneseAvailable();
-        showFlash(jp ? "無効なノードです" : "Invalid node");
+        showFlash(
+            jp ? Strings.Ja.SOUL_TREE_FLASH_INVALID_NODE : Strings.En.SOUL_TREE_FLASH_INVALID_NODE);
       }
     }
     pendingUnlock.dispose();

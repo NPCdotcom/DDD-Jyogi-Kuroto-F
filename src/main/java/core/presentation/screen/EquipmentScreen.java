@@ -157,12 +157,34 @@ public final class EquipmentScreen extends ScreenAdapter {
 
   private static String bonusText(StatsBonus b, boolean jp) {
     StringBuilder sb = new StringBuilder();
-    appendStat(sb, jp ? "HP" : "HP", b.maxHp());
-    appendStat(sb, jp ? "速" : "SPD", b.speed());
-    appendStat(sb, jp ? "物攻" : "PAtk", b.physicalAttack());
-    appendStat(sb, jp ? "魔攻" : "MAtk", b.magicalAttack());
-    appendStat(sb, jp ? "物防" : "PDef", b.physicalDefense());
-    appendStat(sb, jp ? "魔防" : "MDef", b.magicalDefense());
+    // HP は Ja / En 共通の "HP" を Strings.Ja.HUD_HP 経由で取る (キー重複の defensive 化)。
+    appendStat(sb, jp ? Strings.Ja.HUD_HP : Strings.En.HUD_HP, b.maxHp());
+    appendStat(
+        sb, jp ? Strings.Ja.BONUS_STAT_SPEED_SHORT : Strings.En.BONUS_STAT_SPEED_SHORT, b.speed());
+    appendStat(
+        sb,
+        jp
+            ? Strings.Ja.BONUS_STAT_PHYSICAL_ATTACK_SHORT
+            : Strings.En.BONUS_STAT_PHYSICAL_ATTACK_SHORT,
+        b.physicalAttack());
+    appendStat(
+        sb,
+        jp
+            ? Strings.Ja.BONUS_STAT_MAGICAL_ATTACK_SHORT
+            : Strings.En.BONUS_STAT_MAGICAL_ATTACK_SHORT,
+        b.magicalAttack());
+    appendStat(
+        sb,
+        jp
+            ? Strings.Ja.BONUS_STAT_PHYSICAL_DEFENSE_SHORT
+            : Strings.En.BONUS_STAT_PHYSICAL_DEFENSE_SHORT,
+        b.physicalDefense());
+    appendStat(
+        sb,
+        jp
+            ? Strings.Ja.BONUS_STAT_MAGICAL_DEFENSE_SHORT
+            : Strings.En.BONUS_STAT_MAGICAL_DEFENSE_SHORT,
+        b.magicalDefense());
     return sb.isEmpty() ? "-" : sb.toString();
   }
 
