@@ -63,7 +63,9 @@ public final class SettingsScreen extends ScreenAdapter {
 
   @Override
   public void render(float delta) {
-    handleInput();
+    if (handleInput()) {
+      return; // 画面遷移済み: dispose された batch で描画しない
+    }
 
     ScreenUtils.clear(0.05f, 0.05f, 0.10f, 1f);
     viewport.apply();
@@ -153,7 +155,12 @@ public final class SettingsScreen extends ScreenAdapter {
     };
   }
 
-  private void handleInput() {
+  /**
+   * キー入力を処理する。
+   *
+   * @return 画面遷移が発生した場合 true (呼出元は描画をスキップすること)
+   */
+  private boolean handleInput() {
     // 項目移動
     if (Gdx.input.isKeyJustPressed(Keys.UP) || Gdx.input.isKeyJustPressed(Keys.W)) {
       selectedItem = (selectedItem - 1 + ITEM_COUNT) % ITEM_COUNT;
@@ -170,12 +177,14 @@ public final class SettingsScreen extends ScreenAdapter {
       game.applySettings(current);
     }
 
-    // ESC で戻る (保存済み)
+    // ESC で戻る (保存して即リターン: dispose後の描画を防ぐ)
     if (Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
       game.soundManager().playSe(SeKind.BUTTON_DECISION);
       game.saveSettings();
       game.changeScreen(new TitleScreen(game));
+      return true; // ← この後 batch.begin() を呼ばせない
     }
+    return false;
   }
 
   private Settings changeValue(boolean decrease) {
