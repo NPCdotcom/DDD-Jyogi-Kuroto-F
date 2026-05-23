@@ -170,6 +170,10 @@ public final class Strings {
     public static final String CREDITS_TITLE = "クレジット";
     public static final String CREDITS_BACK_HINT = "[ESC] タイトルへ戻る";
     public static final String TITLE_OPEN_CREDITS_HINT = "[K] クレジット";
+
+    // §15-5 詰み回避: 自動ターン終了通知
+    public static final String EV_AUTO_TURN_END_FORMAT = "自動ターン終了 (%s)";
+    public static final String AUTO_TURN_END_REASON_STUCK = "行動不能";
   }
 
   /** 英語版 (フォント未配置時の fallback)。 */
@@ -335,5 +339,9 @@ public final class Strings {
     public static final String CREDITS_TITLE = "Credits";
     public static final String CREDITS_BACK_HINT = "[ESC] Back to title";
     public static final String TITLE_OPEN_CREDITS_HINT = "[K] Credits";
+
+    // §15-5 stuck-handling: auto turn end notification
+    public static final String EV_AUTO_TURN_END_FORMAT = "Auto turn end (%s)";
+    public static final String AUTO_TURN_END_REASON_STUCK = "stuck";
   }
 }

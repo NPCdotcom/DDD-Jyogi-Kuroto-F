@@ -10,7 +10,12 @@ import core.domain.battle.ActionPoints;
 import core.domain.battle.BattleAction;
 import core.domain.battle.BattleEvent;
 import core.domain.battle.TurnPhase;
+import core.domain.card.Card;
+import core.domain.card.CardEffect;
+import core.domain.card.CardElement;
+import core.domain.card.CardId;
 import core.domain.card.CardPileState;
+import core.domain.card.CardTag;
 import core.domain.card.DiscardPile;
 import core.domain.card.DrawPile;
 import core.domain.card.Hand;
@@ -286,5 +291,100 @@ class TurnDirectorTest {
     assertEquals(originalLayerNumber, nextLayer.layer().number(), "渡した nextLayer は呼出後も変化していない");
     assertFalse(
         nextLayer == ctx.state(), "context.state() は startPlayerTurn 適用後の新インスタンス (渡したものとは別)");
+  }
+
+  // ---------------- 詰み判定 (§15-5 hasMeaningfulAction) ----------------
+
+  @Test
+  void hasMeaningfulActionReturnsFalseWhenAllNeighborsBlocked() {
+    // 5x5 部屋の角 (1,1)、隣接 4 マスは 2 壁 + 2 敵で全塞ぎ、手札は移動カードのみ → 詰み判定 false
+    Player player =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withActionPoints(ActionPoints.full(3))
+            .withCardPileState(
+                new CardPileState(
+                    DrawPile.empty(),
+                    Hand.empty().add(DomainFixtures.moveCard("dash")),
+                    DiscardPile.empty()));
+    Enemy enemyRight = DomainFixtures.slimeAt(new Position(2, 1));
+    Enemy enemyDown = DomainFixtures.slimeAt(new Position(1, 2));
+    DungeonState state =
+        DomainFixtures.newStateWith(
+            DomainFixtures.squareRoom(),
+            player,
+            List.of(enemyRight, enemyDown),
+            TurnPhase.PLAYER_TURN);
+
+    assertFalse(TurnDirector.hasMeaningfulAction(state));
+  }
+
+  @Test
+  void hasMeaningfulActionReturnsTrueWithAttackCard() {
+    // 同じ詰み配置でも ATTACK カードを持っていれば true (戦闘の意思決定が残っている)
+    Player player =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withActionPoints(ActionPoints.full(3))
+            .withCardPileState(
+                new CardPileState(
+                    DrawPile.empty(),
+                    Hand.empty().add(DomainFixtures.attackCard("zangeki")),
+                    DiscardPile.empty()));
+    Enemy enemyRight = DomainFixtures.slimeAt(new Position(2, 1));
+    Enemy enemyDown = DomainFixtures.slimeAt(new Position(1, 2));
+    DungeonState state =
+        DomainFixtures.newStateWith(
+            DomainFixtures.squareRoom(),
+            player,
+            List.of(enemyRight, enemyDown),
+            TurnPhase.PLAYER_TURN);
+
+    assertTrue(TurnDirector.hasMeaningfulAction(state));
+  }
+
+  @Test
+  void hasMeaningfulActionReturnsTrueWithBuffCard() {
+    // 同じ詰み配置でも BUFF カード (鉄の皮膚) を持っていれば true (防御の意思決定が残っている)
+    Card ironSkin =
+        new Card(
+            CardId.of("iron_skin"),
+            "鉄の皮膚",
+            1,
+            CardTag.BUFF,
+            CardElement.PHYSICAL,
+            new CardEffect.Buff(CardEffect.BuffKind.PHYSICAL_DEFENSE_UP, 2, 3));
+    Player player =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withActionPoints(ActionPoints.full(3))
+            .withCardPileState(
+                new CardPileState(
+                    DrawPile.empty(), Hand.empty().add(ironSkin), DiscardPile.empty()));
+    Enemy enemyRight = DomainFixtures.slimeAt(new Position(2, 1));
+    Enemy enemyDown = DomainFixtures.slimeAt(new Position(1, 2));
+    DungeonState state =
+        DomainFixtures.newStateWith(
+            DomainFixtures.squareRoom(),
+            player,
+            List.of(enemyRight, enemyDown),
+            TurnPhase.PLAYER_TURN);
+
+    assertTrue(TurnDirector.hasMeaningfulAction(state));
+  }
+
+  @Test
+  void hasMeaningfulActionReturnsTrueWithWalkableNeighbor() {
+    // 中央 (2,2) で敵なし、手札は移動カードのみ → 隣接 4 マス全て歩行可 → 通常移動で逃げられるため true
+    Player player =
+        DomainFixtures.playerAt(new Position(2, 2))
+            .withActionPoints(ActionPoints.full(3))
+            .withCardPileState(
+                new CardPileState(
+                    DrawPile.empty(),
+                    Hand.empty().add(DomainFixtures.moveCard("dash")),
+                    DiscardPile.empty()));
+    DungeonState state =
+        DomainFixtures.newStateWith(
+            DomainFixtures.squareRoom(), player, List.of(), TurnPhase.PLAYER_TURN);
+
+    assertTrue(TurnDirector.hasMeaningfulAction(state));
   }
 }

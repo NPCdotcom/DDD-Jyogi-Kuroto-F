@@ -48,8 +48,9 @@ public final class SoulTreeScreen extends ScreenAdapter {
   private static final float CENTER_X = 960f;
   private static final float CENTER_Y = 540f;
 
+  // §15-7 UI 改善: クリック判定円を画像枠 (64x64) の対角約 45px に近づけ、一個飛びクリック誤認を抑制。
   /** ノードクリック判定の半径 (px、ワールド座標)。 */
-  private static final float NODE_RADIUS = 32f;
+  private static final float NODE_RADIUS = 40f;
 
   /** ノードテクスチャ描画サイズ (px)。 */
   private static final float NODE_TEX_SIZE = 64f;

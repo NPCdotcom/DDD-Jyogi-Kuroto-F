@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
@@ -16,7 +17,6 @@ import core.application.TurnDirector;
 import core.domain.battle.BattleAction;
 import core.domain.battle.BattleEvent;
 import core.domain.battle.TurnPhase;
-import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
@@ -134,6 +134,8 @@ public final class DungeonScreen extends ScreenAdapter {
   @Override
   public void show() {
     camera = new OrthographicCamera();
+    // §15-6 UI/UX: マップを 2 倍拡大表示 (zoom < 1 が拡大方向)。視界 12x6 マス、プレイヤー常に画面中央。
+    camera.zoom = 0.5f;
     viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
     hudCamera = new OrthographicCamera();
     hudCamera.setToOrtho(false, RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT);
@@ -196,6 +198,8 @@ public final class DungeonScreen extends ScreenAdapter {
     TurnPhase phase = game.context().state().phase();
     if (phase == TurnPhase.PLAYER_TURN) {
       enemyStepTimer = 0f;
+      // §15-3 UI 改善: マウスクリックでカード選択 (キーボード入力に先んじて処理)
+      handleHandMouseClick();
       // poll(state) に移行: 状態2 (移動権保持中) の判定にドメインの pendingMoveCount を使う (ADR-21)
       Optional<BattleAction> action = playerInputs.poll(game.context().state());
       action.ifPresent(director::applyPlayerAction);
@@ -373,6 +377,8 @@ public final class DungeonScreen extends ScreenAdapter {
     shapes.begin(ShapeRenderer.ShapeType.Filled);
     shapes.setColor(0f, 0f, 0f, 0.55f);
     shapes.rect(1330f, 770f, 590f, 310f);
+    // §15-3 UI 改善: 手札パネル背景を完全黒 (α=1) にしてマップタイルが透けないようにする
+    shapes.setColor(0f, 0f, 0f, 1f);
     shapes.rect(0f, 0f, RenderLayout.SCREEN_WIDTH, 300f);
     // §7-2 / C-2: HP <= 30% で画面端を脈動する赤フレームで警告表示。
     lowHpAnimTime += com.badlogic.gdx.Gdx.graphics.getDeltaTime();
@@ -539,12 +545,43 @@ public final class DungeonScreen extends ScreenAdapter {
    * <p>順序が重要: 追従位置を {@link #clampCamera} でマップ内に収めた<b>後</b>にシェイク offset を加算する。 逆順 (シェイク込み座標をクランプ)
    * だと、マップが視界より小さい層 (層 1 等) で clamp が毎フレーム カメラを中央へ固定し直し、シェイクが完全に打ち消される。
    */
+  /**
+   * §15-3 UI 改善: マウスクリックで手札カードを選択 (またはトグル解除)。
+   *
+   * <p>スクリーン座標を HUD 仮想座標 (1920x1080) に変換し、{@link HudRenderer#handCardBounds} と当たり判定する。 ポップアップ
+   * (層末ノード / Elite カード選択 / ステータス) 表示中はクリック無視。
+   */
+  private void handleHandMouseClick() {
+    if (!Gdx.input.justTouched()) {
+      return;
+    }
+    if (nodeChoice != null || eliteCardChoice != null || statusPanelOpen) {
+      return;
+    }
+    float screenW = Gdx.graphics.getWidth();
+    float screenH = Gdx.graphics.getHeight();
+    if (screenW <= 0 || screenH <= 0) {
+      return;
+    }
+    float hudX = Gdx.input.getX() * (RenderLayout.SCREEN_WIDTH / screenW);
+    float hudY =
+        RenderLayout.SCREEN_HEIGHT - (Gdx.input.getY() * (RenderLayout.SCREEN_HEIGHT / screenH));
+    int handSize = game.context().state().player().cardPileState().hand().size();
+    for (int i = 0; i < handSize && i < 9; i++) {
+      Rectangle bounds = HudRenderer.handCardBounds(i);
+      if (bounds.contains(hudX, hudY)) {
+        playerInputs.selectCardByMouse(i);
+        return;
+      }
+    }
+  }
+
   private void updateMapCamera() {
     DungeonState s = game.context().state();
     float px = s.player().position().x() * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f;
     float py = s.player().position().y() * RenderLayout.TILE_SIZE + RenderLayout.TILE_SIZE / 2f;
     camera.position.set(px, py, 0f);
-    clampCamera(s.map());
+    // §15-6 UI/UX: 端クランプ撤廃 — プレイヤー常に画面中央、マップ外領域が見えても許容する設計。
     if (shakeRemaining > 0f) {
       float intensity = shakeAmplitude * (shakeRemaining / SHAKE_DURATION);
       float angle = (float) (Math.random() * Math.PI * 2.0);
@@ -552,22 +589,6 @@ public final class DungeonScreen extends ScreenAdapter {
       camera.position.y += (float) (Math.sin(angle) * intensity);
     }
     camera.update();
-  }
-
-  /** マップカメラの可視範囲がマップ外を映さないようクランプする。マップが視界より小さい軸は中央に固定する。 */
-  private void clampCamera(DungeonMap map) {
-    float mapW = map.width() * RenderLayout.TILE_SIZE;
-    float mapH = map.height() * RenderLayout.TILE_SIZE;
-    float halfW = RenderLayout.SCREEN_WIDTH / 2f;
-    float halfH = RenderLayout.SCREEN_HEIGHT / 2f;
-    camera.position.x =
-        mapW <= RenderLayout.SCREEN_WIDTH
-            ? mapW / 2f
-            : Math.max(halfW, Math.min(mapW - halfW, camera.position.x));
-    camera.position.y =
-        mapH <= RenderLayout.SCREEN_HEIGHT
-            ? mapH / 2f
-            : Math.max(halfH, Math.min(mapH - halfH, camera.position.y));
   }
 
   /** popup 群を large フォントで描画 (HUD の上)。 */

@@ -116,6 +116,23 @@ public final class RenderLayout {
    */
   public static final int HAND_CARD_GLYPH_WIDTH = 20;
 
+  // §15-3 大型手札描画 (カード画像 120x168)。1 枚分の slot 幅 = WIDTH + MARGIN。9 枚で 1224 px、画面幅 1920 に収まる。
+  public static final int HAND_CARD_WIDTH = 120;
+  public static final int HAND_CARD_HEIGHT = 168;
+  public static final int HAND_CARD_MARGIN = 16;
+
+  /** 手札列の左下 Y (画面下からの余白)。 */
+  public static final int HAND_CARD_BOTTOM_Y = 110;
+
+  /** 選択中カードを縦方向に持ち上げる量 (視覚強調)。 */
+  public static final int HAND_CARD_SELECTED_LIFT = 20;
+
+  /** 選択中カードの詳細テキスト (displayName + AP + 効果説明) を描画する Y 座標。手札画像の上に配置。 */
+  public static final int HAND_DETAIL_TEXT_Y = 290;
+
+  /** 手札 1 枚目の左下 X 座標 (9 枚センター配置: (1920 - 9*120 - 8*16) / 2 = 356)。 */
+  public static final int HAND_FIRST_X = 356;
+
   // --- TitleScreen / GameOverScreen 用レイアウト定数 ---
 
   /** タイトル文字列の描画 X 座標 (水平中央付近)。 */
@@ -158,7 +175,9 @@ public final class RenderLayout {
    *
    * <p>TITLE_OPEN_TREE_HINT (≒ 416) との視覚分離のため 80px 余白を空ける。
    */
-  public static final int CONTROLS_HEADER_Y = TITLE_OPEN_TREE_HINT_Y - 80;
+  // タイトル画面: [S]/[K] 行 (= TITLE_OPEN_TREE_HINT_Y - LARGE_LINE_HEIGHT*2 = 320) との重なり回避のため
+  // 「操作」ヘッダーを LARGE_LINE_HEIGHT*3 + 16 = 160 px 下へずらす。結果 Y=256、十分な余白を確保。
+  public static final int CONTROLS_HEADER_Y = TITLE_OPEN_TREE_HINT_Y - LARGE_LINE_HEIGHT * 3 - 16;
 
   /** コントロール各行の X 座標。 */
   public static final int CONTROLS_X = 720;
@@ -168,7 +187,7 @@ public final class RenderLayout {
    *
    * <p>「操作」ヘッダーとの間に 56px (LARGE_LINE_HEIGHT + 8) の余白を確保。
    */
-  public static final int CONTROLS_ROW1_Y = CONTROLS_HEADER_Y - 56;
+  public static final int CONTROLS_ROW1_Y = CONTROLS_HEADER_Y - LARGE_LINE_HEIGHT;
 
   /** コントロール行間隔 (px)。 large フォント前提。 */
   public static final int CONTROLS_LINE_HEIGHT = LARGE_LINE_HEIGHT;

@@ -1,5 +1,6 @@
 package core.domain.equipment;
 
+import core.domain.entity.StatKind;
 import java.util.Objects;
 
 /**
@@ -35,5 +36,34 @@ public record StatsBonus(
         magicalAttack + other.magicalAttack,
         physicalDefense + other.physicalDefense,
         magicalDefense + other.magicalDefense);
+  }
+
+  /**
+   * 最大補正値を持つステ種別を返す。同値時の優先順は HP → SPEED → PHYS_ATK → MAG_ATK → PHYS_DEF → MAG_DEF。 全フィールド 0 の場合は HP
+   * を返す (装備テーマ判定で「最も特徴のあるステ」を取り出す用途、文字列マッチ回避)。
+   */
+  public StatKind dominantStat() {
+    StatKind best = StatKind.HP;
+    int bestValue = maxHp;
+    if (speed > bestValue) {
+      best = StatKind.SPEED;
+      bestValue = speed;
+    }
+    if (physicalAttack > bestValue) {
+      best = StatKind.PHYSICAL_ATTACK;
+      bestValue = physicalAttack;
+    }
+    if (magicalAttack > bestValue) {
+      best = StatKind.MAGICAL_ATTACK;
+      bestValue = magicalAttack;
+    }
+    if (physicalDefense > bestValue) {
+      best = StatKind.PHYSICAL_DEFENSE;
+      bestValue = physicalDefense;
+    }
+    if (magicalDefense > bestValue) {
+      best = StatKind.MAGICAL_DEFENSE;
+    }
+    return best;
   }
 }

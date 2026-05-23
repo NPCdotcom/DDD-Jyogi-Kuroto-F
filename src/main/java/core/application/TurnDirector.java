@@ -6,9 +6,15 @@ import core.domain.battle.EnemyAi;
 import core.domain.battle.TurnEngine;
 import core.domain.battle.TurnEngine.StepResult;
 import core.domain.battle.TurnPhase;
+import core.domain.card.Card;
+import core.domain.card.CardTag;
+import core.domain.common.Direction;
+import core.domain.common.Position;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
+import core.domain.entity.Player;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -52,20 +58,89 @@ public final class TurnDirector {
     }
     StepResult result = TurnEngine.resolvePlayerAction(context.state(), action);
     context.applyResult(result);
-    autoEndPlayerTurnIfApDepleted();
+    autoEndPlayerTurnIfStuck();
   }
 
-  private void autoEndPlayerTurnIfApDepleted() {
+  /**
+   * プレイヤーターン中で「意味のあるアクションが残っていない」場合に自動でターンを終了する (§15-5 詰み回避)。
+   *
+   * <p>判定:
+   *
+   * <ul>
+   *   <li>AP 枯渇 (current = 0) かつ pendingMoveCount = 0 → 通常の AP 切れ自動終了 (イベント無発火、従来挙動)
+   *   <li>AP は残るが {@link #hasMeaningfulAction} = false → 詰み自動終了 + {@link BattleEvent.AutoTurnEnded
+   *       AutoTurnEnded(STUCK)} 発火
+   *   <li>pendingMoveCount > 0 (移動権残存) → 自動終了しない (移動権を使い切るまで継続)
+   * </ul>
+   */
+  private void autoEndPlayerTurnIfStuck() {
     DungeonState s = context.state();
-    // pendingMoveCount > 0 (移動カードの移動権が残存) の間は自動終了しない。
-    // 移動カードは AP を消費しつつ移動権を付与するため、AP 0 になっても移動権を使い切るまでターンを継続する。
-    if (s.phase() == TurnPhase.PLAYER_TURN
-        && s.player().actionPoints().isEmpty()
-        && s.player().pendingMoveCount() == 0) {
-      StepResult ended =
-          TurnEngine.resolvePlayerAction(context.state(), new BattleAction.EndTurn());
-      context.applyResult(ended);
+    if (s.phase() != TurnPhase.PLAYER_TURN) {
+      return;
     }
+    Player player = s.player();
+    if (player.pendingMoveCount() > 0) {
+      return; // 移動権残あり、終了しない
+    }
+    boolean apEmpty = player.actionPoints().isEmpty();
+    if (apEmpty) {
+      // 従来挙動: AP 枯渇による自動終了 (AutoTurnEnded イベント無発火、通常のターン進行)
+      StepResult ended = TurnEngine.resolvePlayerAction(s, new BattleAction.EndTurn());
+      context.applyResult(ended);
+      return;
+    }
+    if (!hasMeaningfulAction(s)) {
+      // §15-5 詰み回避: 攻撃/防御カードも歩行先も無い → 自動終了 + AutoTurnEnded(STUCK)
+      StepResult ended = TurnEngine.resolvePlayerAction(s, new BattleAction.EndTurn());
+      List<BattleEvent> events = new ArrayList<>(ended.events());
+      events.add(new BattleEvent.AutoTurnEnded(BattleEvent.AutoTurnEnded.Reason.STUCK));
+      context.applyResult(new StepResult(ended.state(), List.copyOf(events)));
+    }
+  }
+
+  /**
+   * プレイヤーが「意味のあるアクション」を残しているかを判定する純関数 (§15-5 詰み回避ロジック)。
+   *
+   * <p>継続条件:
+   *
+   * <ul>
+   *   <li>手札に AP コスト範囲内の {@link CardTag#ATTACK} or {@link CardTag#BUFF} カードあり → true (戦闘 / 防御の意思決定)
+   *   <li>AP ≥ 1 かつ 4 方向 ({@link Direction#values}) のいずれかが歩行可能 + 敵/プレイヤー他不在 → true (通常移動で逃げ)
+   * </ul>
+   *
+   * <p>非継続: {@link CardTag#TRAP} や {@link CardTag#MOVEMENT} カードしか無く、かつ歩行先も無い場合 (= 罠を置くしかなく
+   * 周囲全部敵で塞がれている等)。
+   *
+   * @param s 現在のダンジョン状態
+   * @return 意味のあるアクションが残っていれば true、詰みなら false
+   */
+  static boolean hasMeaningfulAction(DungeonState s) {
+    Player p = s.player();
+    int ap = p.actionPoints().current();
+    if (ap <= 0) {
+      return false;
+    }
+    for (Card c : p.cardPileState().hand().cards()) {
+      if (c.apCost() > ap) {
+        continue;
+      }
+      CardTag tag = c.tag();
+      if (tag == CardTag.ATTACK || tag == CardTag.BUFF) {
+        return true;
+      }
+    }
+    Position pos = p.position();
+    for (Direction d : Direction.values()) {
+      Position next = pos.move(d);
+      if (!s.map().isWalkable(next)) {
+        continue;
+      }
+      if (s.isPositionOccupied(next)) {
+        continue;
+      }
+      return true;
+    }
+    return false;
   }
 
   /** ENEMY_TURN 中に呼び、全敵 AI を即時進行させて PLAYER_TURN まで戻す (テスト・非演出用)。 */

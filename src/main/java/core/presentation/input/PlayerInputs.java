@@ -88,10 +88,17 @@ public final class PlayerInputs {
     return Optional.empty();
   }
 
-  /** 状態1 (カード選択中): 方向キーで UseCard 発行、ESC でキャンセル、ENTER でターン終了。 */
+  /** 状態1 (カード選択中): 方向キーで UseCard 発行、ESC でキャンセル、ENTER でターン終了、同じ数字キーで選択トグル解除。 */
   private Optional<BattleAction> pollCardDirectionMode() {
     // ESC でカード選択をキャンセル
     if (Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
+      pendingCardIndex = NONE;
+      return Optional.empty();
+    }
+    // 同じ数字キーをもう一度押すとトグルで選択解除 (UX: 操作ヒントを覚えなくても直感的に解除可能)
+    if (pendingCardIndex >= 0
+        && pendingCardIndex <= 8
+        && Gdx.input.isKeyJustPressed(numKey(pendingCardIndex))) {
       pendingCardIndex = NONE;
       return Optional.empty();
     }
@@ -108,6 +115,22 @@ public final class PlayerInputs {
       return Optional.of(action);
     }
     return Optional.empty();
+  }
+
+  /**
+   * マウスクリック起点のカード選択 API (§15-3 UI/UX 改善)。
+   *
+   * <p>境界チェックは呼出側 (DungeonScreen) の {@code handCardBounds} ヒット判定で済んでいる前提。 既に同じ index が選択中なら解除する
+   * (再クリックでトグル off)、それ以外なら選択状態に設定する。
+   *
+   * @param handIndex 手札の 0-indexed 位置 (0〜8)
+   */
+  public void selectCardByMouse(int handIndex) {
+    if (pendingCardIndex == handIndex) {
+      pendingCardIndex = NONE;
+    } else {
+      pendingCardIndex = handIndex;
+    }
   }
 
   /** 状態0 (通常): 移動 / 数字キーによるカード選択 / 待機 / ターン終了。 */

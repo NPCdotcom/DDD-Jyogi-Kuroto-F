@@ -24,7 +24,8 @@ public sealed interface BattleEvent
         BattleEvent.TrapTriggered,
         BattleEvent.FloorAdvanced,
         BattleEvent.BuffApplied,
-        BattleEvent.EliteDefeated {
+        BattleEvent.EliteDefeated,
+        BattleEvent.AutoTurnEnded {
 
   record Moved(ActorId who, Position from, Position to) implements BattleEvent {
     public Moved {
@@ -191,6 +192,23 @@ public sealed interface BattleEvent
   record EliteDefeated(ActorId who) implements BattleEvent {
     public EliteDefeated {
       Objects.requireNonNull(who, "who");
+    }
+  }
+
+  /**
+   * 自動ターン終了通知 (§15-5 詰み回避)。プレイヤーが行動不能になった際に {@link TurnPhase#ENEMY_TURN} へ自動遷移したことを伝える。
+   *
+   * <p>{@code reason} は終了理由 (現状 {@link Reason#STUCK} のみ)。HUD ログで「自動ターン終了 (行動不能)」のように表示する。
+   */
+  record AutoTurnEnded(Reason reason) implements BattleEvent {
+    public AutoTurnEnded {
+      Objects.requireNonNull(reason, "reason");
+    }
+
+    /** 自動ターン終了の理由分類。将来拡張時にここに値を追加する。 */
+    public enum Reason {
+      /** AP を消費可能なカード・隣接攻撃・歩行可能セル全てが無い「詰み」状態。 */
+      STUCK
     }
   }
 }

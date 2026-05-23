@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.Rectangle;
 import core.application.GameContext;
 import core.domain.battle.BattleEvent;
 import core.domain.battle.TurnPhase;
@@ -122,13 +123,27 @@ public final class HudRenderer {
     draw(batch, fonts, context, -1, null, UiPreset.STANDARD);
   }
 
-  /** サムネイル寸法 (手札カード画像、§15-3)。BitmapFont 32px と並ぶように縦幅を合わせる。 */
-  private static final float HAND_THUMB_WIDTH = 24f;
+  /**
+   * 指定 index の手札カードが描画される矩形を返す (§15-3 UI/UX 改善、マウスクリック判定用)。
+   *
+   * <p>{@code DungeonScreen} のクリック判定と {@link #drawHand} の描画位置が同一式を共有する DRY 原則。 X 位置は固定 (9 枚センター配置の
+   * {@code HAND_FIRST_X} 基準)、選択中の Y 持ち上げは {@link #drawHand} 側で処理。
+   *
+   * @param index 0〜8 の手札位置
+   * @return カード矩形 (HUD カメラ座標、左下原点)
+   */
+  public static Rectangle handCardBounds(int index) {
+    float x =
+        RenderLayout.HAND_FIRST_X
+            + index * (RenderLayout.HAND_CARD_WIDTH + RenderLayout.HAND_CARD_MARGIN);
+    return new Rectangle(
+        x,
+        RenderLayout.HAND_CARD_BOTTOM_Y,
+        RenderLayout.HAND_CARD_WIDTH,
+        RenderLayout.HAND_CARD_HEIGHT);
+  }
 
-  private static final float HAND_THUMB_HEIGHT = 32f;
-  private static final float HAND_THUMB_GAP = 4f; // テキストとの隙間
-
-  /** 手札を画面下部に描画する (§15-3 カード画像サムネイル付き)。 */
+  /** 手札を画面下部にカード画像 120×168 で描画する (§15-3 / UI 改善)。 */
   private static void drawHand(
       SpriteBatch batch,
       BitmapFont font,
@@ -141,68 +156,64 @@ public final class HudRenderer {
       return;
     }
 
-    // ラベル行 (手札の上に 1 行分)
-    font.setColor(Color.LIGHT_GRAY);
-    font.draw(
-        batch,
-        jp ? Strings.Ja.HAND_LABEL : Strings.En.HAND_LABEL,
-        RenderLayout.HUD_X,
-        RenderLayout.HAND_Y + RenderLayout.LARGE_LINE_HEIGHT);
+    // 描画ステート初期化 (前段の描画から色が引き継がれないよう保険、§UI ブレンドモード明示)
+    batch.setColor(Color.WHITE);
 
-    // カード一覧 (1 行に並べる、最大 9 枚)。各カードは [サムネイル] + [テキストラベル] の構成。
-    int x = RenderLayout.HUD_X;
+    // カード画像列 — 各カードは固定 X 位置 (handCardBounds と DRY)。選択中は Y を持ち上げ + 黄色ティント。
     for (int i = 0; i < cards.size(); i++) {
       Card card = cards.get(i);
       boolean selected = (i == pendingCardIndex);
+      Rectangle bounds = handCardBounds(i);
+      float y = bounds.y + (selected ? RenderLayout.HAND_CARD_SELECTED_LIFT : 0f);
 
-      // §15-3: カード画像のサムネイル (テキストラベルの左に配置)。
       if (images != null) {
         Texture tex = images.get(card.id());
         if (tex != null) {
-          if (selected) {
-            batch.setColor(1f, 1f, 0.6f, 1f); // 選択中は薄い黄色ティント
-          } else {
-            batch.setColor(Color.WHITE);
-          }
-          batch.draw(tex, x, RenderLayout.HAND_Y - 4f, HAND_THUMB_WIDTH, HAND_THUMB_HEIGHT);
+          batch.setColor(selected ? new Color(1f, 1f, 0.6f, 1f) : Color.WHITE);
+          batch.draw(tex, bounds.x, y, bounds.width, bounds.height);
           batch.setColor(Color.WHITE);
+        } else {
+          // テクスチャ取得失敗時はテキストフォールバック (既存挙動)
+          font.setColor(selected ? Color.YELLOW : Color.WHITE);
+          font.draw(
+              batch,
+              "[%d]%s".formatted(i + 1, card.displayName()),
+              bounds.x,
+              y + bounds.height / 2f);
         }
-      }
-
-      if (selected) {
-        font.setColor(Color.YELLOW);
       } else {
-        font.setColor(Color.WHITE);
+        // CardImageRegistry 未注入時はテキストフォールバック (テスト・後方互換)
+        font.setColor(selected ? Color.YELLOW : Color.WHITE);
+        font.draw(
+            batch, "[%d]%s".formatted(i + 1, card.displayName()), bounds.x, y + bounds.height / 2f);
       }
 
-      String prefix = selected ? ">" : " ";
-      String elemLabel = elementLabel(jp, card.element());
-      // フォーマット: [1] 斬撃 AP:1 物  or  >[1] 斬撃 AP:1 物
-      String text =
-          "%s[%d]%s AP:%d %s  "
-              .formatted(prefix, i + 1, card.displayName(), card.apCost(), elemLabel);
-      font.draw(batch, text, x + HAND_THUMB_WIDTH + HAND_THUMB_GAP, RenderLayout.HAND_Y);
-
-      // 次のカードの X 座標をサムネイル幅 + 隙間 + テキスト幅分ずらす
-      x +=
-          (int) (HAND_THUMB_WIDTH + HAND_THUMB_GAP)
-              + text.length() * RenderLayout.HAND_CARD_GLYPH_WIDTH;
+      // AP コスト小書き (画像右下、視認性のため)。選択非選択問わず常時表示。
+      font.setColor(Color.WHITE);
+      font.draw(batch, "AP%d".formatted(card.apCost()), bounds.x + bounds.width - 60f, y + 28f);
     }
 
-    // §15-3: 選択中カードの効果説明を 1 行表示する (ユーザー要望: カード説明の確認手段)。
+    // §15-3: 選択中カードのみ詳細テキストを画像群の上 (HAND_DETAIL_TEXT_Y) に大きく表示。
     if (pendingCardIndex >= 0 && pendingCardIndex < cards.size()) {
       Card sel = cards.get(pendingCardIndex);
       font.setColor(Color.YELLOW);
+      String elemLabel = elementLabel(jp, sel.element());
       font.draw(
           batch,
-          sel.displayName() + " — " + CardDescriber.describe(sel),
-          RenderLayout.HUD_X,
-          RenderLayout.HAND_Y + RenderLayout.LARGE_LINE_HEIGHT * 2);
+          "%s  AP:%d  %s  —  %s"
+              .formatted(sel.displayName(), sel.apCost(), elemLabel, CardDescriber.describe(sel)),
+          RenderLayout.HAND_FIRST_X,
+          RenderLayout.HAND_DETAIL_TEXT_Y);
       font.setColor(Color.WHITE);
     }
+  }
 
-    // カード選択中ヒントは drawControlsHint() (画面左下) に統合済み。
-    // 手札の下に再描画すると二重表示になり、画面下端で文字が切れる原因となるためここでは描かない。
+  /** 自動ターン終了の理由ラベル (HUD ログ表示用)。 */
+  private static String autoTurnReasonLabel(boolean jp, BattleEvent.AutoTurnEnded.Reason reason) {
+    return switch (reason) {
+      case STUCK ->
+          jp ? Strings.Ja.AUTO_TURN_END_REASON_STUCK : Strings.En.AUTO_TURN_END_REASON_STUCK;
+    };
   }
 
   private static String elementLabel(boolean jp, CardElement element) {
@@ -351,6 +362,9 @@ public final class HudRenderer {
       case BattleEvent.EliteDefeated ed ->
           (jp ? Strings.Ja.EV_ELITE_DEFEATED_FORMAT : Strings.En.EV_ELITE_DEFEATED_FORMAT)
               .formatted(ed.who().value());
+      case BattleEvent.AutoTurnEnded ate ->
+          (jp ? Strings.Ja.EV_AUTO_TURN_END_FORMAT : Strings.En.EV_AUTO_TURN_END_FORMAT)
+              .formatted(autoTurnReasonLabel(jp, ate.reason()));
     };
   }
 
