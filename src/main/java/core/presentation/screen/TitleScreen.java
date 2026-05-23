@@ -176,39 +176,39 @@ public final class TitleScreen extends ScreenAdapter {
     if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
       // §15-7 / E-2: ラン開始の瞬間にここで startNewRun() を呼ぶ (ソウル消失バグの根治)。
       // ラン外で貯めた playerSoul はこの時点で Player に注入される。
-      game.soundManager().playSe(SeKind.BUTTON);
+      game.soundManager().playSe(SeKind.BUTTON_DECISION);
       game.startNewRun();
       game.changeScreen(new DungeonScreen(game));
     } else if (Gdx.input.isKeyJustPressed(Keys.L) && game.persistence().saveManager().exists()) {
       // §15-11: セーブデータが存在するときのみ「つづきから」でロード
       boolean loaded = game.loadFromSave();
       if (loaded) {
-        game.soundManager().playSe(SeKind.BUTTON);
+        game.soundManager().playSe(SeKind.BUTTON_DECISION);
         game.changeScreen(new DungeonScreen(game));
       }
     } else if (Gdx.input.isKeyJustPressed(Keys.T) && game.progress().runCount() >= 1) {
       // 1 周目 (runCount 0) はソウルツリー非アクセス、1 周目終了後に解禁。
-      game.soundManager().playSe(SeKind.BUTTON);
+      game.soundManager().playSe(SeKind.BUTTON_DECISION);
       game.changeScreen(new SoulTreeScreen(game));
     } else if (Gdx.input.isKeyJustPressed(Keys.C)) {
       // §15-3: カード図鑑はいつでもアクセス可。
-      game.soundManager().playSe(SeKind.BUTTON);
+      game.soundManager().playSe(SeKind.BUTTON_DECISION);
       game.changeScreen(new CardCollectionScreen(game));
     } else if (Gdx.input.isKeyJustPressed(Keys.E)) {
       // §15-9: 装備変更はいつでもアクセス可。
-      game.soundManager().playSe(SeKind.BUTTON);
+      game.soundManager().playSe(SeKind.BUTTON_DECISION);
       game.changeScreen(new EquipmentScreen(game));
     } else if (Gdx.input.isKeyJustPressed(Keys.S)) {
       // §15-1 / §15-8: 設定画面はいつでもアクセス可。
-      game.soundManager().playSe(SeKind.BUTTON);
+      game.soundManager().playSe(SeKind.BUTTON_DECISION);
       game.changeScreen(new SettingsScreen(game));
     } else if (Gdx.input.isKeyJustPressed(Keys.K)) {
       // M2 提出: クレジット画面はいつでもアクセス可。
-      game.soundManager().playSe(SeKind.BUTTON);
+      game.soundManager().playSe(SeKind.BUTTON_DECISION);
       game.changeScreen(new CreditsScreen(game));
     } else if (Gdx.input.isKeyJustPressed(Keys.B)) {
       // W4-δ: 敵図鑑はいつでもアクセス可。
-      game.soundManager().playSe(SeKind.BUTTON);
+      game.soundManager().playSe(SeKind.BUTTON_DECISION);
       game.changeScreen(new BestiaryScreen(game));
     }
   }

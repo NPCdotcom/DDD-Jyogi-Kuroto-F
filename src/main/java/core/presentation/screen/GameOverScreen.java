@@ -98,7 +98,7 @@ public final class GameOverScreen extends ScreenAdapter {
     if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
       // §15-7 / E-2: ラン終了後はソウルツリーへ遷移し、獲得ソウルを永続強化に使う。
       // startNewRun() はここでは呼ばない (次ラン開始は TitleScreen の ENTER 時)。
-      game.soundManager().playSe(SeKind.BUTTON);
+      game.soundManager().playSe(SeKind.BUTTON_DECISION);
       game.changeScreen(new SoulTreeScreen(game));
     }
   }

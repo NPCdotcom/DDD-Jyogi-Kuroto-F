@@ -411,8 +411,10 @@ public final class DungeonScreen extends ScreenAdapter {
         // §15-5: 敵撃破 SE (プレイヤー死亡は除外)
         game.soundManager().playSe(SeKind.ENEMY_DEFEATED);
       } else if (e instanceof BattleEvent.SkillUsed) {
-        // §15-5: カード使用 SE
-        game.soundManager().playSe(SeKind.CARD_USED);
+        // §15-5: カード使用 SE。Wave 10 W10-α: 種別別音分け (CARD_MAGIC / CARD_BUFF / CARD_MOVE
+        // / CARD_TRAP) は BattleEvent.SkillUsed に CardEffect 情報を載せる仕様変更が必要なため
+        // Wave 11+ 送り、現状は CARD_PHYSICAL を単一発火 (旧 CARD_USED 相当)。
+        game.soundManager().playSe(SeKind.CARD_PHYSICAL);
       } else if (e instanceof BattleEvent.FloorAdvanced) {
         // §15-5: 層遷移 SE
         game.soundManager().playSe(SeKind.FLOOR_ADVANCE);

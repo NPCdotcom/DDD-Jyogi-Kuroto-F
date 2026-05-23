@@ -172,7 +172,7 @@ public final class SettingsScreen extends ScreenAdapter {
 
     // ESC で戻る (保存済み)
     if (Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
-      game.soundManager().playSe(SeKind.BUTTON);
+      game.soundManager().playSe(SeKind.BUTTON_DECISION);
       game.saveSettings();
       game.changeScreen(new TitleScreen(game));
     }

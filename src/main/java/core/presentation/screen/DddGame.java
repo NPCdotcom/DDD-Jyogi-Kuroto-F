@@ -233,6 +233,10 @@ public final class DddGame extends Game {
   public void unlockTreeNode(NodeId nodeId) {
     SoulTree.UnlockResult result = progress.soulTree().unlock(nodeId, progress.playerSoul());
     progress = progress.withSoulTree(result.newTree()).withPlayerSoul(result.newSoul());
+    // Wave 10 W10-α: ノード解放成功時に LEVEL_UP SE を発火
+    if (resources != null) {
+      resources.soundManager().playSe(core.infrastructure.audio.SeKind.LEVEL_UP);
+    }
   }
 
   /** ラン外のソウルツリー画面でリセットボタン押下時に呼ぶ (ADR-09)。 */
@@ -343,6 +347,11 @@ public final class DddGame extends Game {
         .advanceFloor(
             InitialStateFactory.advanceLayer(
                 withUpgrade, session.rng(), session.context().maxLayer()));
+    // Wave 10 W10-α: ステ強化ノード (HpMaxUp / SpeedUp) で STATUS_UP SE を発火
+    if ((choice instanceof LayerEndNode.HpMaxUp || choice instanceof LayerEndNode.SpeedUp)
+        && resources != null) {
+      resources.soundManager().playSe(core.infrastructure.audio.SeKind.STATUS_UP);
+    }
     recordObtainedCards(); // §15-3: ショップノードで入手したカードを図鑑に記録
     // §15-11: 層境界 (次層に進入する前) でセーブする。
     saveAtLayerBoundary();
