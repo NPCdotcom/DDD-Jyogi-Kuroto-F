@@ -8,9 +8,9 @@
 
 ---
 
-## 2026-05-24 セッション最終アップデート + Wave 1〜9 完了
+## 2026-05-24 セッション最終アップデート + Wave 1〜10 完了
 
-本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1〜8 + M2 Wave 9 (3 段階 α/β/γ) を完了。テスト 545 → 697 件 (+152)。DddGame は 9 Wave 通算で 700+ → 549 行 = ~22% 削減、責務 4 集約 (RunSession / GameResources / PlayerProgress / PersistenceServices) に分離。残った M2 着手項目:
+本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1〜9 + M2 Wave 10 (5 段階 α/β/β-2/γ/δ) を完了。テスト 545 → 697 件 (+152)。DddGame は 9 Wave 通算で 700+ → 549 行 = ~22% 削減、責務 4 集約 (RunSession / GameResources / PlayerProgress / PersistenceServices) に分離。Wave 10 でチームメイト素材 (音声 19 / スプライト 5 / 装備 2 / カード枠 1) を一括投入し、ShapeRenderer 矩形描画 → Texture 描画 + カード枠合成 + SE 9 箇所追加で UI 質感を大幅向上。残った M2 着手項目:
 
 - **完了 (P2-P4)**: JSON 欠損 graceful、セーブ後ドロー仕様確認、Texture リーク、ダメージ計算 DRY 集約、
   BuffKindLabels 集約、HAND_DETAIL_TEXT_Y 文字数上限、EnemyKind isElite/isBoss、Optional 可読性、
@@ -46,12 +46,22 @@
   を型表現 + onRunEnded() で Optional.empty() ライフサイクル同期 + requireRunSession() で IllegalStateException
   デバッグ性向上 (W9-α)、DddGame の永続化層を PersistenceServices final class に集約 + apply はデータ層純粋
   + LibGDX 副作用 (フルスクリーン / 音量) は DddGame.updateHardwareConfigurations に分離 (W9-β)
-- **M2 送り (Wave 9 残置)**: Bestiary 次行動の点線予告 UI (AI 設計絡み、チームメイト領域)、
-  装備テーマのセット装備複合 / 漸進的アニメーション (equipment.json 仕様拡張がチームメイト領域)、
-  壁床バリエーション機構 (チームメイト素材投入待ち)、Android 対応 (Phase D、M2 後半)
-- **M2 送り**: 階段専用テクスチャ (チームメイト素材待ち)、
-  Bestiary 次行動の点線予告 (AI 戦術絡み、M2 送り)、
-  装備テーマのセット装備複合 / 漸進的アニメーション (M2 送り)
+- **完了 (M2 Wave 10)**: 音声素材 19 件投入 + SeKind enum 18 種に拡張 (旧 6 → 新 18、CARD_USED 廃止) + 発火点 3 箇所連結 (W10-α、commit ab55ad5)、
+  キャラスプライト 5 種投入 + DungeonRenderer の 3 フェーズ Texture 描画化 + ELITE_SLIME 赤ティント + 色リセット遵守 (W10-β、commit aa2bf09)、
+  SE 7 発火点追加 + スケルトン/ゴブリン入れ替え + チュートリアル閉じ BUTTON_DECISION + ノード習得 STATUS_UP + HP_LOW 境界線管理 + Elite 撃破 LEVEL_UP 流用 + カードドロー CARD_DRAW_C + EquipmentScreen クリック SE (W10-β-2、commit ef48bc3)、
+  装備アイコン 2 種 + Equipment.iconPath Optional 追加 + EquipmentScreen で 40×40 行頭描画 + カード枠合成描画 CardRenderer 新規 + HudRenderer.drawHand 連携 + CardImageRegistry.frame() 追加 + Z-Index 厳守 + GlyphLayout 切り詰め (W10-γ、commit ed2ac24)
+- **SettingsScreen バグ修正**: ESC 押下時の "No buffer allocated" クラッシュを handleInput() boolean 化 + return true で解消 (commit 2d63a8e)
+- **M2 送り (Wave 11+ 候補)**:
+  - **新機能 4 件** (ユーザー要望): 遠距離攻撃 AI 強化 / 壊れる壁 (block_brake.ogg 対応済、新 Tile 種別) / マウス操作 / 文字出るときにアクション (要仕様詰め)
+  - **音分け細分化**: CARD_DRAW_C/U/R (Card に rarity field 追加 + cards.json 拡張)、CARD_USED 種別別 (BattleEvent.SkillUsed に CardEffect 情報追加)
+  - **EnemyKind enum リネーム**: SWIFT_SLIME → SKELETON / TOUGH_SLIME → GOBLIN / BOSS → DRAGON (cards.json / equipment.json / 各 fixture 影響あり、破壊的変更)
+  - **装備色 tint バリエーション**: boots1/boots2 → 他装備派生 (SpriteBatch.setColor or シェーダー)
+  - **Wave 9 監査の Must 4 件**: DEFAULT_MAX_LAYER DRY 解消 / i18n 残 11 / BattleEvent.CardUsed 追加 / 行数表記補正
+  - **Bestiary 次行動の点線予告 UI** (AI 設計絡み、チームメイト領域)
+  - **装備テーマのセット装備複合 / 漸進的アニメーション** (equipment.json 仕様拡張)
+  - **壁床バリエーション機構** (チームメイト素材投入待ち、層ごとローテーション)
+  - **階段専用テクスチャ** (チームメイト素材待ち、現状黄色マーカー代替)
+  - **Android 対応** (Phase D、M2 後半、「Doko-demo」スローガンの核)
 
 ---
 
