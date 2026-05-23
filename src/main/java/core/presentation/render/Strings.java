@@ -108,6 +108,9 @@ public final class Strings {
     // §15-3 / §15-6 強化個体撃破通知
     public static final String EV_ELITE_DEFEATED_FORMAT = "%s を撃破! カード追加チャンス";
 
+    // Wave 11 W11-α 壊れる壁破壊通知
+    public static final String EV_WALL_BROKEN_FORMAT = "(%d, %d) の壁を破壊した";
+
     // §15-7 / E-2 ソウルツリー画面 / タイトル画面動線
     public static final String SOUL_COST_FORMAT = "ソウル %d";
     public static final String SOUL_TREE_TITLE = "ソウルツリー";
@@ -311,6 +314,9 @@ public final class Strings {
     // §15-3 / §15-6 Elite defeated notification
     public static final String EV_ELITE_DEFEATED_FORMAT =
         "Elite defeated: %s! Card reward unlocked";
+
+    // Wave 11 W11-α Breakable wall destruction
+    public static final String EV_WALL_BROKEN_FORMAT = "Broke the wall at (%d, %d)";
 
     // §15-7 / E-2 Soul Tree screen / title screen entry
     public static final String SOUL_COST_FORMAT = "Soul %d";

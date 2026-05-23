@@ -30,6 +30,10 @@ public final class DungeonRenderer {
 
   private static final Color STAIRS_COLOR = new Color(0.85f, 0.75f, 0.25f, 1f);
   private static final Color ELITE_TINT = new Color(0.95f, 0.3f, 0.3f, 1f);
+
+  /** Wave 11 W11-α: 壊れる壁の茶色ティント (既存 wall.png を流用、新素材なし)。 */
+  private static final Color BREAKABLE_WALL_TINT = new Color(0.55f, 0.35f, 0.2f, 1f);
+
   private static final Color TRAP_PHYSICAL_COLOR = new Color(0.95f, 0.55f, 0.15f, 1f);
   private static final Color TRAP_MAGICAL_COLOR = new Color(0.70f, 0.35f, 0.95f, 1f);
 
@@ -92,10 +96,18 @@ public final class DungeonRenderer {
     for (int y = 0; y < map.height(); y++) {
       for (int x = 0; x < map.width(); x++) {
         Tile t = map.tileAt(new Position(x, y));
-        Texture tex = (t == Tile.WALL) ? wallTex : floorTex;
+        Texture tex = (t == Tile.WALL || t == Tile.BREAKABLE_WALL) ? wallTex : floorTex;
         int sx = RenderLayout.MAP_ORIGIN_X + x * tile;
         int sy = RenderLayout.MAP_ORIGIN_Y + y * tile;
-        batch.draw(tex, sx, sy, tile, tile);
+        // Wave 11 W11-α: BREAKABLE_WALL は wall.png を茶色ティントで区別 (色変えハック、新素材なし)。
+        // setColor の状態を必ず Color.WHITE にリセットして色リーク防止 (Wave 4 W4-ε 同型原則)。
+        if (t == Tile.BREAKABLE_WALL) {
+          batch.setColor(BREAKABLE_WALL_TINT);
+          batch.draw(tex, sx, sy, tile, tile);
+          batch.setColor(Color.WHITE);
+        } else {
+          batch.draw(tex, sx, sy, tile, tile);
+        }
       }
     }
   }
@@ -135,29 +147,34 @@ public final class DungeonRenderer {
     int tile = RenderLayout.TILE_SIZE;
     for (int y = 0; y < map.height(); y++) {
       for (int x = 0; x < map.width(); x++) {
-        if (map.tileAt(new Position(x, y)) != Tile.WALL) {
+        if (!isWallLike(map.tileAt(new Position(x, y)))) {
           continue;
         }
         int sx = RenderLayout.MAP_ORIGIN_X + x * tile;
         int sy = RenderLayout.MAP_ORIGIN_Y + y * tile;
         // 下辺: 下隣が床
-        if (y > 0 && map.tileAt(new Position(x, y - 1)) != Tile.WALL) {
+        if (y > 0 && !isWallLike(map.tileAt(new Position(x, y - 1)))) {
           shapes.rect(sx, sy, tile, WALL_BORDER_WIDTH);
         }
         // 上辺: 上隣が床
-        if (y < map.height() - 1 && map.tileAt(new Position(x, y + 1)) != Tile.WALL) {
+        if (y < map.height() - 1 && !isWallLike(map.tileAt(new Position(x, y + 1)))) {
           shapes.rect(sx, sy + tile - WALL_BORDER_WIDTH, tile, WALL_BORDER_WIDTH);
         }
         // 左辺: 左隣が床
-        if (x > 0 && map.tileAt(new Position(x - 1, y)) != Tile.WALL) {
+        if (x > 0 && !isWallLike(map.tileAt(new Position(x - 1, y)))) {
           shapes.rect(sx, sy, WALL_BORDER_WIDTH, tile);
         }
         // 右辺: 右隣が床
-        if (x < map.width() - 1 && map.tileAt(new Position(x + 1, y)) != Tile.WALL) {
+        if (x < map.width() - 1 && !isWallLike(map.tileAt(new Position(x + 1, y)))) {
           shapes.rect(sx + tile - WALL_BORDER_WIDTH, sy, WALL_BORDER_WIDTH, tile);
         }
       }
     }
+  }
+
+  /** Wave 11 W11-α: 境界線描画上は WALL と BREAKABLE_WALL を同じ「壁」として扱う (床との境目だけ黒線)。 */
+  private static boolean isWallLike(Tile t) {
+    return t == Tile.WALL || t == Tile.BREAKABLE_WALL;
   }
 
   /** 設置済みの罠を小マーカーで描画する (§15-3、物理 = 橙 / 魔法 = 紫)。空タイル上の罠を可視化する。 */

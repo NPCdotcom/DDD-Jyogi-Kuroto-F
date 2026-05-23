@@ -4,7 +4,9 @@ package core.domain.dungeon;
 public enum Tile {
   FLOOR('.', true),
   WALL('#', false),
-  STAIRS_DOWN('>', true);
+  STAIRS_DOWN('>', true),
+  /** Wave 11 W11-α: 移動カード経由でのみ破壊可能な壁 (block_brake SE 発火対象)。 */
+  BREAKABLE_WALL('B', false);
 
   private final char glyph;
   private final boolean walkable;

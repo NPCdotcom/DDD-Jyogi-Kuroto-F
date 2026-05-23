@@ -468,6 +468,9 @@ public final class HudRenderer {
       case BattleEvent.AutoTurnEnded ate ->
           (jp ? Strings.Ja.EV_AUTO_TURN_END_FORMAT : Strings.En.EV_AUTO_TURN_END_FORMAT)
               .formatted(autoTurnReasonLabel(jp, ate.reason()));
+      case BattleEvent.WallBroken wb ->
+          (jp ? Strings.Ja.EV_WALL_BROKEN_FORMAT : Strings.En.EV_WALL_BROKEN_FORMAT)
+              .formatted(wb.position().x(), wb.position().y());
     };
   }
 }

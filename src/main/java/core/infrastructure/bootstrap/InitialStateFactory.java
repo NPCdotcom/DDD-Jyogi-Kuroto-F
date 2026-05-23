@@ -10,7 +10,9 @@ import core.domain.card.DiscardPile;
 import core.domain.card.DrawPile;
 import core.domain.card.Hand;
 import core.domain.common.Position;
+import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
+import core.domain.dungeon.Tile;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
 import core.domain.entity.EnemyKind;
@@ -413,9 +415,40 @@ public final class InitialStateFactory {
       }
     }
 
+    DungeonMap mapWithBreakable = placeBreakableWalls(dungeon.map(), rng);
     Player atSpawn = player.withPosition(dungeon.spawn());
     return new DungeonState(
-        dungeon.map(), atSpawn, List.copyOf(enemies), TurnPhase.PLAYER_TURN, List.of(), layer);
+        mapWithBreakable, atSpawn, List.copyOf(enemies), TurnPhase.PLAYER_TURN, List.of(), layer);
+  }
+
+  /**
+   * 内部の WALL タイルを 2-3 個 BREAKABLE_WALL に置換した新マップを返す (Wave 11 W11-α)。
+   *
+   * <p>「内部」 = 外枠 (周囲 1 マス) を除いた領域。外枠は地形不変条件で {@link DungeonMap#withTileAt} 自体が IAE で弾くため、 候補列挙の段階で
+   * 1 マス内側に絞る (二重防御)。
+   *
+   * <p>個数は決定性確保のため引数 {@code rng} から取る。候補が空 (極端な層) なら元マップをそのまま返す。
+   */
+  private static DungeonMap placeBreakableWalls(DungeonMap map, Random rng) {
+    java.util.List<Position> internalWalls = new java.util.ArrayList<>();
+    for (int y = 1; y < map.height() - 1; y++) {
+      for (int x = 1; x < map.width() - 1; x++) {
+        Position p = new Position(x, y);
+        if (map.tileAt(p) == Tile.WALL) {
+          internalWalls.add(p);
+        }
+      }
+    }
+    if (internalWalls.isEmpty()) {
+      return map;
+    }
+    java.util.Collections.shuffle(internalWalls, rng);
+    int targetCount = Math.min(2 + rng.nextInt(2), internalWalls.size()); // 2 or 3 個
+    DungeonMap result = map;
+    for (int i = 0; i < targetCount; i++) {
+      result = result.withTileAt(internalWalls.get(i), Tile.BREAKABLE_WALL);
+    }
+    return result;
   }
 
   /** 層ごとの敵数 (§15-6 難易度: 層 1=3 / 層 2=6 [雑魚 5+強化個体 1] / 層 3=8 [雑魚 7+ボス 1])。 */
@@ -532,7 +565,7 @@ public final class InitialStateFactory {
             0);
 
     return new DungeonState(
-        dungeon.map(),
+        placeBreakableWalls(dungeon.map(), rng),
         restoredPlayer,
         List.copyOf(enemies),
         TurnPhase.PLAYER_TURN,

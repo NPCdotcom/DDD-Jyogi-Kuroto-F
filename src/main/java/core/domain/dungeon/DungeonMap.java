@@ -82,6 +82,32 @@ public final class DungeonMap {
   }
 
   /**
+   * 指定座標のタイルを差し替えた新 {@link DungeonMap} を返す (Wave 11 W11-α、record-like immutable update)。
+   *
+   * <p>「外枠 (周囲 1 マス、x = 0 / x = width-1 / y = 0 / y = height-1)」を差し替えようとした場合は {@link
+   * IllegalArgumentException} で弾く。外枠は地形の不変条件 (= 必ず WALL で囲まれている) を 保証するためのドメインモデル上の境界で、これを壊すと敵 AI
+   * の経路探索やテキスト 描画が破綻するため、安全弁として多層防御する。
+   *
+   * <p>境界内なら、tilesByYx を行単位でディープコピーした上で 1 マスだけ書換える。元の {@code this} は 不変のまま。
+   */
+  public DungeonMap withTileAt(Position p, Tile newTile) {
+    Objects.requireNonNull(p, "p");
+    Objects.requireNonNull(newTile, "newTile");
+    if (!inBounds(p)) {
+      throw new IllegalArgumentException("out of bounds: " + p);
+    }
+    if (p.x() == 0 || p.x() == width - 1 || p.y() == 0 || p.y() == height - 1) {
+      throw new IllegalArgumentException("cannot modify outer border tile: " + p);
+    }
+    Tile[][] grid = new Tile[height][];
+    for (int y = 0; y < height; y++) {
+      grid[y] = Arrays.copyOf(tilesByYx[y], width);
+    }
+    grid[p.y()][p.x()] = newTile;
+    return new DungeonMap(width, height, grid);
+  }
+
+  /**
    * {@code from} から {@code to} へ歩いて到達できるかを 4 近傍 BFS で判定する (§15-6 ダンジョン 生成のソフトロック検証用)。壁を貫通しない経路が 1
    * つでもあれば true。
    *

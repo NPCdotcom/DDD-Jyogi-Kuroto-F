@@ -25,7 +25,8 @@ public sealed interface BattleEvent
         BattleEvent.FloorAdvanced,
         BattleEvent.BuffApplied,
         BattleEvent.EliteDefeated,
-        BattleEvent.AutoTurnEnded {
+        BattleEvent.AutoTurnEnded,
+        BattleEvent.WallBroken {
 
   record Moved(ActorId who, Position from, Position to) implements BattleEvent {
     public Moved {
@@ -209,6 +210,18 @@ public sealed interface BattleEvent
     public enum Reason {
       /** AP を消費可能なカード・隣接攻撃・歩行可能セル全てが無い「詰み」状態。 */
       STUCK
+    }
+  }
+
+  /**
+   * 壊れる壁破壊通知 (Wave 11 W11-α)。プレイヤーが移動カード由来の移動権で BREAKABLE_WALL に踏み込んだ瞬間に発火。
+   *
+   * <p>因果順序: 「世界 (マップ) の書き換え (FLOOR 化) → 本イベント発火 → プレイヤー位置更新」。 プレゼン層は本イベントを拾って block_brake SE
+   * を再生する。
+   */
+  record WallBroken(Position position) implements BattleEvent {
+    public WallBroken {
+      Objects.requireNonNull(position, "position");
     }
   }
 }

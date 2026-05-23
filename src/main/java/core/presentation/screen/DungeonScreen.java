@@ -471,6 +471,9 @@ public final class DungeonScreen extends ScreenAdapter {
         // Wave 10 W10-β-2: プレイヤーターン開始 = 毎ターン頭のドロー演出として CARD_DRAW_C を発火
         // レアリティ別 (C/U/R) 音分けは Card に rarity field 追加が必要で Wave 11+ 送り
         game.soundManager().playSe(SeKind.CARD_DRAW_C);
+      } else if (e instanceof BattleEvent.WallBroken) {
+        // Wave 11 W11-α: 壊れる壁破壊時に block_brake SE を再生
+        game.soundManager().playSe(SeKind.BLOCK_BREAK);
       } else if (e instanceof BattleEvent.Moved m && !m.who().equals(playerId)) {
         // §UI 改善: 敵が画面外で動いた時、flash で「どこかで敵が動いているようだ」を表示。
         // 可視範囲 = camera.position ± (SCREEN_WIDTH/HEIGHT * camera.zoom / 2) (LibGDX

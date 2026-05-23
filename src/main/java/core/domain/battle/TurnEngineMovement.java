@@ -34,8 +34,26 @@ final class TurnEngineMovement {
       return TurnEngineHelpers.reject(state, player.id(), "AP 不足");
     }
     Position next = player.position().move(direction);
-    if (!state.map().isWalkable(next) || state.findEnemyAt(next).isPresent()) {
+    if (state.findEnemyAt(next).isPresent()) {
       return TurnEngineHelpers.reject(state, player.id(), "そこへは移動できない");
+    }
+    // Wave 11 W11-α: 移動カード由来の移動権使用中なら、隣接 BREAKABLE_WALL を破壊して通過可能。
+    // 通常移動 (AP 1 消費) では BREAKABLE_WALL を通過できない (移動カード専用ギミック)。
+    boolean breakingWall =
+        usingPendingMove
+            && state.map().inBounds(next)
+            && state.map().tileAt(next) == Tile.BREAKABLE_WALL;
+    if (!breakingWall && !state.map().isWalkable(next)) {
+      return TurnEngineHelpers.reject(state, player.id(), "そこへは移動できない");
+    }
+    List<BattleEvent> events = new ArrayList<>();
+    DungeonState afterMove = state;
+    // CTO チェックポイント #2 (3 段順序厳守):
+    // (1) 世界の書き換え → (2) WallBroken イベント発火 → (3) アクター位置更新。
+    // 順序を逆にすると「BREAKABLE_WALL の上にプレイヤーが乗っている」中間状態が生じる。
+    if (breakingWall) {
+      afterMove = afterMove.withMap(state.map().withTileAt(next, Tile.FLOOR));
+      events.add(new BattleEvent.WallBroken(next));
     }
     Player moved;
     if (usingPendingMove) {
@@ -43,10 +61,9 @@ final class TurnEngineMovement {
     } else {
       moved = player.withPosition(next).withActionPoints(player.actionPoints().spend(1));
     }
-    DungeonState afterMove = state.withPlayer(moved);
-    List<BattleEvent> events = new ArrayList<>();
+    afterMove = afterMove.withPlayer(moved);
     events.add(new BattleEvent.Moved(player.id(), player.position(), next));
-    if (state.map().tileAt(next) == Tile.STAIRS_DOWN) {
+    if (afterMove.map().tileAt(next) == Tile.STAIRS_DOWN) {
       afterMove = afterMove.withPhase(TurnPhase.CLEARED);
       events.add(new BattleEvent.TurnPhaseChanged(TurnPhase.CLEARED));
     }

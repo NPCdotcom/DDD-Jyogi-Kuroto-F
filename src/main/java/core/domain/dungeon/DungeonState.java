@@ -57,6 +57,11 @@ public record DungeonState(
     return new DungeonState(map, newPlayer, enemies, phase, placedTraps, layer);
   }
 
+  /** マップだけを差し替えた新状態を返す (Wave 11 W11-α: 壊れる壁の破壊 → 床化に使う)。 */
+  public DungeonState withMap(DungeonMap newMap) {
+    return new DungeonState(newMap, player, enemies, phase, placedTraps, layer);
+  }
+
   public DungeonState withEnemies(List<Enemy> newEnemies) {
     return new DungeonState(map, player, newEnemies, phase, placedTraps, layer);
   }

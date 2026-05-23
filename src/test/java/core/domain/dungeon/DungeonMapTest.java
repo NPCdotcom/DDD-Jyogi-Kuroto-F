@@ -196,4 +196,42 @@ class DungeonMapTest {
     DungeonMap m = DungeonMap.of(THREE_BY_THREE);
     assertFalse(m.equals("not a DungeonMap"), "DungeonMap は異なる型のオブジェクトと等しくない");
   }
+
+  // Wave 11 W11-α: withTileAt 不変性 + 境界防御
+
+  @Test
+  void withTileAtReturnsNewMapWithSingleTileChanged() {
+    DungeonMap original = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
+    DungeonMap modified = original.withTileAt(new Position(2, 2), Tile.BREAKABLE_WALL);
+    assertEquals(Tile.BREAKABLE_WALL, modified.tileAt(new Position(2, 2)));
+    // 元の DungeonMap は不変
+    assertEquals(Tile.FLOOR, original.tileAt(new Position(2, 2)));
+    // 他のマスは変わっていない
+    assertEquals(Tile.FLOOR, modified.tileAt(new Position(1, 1)));
+    assertEquals(Tile.FLOOR, modified.tileAt(new Position(3, 3)));
+    assertEquals(Tile.WALL, modified.tileAt(new Position(0, 0)));
+  }
+
+  @Test
+  void withTileAtRejectsOuterBorderTiles() {
+    // CTO チェックポイント #1: 外枠 (x=0 / x=width-1 / y=0 / y=height-1) は不変条件で IAE
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
+    assertThrows(
+        IllegalArgumentException.class, () -> m.withTileAt(new Position(0, 2), Tile.FLOOR));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> m.withTileAt(new Position(m.width() - 1, 2), Tile.FLOOR));
+    assertThrows(
+        IllegalArgumentException.class, () -> m.withTileAt(new Position(2, 0), Tile.FLOOR));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> m.withTileAt(new Position(2, m.height() - 1), Tile.FLOOR));
+  }
+
+  @Test
+  void withTileAtRejectsOutOfBounds() {
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
+    assertThrows(
+        IllegalArgumentException.class, () -> m.withTileAt(new Position(99, 2), Tile.FLOOR));
+  }
 }
