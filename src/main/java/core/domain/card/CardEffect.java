@@ -39,19 +39,43 @@ public sealed interface CardEffect
    * 単純ダメージ効果。最終ダメ = {@code max(1, baseValue + 攻撃側ステ - 防御側ステ)} (§15-4)。
    *
    * <p>baseValue は 1 以上を強制 (0 や負値は「最低 1 ダメ保証」とも整合しないため設計時点で弾く)。
+   *
+   * <p>Wave 12 W12-α: 射程 ({@code range} >= 1、デフォルト 1 = 隣接) + 爆風半径 ({@code areaRadius} >= 0、 デフォルト 0
+   * = 単体)。{@code range} は line scan の最大距離 (TurnEngineCardResolver でターゲットを 検索)、{@code areaRadius}
+   * は中心ターゲットを基準にチェビシェフ距離で巻き込む爆風範囲。
    */
-  record Damage(int baseValue) implements CardEffect {
+  record Damage(int baseValue, int range, int areaRadius) implements CardEffect {
     public Damage {
       if (baseValue < 1) {
         throw new IllegalArgumentException("baseValue must be >= 1 (got " + baseValue + ")");
       }
+      if (range < 1) {
+        throw new IllegalArgumentException("range must be >= 1 (got " + range + ")");
+      }
+      if (areaRadius < 0) {
+        throw new IllegalArgumentException("areaRadius must be >= 0 (got " + areaRadius + ")");
+      }
+    }
+
+    /**
+     * 後方互換コンストラクタ (近接単体、Wave 11 W11-β 以前の呼出はこちらを通る)。{@code range = 1}, {@code areaRadius = 0}
+     * でデフォルト初期化する。CardCatalog / DomainFixtures / 既存テスト 19 箇所の {@code new Damage(baseValue)}
+     * は無修正で通る。
+     */
+    public Damage(int baseValue) {
+      this(baseValue, 1, 0);
+    }
+
+    /** 後方互換コンストラクタ (遠距離単体、areaRadius = 0)。{@code Damage(baseValue, range)} で「飛び道具だが単体」を簡潔に表現できる。 */
+    public Damage(int baseValue, int range) {
+      this(baseValue, range, 0);
     }
 
     /**
      * 最終ダメージを確定する (§15-4、ADR-17)。
      *
      * <p>計算式: {@code max(1, baseValue + 攻 - 防)}。element が PHYSICAL なら物攻/物防、MAGICAL なら魔攻/魔防を参照。最低 1
-     * ダメ保証 (防御 > 攻撃でも 1 を返す)。
+     * ダメ保証 (防御 > 攻撃でも 1 を返す)。range / areaRadius はターゲット決定の責務でダメージ計算には影響しない。
      *
      * @param attacker 攻撃側の Stats (物攻 / 魔攻を参照)
      * @param defender 防御側の Stats (物防 / 魔防を参照)

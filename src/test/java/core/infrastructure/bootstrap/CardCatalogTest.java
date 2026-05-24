@@ -79,4 +79,14 @@ class CardCatalogTest {
     assertEquals(Optional.empty(), zangeki.rarity());
     assertEquals(CardRarity.COMMON, zangeki.rarityOrDefault());
   }
+
+  // Wave 12 W12-α: Damage の range / areaRadius graceful 読込
+
+  @Test
+  void damageRangeAndAreaRadiusDefaultToOneAndZeroWhenAbsent() {
+    // cards.json で大多数のカードは range / areaRadius 未指定 → デフォルト (1 / 0) = 近接単体
+    CardEffect.Damage zangeki = (CardEffect.Damage) CATALOG.get(CardId.of("zangeki")).effect();
+    assertEquals(1, zangeki.range(), "range 未指定なら 1 (近接) にフォールバック");
+    assertEquals(0, zangeki.areaRadius(), "areaRadius 未指定なら 0 (単体) にフォールバック");
+  }
 }

@@ -74,6 +74,55 @@ class CardEffectTest {
     assertThrows(IllegalArgumentException.class, () -> new CardEffect.Damage(-1));
   }
 
+  // Wave 12 W12-α: range + areaRadius 拡張
+
+  @Test
+  void legacyDamageConstructorDefaultsRangeOneAreaZero() {
+    // 後方互換コンストラクタは range=1, areaRadius=0 (近接単体)
+    CardEffect.Damage d = new CardEffect.Damage(5);
+    assertEquals(1, d.range());
+    assertEquals(0, d.areaRadius());
+  }
+
+  @Test
+  void rangeOnlyConstructorDefaultsAreaZero() {
+    // 2 引数版は遠距離単体 (areaRadius=0)
+    CardEffect.Damage d = new CardEffect.Damage(5, 4);
+    assertEquals(5, d.baseValue());
+    assertEquals(4, d.range());
+    assertEquals(0, d.areaRadius());
+  }
+
+  @Test
+  void fullConstructorPreservesAllFields() {
+    CardEffect.Damage d = new CardEffect.Damage(7, 5, 2);
+    assertEquals(7, d.baseValue());
+    assertEquals(5, d.range());
+    assertEquals(2, d.areaRadius());
+  }
+
+  @Test
+  void rangeZeroThrowsIllegalArgumentException() {
+    assertThrows(IllegalArgumentException.class, () -> new CardEffect.Damage(5, 0, 0));
+  }
+
+  @Test
+  void rangeNegativeThrowsIllegalArgumentException() {
+    assertThrows(IllegalArgumentException.class, () -> new CardEffect.Damage(5, -1, 0));
+  }
+
+  @Test
+  void areaRadiusNegativeThrowsIllegalArgumentException() {
+    assertThrows(IllegalArgumentException.class, () -> new CardEffect.Damage(5, 1, -1));
+  }
+
+  @Test
+  void areaRadiusZeroIsValid() {
+    // areaRadius=0 は単体攻撃の意味で正常
+    CardEffect.Damage d = new CardEffect.Damage(5, 3, 0);
+    assertEquals(0, d.areaRadius());
+  }
+
   // --- Move ---
 
   @Test

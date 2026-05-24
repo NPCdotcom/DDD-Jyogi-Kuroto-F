@@ -139,7 +139,11 @@ public final class CardCatalog {
   private static CardEffect parseEffect(JsonNode e) {
     String type = text(e, "type");
     return switch (type) {
-      case "Damage" -> new CardEffect.Damage(requiredInt(e, "baseValue"));
+      case "Damage" ->
+          new CardEffect.Damage(
+              requiredInt(e, "baseValue"),
+              optionalInt(e, "range", 1),
+              optionalInt(e, "areaRadius", 0));
       case "Move" -> new CardEffect.Move(requiredInt(e, "distance"));
       case "Buff" ->
           new CardEffect.Buff(
@@ -167,6 +171,31 @@ public final class CardCatalog {
       throw new IllegalStateException("cards.json: missing field '" + field + "'");
     }
     return v.asText();
+  }
+
+  /**
+   * オプション数値フィールドを取得する (Wave 12 W12-α、graceful 読込)。null / 欠落 / 非数値型は {@code defaultValue} に
+   * フォールバック。非数値型のみ WARN ログを残す (欠落は仕様上正常なのでログ不要)。
+   *
+   * <p>射程 (range) や爆風半径 (areaRadius) のように「未指定 = デフォルト値」が許容される field 向け。cards.json の 起動時クラッシュ回避が最優先
+   * (CardRarity の parseRarity と同型)。
+   */
+  private static int optionalInt(JsonNode n, String field, int defaultValue) {
+    JsonNode v = n == null ? null : n.get(field);
+    if (v == null || v.isNull()) {
+      return defaultValue;
+    }
+    if (!v.isNumber()) {
+      LOG.warning(
+          "cards.json: field '"
+              + field
+              + "' is not a number (falling back to "
+              + defaultValue
+              + "): "
+              + v);
+      return defaultValue;
+    }
+    return v.asInt();
   }
 
   /**
