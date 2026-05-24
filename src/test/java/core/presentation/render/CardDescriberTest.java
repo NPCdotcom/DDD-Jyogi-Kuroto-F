@@ -84,4 +84,33 @@ class CardDescriberTest {
                 CardElement.MAGICAL,
                 new CardEffect.Trap(5, new TrapLifetime.Turns(3)))));
   }
+
+  // Wave 12 W12-γ: 射程 / 範囲表示
+
+  @Test
+  void describesMeleeDamageWithoutRangeSuffix() {
+    // range=1, areaRadius=0 (近接単体) は射程表示なし (UI ノイズ最小)
+    assertEquals(
+        "物理ダメージ 5",
+        CardDescriber.describe(
+            card(CardTag.ATTACK, CardElement.PHYSICAL, new CardEffect.Damage(5, 1, 0))));
+  }
+
+  @Test
+  void describesRangedDamageWithRangeSuffix() {
+    // range>1, areaRadius=0 (遠距離単体) は "(射程 N)" 表示
+    assertEquals(
+        "物理ダメージ 3 (射程 3)",
+        CardDescriber.describe(
+            card(CardTag.ATTACK, CardElement.PHYSICAL, new CardEffect.Damage(3, 3, 0))));
+  }
+
+  @Test
+  void describesAoeDamageWithRangeAndAreaSuffix() {
+    // areaRadius>0 (AOE) は "(射程 N / 範囲 R)" 表示
+    assertEquals(
+        "魔法ダメージ 9 (射程 4 / 範囲 1)",
+        CardDescriber.describe(
+            card(CardTag.ATTACK, CardElement.MAGICAL, new CardEffect.Damage(9, 4, 1))));
+  }
 }
