@@ -1,6 +1,11 @@
 package core.presentation.render;
 
+import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.utils.viewport.Viewport;
+import core.domain.common.Direction;
+import core.domain.common.Position;
 import core.infrastructure.save.UiPreset;
+import java.util.Optional;
 
 /**
  * 画面レイアウトの座標定数。マップ・HUD・ログ領域の配置を 1 か所にまとめる。
@@ -40,6 +45,52 @@ public final class RenderLayout {
    */
   public static boolean showPersistentHint(UiPreset preset) {
     return preset == UiPreset.INFO_RICH;
+  }
+
+  // =========================================================================
+  // Wave 14 W14-α: マウス入力 → タイル座標 / 方向 の変換ヘルパ
+  // =========================================================================
+
+  /**
+   * スクリーン座標 (Gdx.input.getX/Y の生値) を Viewport.unproject 経由でタイル座標へ変換する (Wave 14 W14-α)。
+   *
+   * <p>CTO チェックポイント #1: ウィンドウサイズ変更時の Viewport レターボックス (黒帯) を考慮するため、 必ず {@code viewport.unproject}
+   * 経由でワールド座標化する。{@code camera.unproject} 単体ではビューポートの screenX/Y/Width/Height
+   * を考慮できず、リサイズ後にクリック位置がズレる。
+   *
+   * @param mapViewport マップカメラに紐付くビューポート (FitViewport 等)
+   * @param screenX {@link com.badlogic.gdx.Gdx#input}.getX() の生値
+   * @param screenY {@link com.badlogic.gdx.Gdx#input}.getY() の生値 (下向き、viewport.unproject が内部反転)
+   * @return タイル座標 (床/壁関わらず、マップ範囲内外も問わず純粋な算出)
+   */
+  public static Position screenToTile(Viewport mapViewport, int screenX, int screenY) {
+    Vector2 worldPos = mapViewport.unproject(new Vector2(screenX, screenY));
+    int tileX = (int) Math.floor((worldPos.x - MAP_ORIGIN_X) / TILE_SIZE);
+    int tileY = (int) Math.floor((worldPos.y - MAP_ORIGIN_Y) / TILE_SIZE);
+    return new Position(tileX, tileY);
+  }
+
+  /**
+   * 起点 {@code from} から目標 {@code to} への 4 方向のうち主要方向を返す純関数 (Wave 14 W14-α)。
+   *
+   * <p>CTO チェックポイント #2: {@code dx == 0 && dy == 0} (自分マス) は最初のガードで {@code Optional.empty()}
+   * を返す。これを怠ると {@code |0| >= |0|} 比較が true を通過し、RIGHT 誤発火による自爆移動バグが発生する。
+   *
+   * <p>方向決定ルール: {@code |dx| >= |dy|} なら横方向 (dx > 0 → RIGHT, dx < 0 → LEFT)、それ以外は縦方向 (dy &gt; 0 →
+   * UP, dy &lt; 0 → DOWN)。完全な斜め (|dx| == |dy|) は横優先で安定する (テスト再現性)。
+   *
+   * @return 主要方向、または同一マスなら {@link Optional#empty()}
+   */
+  public static Optional<Direction> directionToward(Position from, Position to) {
+    int dx = to.x() - from.x();
+    int dy = to.y() - from.y();
+    if (dx == 0 && dy == 0) {
+      return Optional.empty();
+    }
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      return Optional.of(dx > 0 ? Direction.RIGHT : Direction.LEFT);
+    }
+    return Optional.of(dy > 0 ? Direction.UP : Direction.DOWN);
   }
 
   public static final int SCREEN_WIDTH = 1920;

@@ -18,6 +18,7 @@ import core.domain.battle.TurnPhase;
 import core.domain.card.Card;
 import core.domain.card.CardRarity;
 import core.domain.card.Hand;
+import core.domain.common.Direction;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
@@ -227,9 +228,16 @@ public final class DungeonScreen extends ScreenAdapter {
     if (phase == TurnPhase.PLAYER_TURN) {
       enemyStepTimer = 0f;
       // §15-3 UI 改善: マウスクリックでカード選択 (キーボード入力に先んじて処理)
-      handleHandMouseClick();
-      // poll(state) に移行: 状態2 (移動権保持中) の判定にドメインの pendingMoveCount を使う (ADR-21)
-      Optional<BattleAction> action = playerInputs.poll(game.requireRunSession().context().state());
+      boolean cardConsumed = handleHandMouseClick();
+      // Wave 14 W14-α: マップタイルクリックで方向選択 → Move / UseCard (カード未消費かつ
+      // ポップアップ非表示時のみ反応、二重発火回避)
+      Optional<Direction> mouseDir =
+          (cardConsumed || nodeChoice != null || eliteReward.isActive() || statusPanelOpen)
+              ? Optional.empty()
+              : PlayerInputs.readMouseDirection(
+                  viewport, game.requireRunSession().context().state().player().position());
+      Optional<BattleAction> action =
+          playerInputs.poll(game.requireRunSession().context().state(), mouseDir);
       action.ifPresent(director::applyPlayerAction);
     } else if (phase == TurnPhase.ENEMY_TURN) {
       // §15-5: 敵ターンを ENEMY_STEP_INTERVAL ごとに 1 アクションずつ進め、敵が 1 体ずつ動くのを見せる。
@@ -523,17 +531,17 @@ public final class DungeonScreen extends ScreenAdapter {
    * <p>スクリーン座標を HUD 仮想座標 (1920x1080) に変換し、{@link HudRenderer#handCardBounds} と当たり判定する。 ポップアップ
    * (層末ノード / Elite カード選択 / ステータス) 表示中はクリック無視。
    */
-  private void handleHandMouseClick() {
+  private boolean handleHandMouseClick() {
     if (!Gdx.input.justTouched()) {
-      return;
+      return false;
     }
     if (nodeChoice != null || eliteReward.isActive() || statusPanelOpen) {
-      return;
+      return false;
     }
     float screenW = Gdx.graphics.getWidth();
     float screenH = Gdx.graphics.getHeight();
     if (screenW <= 0 || screenH <= 0) {
-      return;
+      return false;
     }
     float hudX = Gdx.input.getX() * (RenderLayout.SCREEN_WIDTH / screenW);
     float hudY =
@@ -544,9 +552,10 @@ public final class DungeonScreen extends ScreenAdapter {
       Rectangle bounds = HudRenderer.handCardBounds(i);
       if (bounds.contains(hudX, hudY)) {
         playerInputs.selectCardByMouse(i);
-        return;
+        return true;
       }
     }
+    return false;
   }
 
   private void updateMapCamera() {

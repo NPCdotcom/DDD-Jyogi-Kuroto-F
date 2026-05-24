@@ -2,9 +2,12 @@ package core.presentation.input;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.utils.viewport.Viewport;
 import core.domain.battle.BattleAction;
 import core.domain.common.Direction;
+import core.domain.common.Position;
 import core.domain.dungeon.DungeonState;
+import core.presentation.render.RenderLayout;
 import java.util.Optional;
 
 /**
@@ -46,7 +49,7 @@ public final class PlayerInputs {
   }
 
   /**
-   * 現在フレームの入力を {@link BattleAction} に変換する。
+   * 現在フレームの入力を {@link BattleAction} に変換する (キーボードのみ、Wave 14 以前の経路)。
    *
    * <p>優先度: 状態2 (移動権保持中) > 状態1 (カード選択中) > 状態0 (通常)。
    *
@@ -56,16 +59,66 @@ public final class PlayerInputs {
    * @param state 現在のダンジョン状態 (pendingMoveCount 参照のため必要)
    */
   public Optional<BattleAction> poll(DungeonState state) {
+    return poll(state, Optional.empty());
+  }
+
+  /**
+   * 現在フレームの入力を {@link BattleAction} に変換する (Wave 14 W14-α: マウス方向クリックも統合)。
+   *
+   * <p>{@code mouseDirection} が present なら、状態に応じて以下を行う:
+   *
+   * <ul>
+   *   <li>状態2 (移動権保持中) → {@link BattleAction.Move}
+   *   <li>状態1 (カード選択中) → {@link BattleAction.UseCard} (選択解除)
+   *   <li>状態0 (通常) → {@link BattleAction.Move}
+   * </ul>
+   *
+   * <p>{@code mouseDirection} が empty ならキーボードのみの既存パスで判定。マップクリックは {@link RenderLayout#screenToTile}
+   * + {@link RenderLayout#directionToward} で事前算出して渡す。
+   */
+  public Optional<BattleAction> poll(DungeonState state, Optional<Direction> mouseDirection) {
     // 状態2: 移動権保持中 — ドメインの pendingMoveCount を毎フレーム参照
     if (state.player().pendingMoveCount() > 0) {
+      if (mouseDirection.isPresent()) {
+        return Optional.of(new BattleAction.Move(mouseDirection.get()));
+      }
       return pollMovementTokenMode();
     }
     // 状態1: カード選択中
     if (pendingCardIndex >= 0) {
+      if (mouseDirection.isPresent()) {
+        BattleAction action = new BattleAction.UseCard(pendingCardIndex, mouseDirection.get());
+        pendingCardIndex = NONE;
+        return Optional.of(action);
+      }
       return pollCardDirectionMode();
     }
     // 状態0: 通常
+    if (mouseDirection.isPresent()) {
+      return Optional.of(new BattleAction.Move(mouseDirection.get()));
+    }
     return pollNormalMode(state.player().cardPileState().hand().size());
+  }
+
+  /**
+   * マウスクリック位置からプレイヤーへの方向を読み取る (Wave 14 W14-α)。
+   *
+   * <p>{@code Gdx.input.justTouched()} が false なら empty。クリック位置をビューポート経由でタイル座標化し、 プレイヤー位置との差分から主要方向
+   * ({@link RenderLayout#directionToward}) を算出する。自分マスクリックは 内部のガードで empty を返すため、誤って RIGHT 発火 ≒
+   * 自爆クリック移動はしない (CTO チェックポイント #2)。
+   *
+   * <p>HUD カード矩形と重なるクリックは呼出側 ({@link core.presentation.screen.DungeonScreen}) でフィルタする責務。
+   *
+   * @param mapViewport マップカメラに紐付くビューポート
+   * @param playerPos プレイヤー現在位置
+   * @return クリック方向、または empty (未クリック / 自分マスクリック)
+   */
+  public static Optional<Direction> readMouseDirection(Viewport mapViewport, Position playerPos) {
+    if (!Gdx.input.justTouched()) {
+      return Optional.empty();
+    }
+    Position clicked = RenderLayout.screenToTile(mapViewport, Gdx.input.getX(), Gdx.input.getY());
+    return RenderLayout.directionToward(playerPos, clicked);
   }
 
   /**
