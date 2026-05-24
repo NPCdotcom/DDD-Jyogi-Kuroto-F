@@ -95,7 +95,8 @@ public final class GameOverScreen extends ScreenAdapter {
         RenderLayout.GAMEOVER_HINT_Y);
     batch.end();
 
-    if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
+    // Wave 14 W14-β: ENTER または左クリックでソウルツリーへ遷移 (マウスのみで操作可能)
+    if (Gdx.input.isKeyJustPressed(Keys.ENTER) || Gdx.input.justTouched()) {
       // §15-7 / E-2: ラン終了後はソウルツリーへ遷移し、獲得ソウルを永続強化に使う。
       // startNewRun() はここでは呼ばない (次ラン開始は TitleScreen の ENTER 時)。
       game.soundManager().playSe(SeKind.BUTTON_DECISION);

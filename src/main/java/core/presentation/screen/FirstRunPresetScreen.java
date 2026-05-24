@@ -12,6 +12,7 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import core.infrastructure.save.Settings;
 import core.infrastructure.save.UiPreset;
+import core.presentation.render.ButtonBounds;
 import core.presentation.render.Fonts;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
@@ -97,10 +98,31 @@ public final class FirstRunPresetScreen extends ScreenAdapter {
   private void handleInput() {
     if (Gdx.input.isKeyJustPressed(Keys.NUM_1)) {
       selectPreset(UiPreset.MINIMAL);
-    } else if (Gdx.input.isKeyJustPressed(Keys.NUM_2)) {
+      return;
+    }
+    if (Gdx.input.isKeyJustPressed(Keys.NUM_2)) {
       selectPreset(UiPreset.STANDARD);
-    } else if (Gdx.input.isKeyJustPressed(Keys.NUM_3)) {
+      return;
+    }
+    if (Gdx.input.isKeyJustPressed(Keys.NUM_3)) {
       selectPreset(UiPreset.INFO_RICH);
+      return;
+    }
+    // Wave 14 W14-β: マウスクリックで該当プリセット行を選択
+    if (Gdx.input.justTouched()) {
+      for (int i = 0; i < PRESETS.length; i++) {
+        int rowY = RenderLayout.PRESET_CHOICE_TOP_Y - i * RenderLayout.PRESET_CHOICE_HEIGHT;
+        ButtonBounds bounds =
+            new ButtonBounds(
+                RenderLayout.PRESET_CHOICE_X - 20,
+                rowY - RenderLayout.PRESET_CHOICE_HEIGHT + 8,
+                900,
+                RenderLayout.PRESET_CHOICE_HEIGHT);
+        if (bounds.containsScreenInput(Gdx.input.getX(), Gdx.input.getY())) {
+          selectPreset(PRESETS[i]);
+          return;
+        }
+      }
     }
   }
 

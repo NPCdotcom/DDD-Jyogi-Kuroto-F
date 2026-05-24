@@ -5,10 +5,13 @@ import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.viewport.FitViewport;
@@ -96,16 +99,26 @@ public final class NodeChoicePopup implements Disposable {
 
     for (int i = 0; i < CHOICE_COUNT; i++) {
       // Wave 8 W8-α: ラベル解決は presentation 層の LayerEndNodeLabels に委譲 (domain 純度回復)
+      final int idx = i;
       Label line =
           new Label(
               "  [%d]  %s"
                   .formatted(i + 1, LayerEndNodeLabels.labelOf(choices.get(i), context, jp)),
               labelStyle);
       line.setColor(Color.WHITE);
+      // Wave 14 W14-β: Scene2D ClickListener で各選択肢をクリック可能化 (キーボード数字キーと等価)
+      line.setTouchable(Touchable.enabled);
+      line.addListener(
+          new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+              select(idx);
+            }
+          });
       window.add(line).left().padBottom(16f).row();
     }
 
-    Label hint = new Label("数字キー 1 〜 3 で選択", labelStyle);
+    Label hint = new Label("数字キー 1 〜 3 / クリックで選択", labelStyle);
     hint.setColor(new Color(0.65f, 0.65f, 0.7f, 1f));
     window.add(hint).left().padTop(20f).row();
 
@@ -144,8 +157,15 @@ public final class NodeChoicePopup implements Disposable {
     return choices;
   }
 
-  /** Stage.act + Stage.draw を 1 フレーム分実行する。DungeonScreen.render から呼ぶ。 */
+  /**
+   * Stage.act + Stage.draw を 1 フレーム分実行する。DungeonScreen.render から呼ぶ。
+   *
+   * <p>Wave 14 W14-β: 表示中は Stage を InputProcessor として登録し、Scene2D ClickListener (各選択肢の クリック発火)
+   * を有効化する。{@code Gdx.input.justTouched}/{@code isKeyJustPressed} は polling API のため InputProcessor
+   * 登録と独立で動く (DungeonScreen 側の数字キー判定は両立する)。
+   */
   public void render(float delta) {
+    com.badlogic.gdx.Gdx.input.setInputProcessor(stage);
     stage.act(delta);
     stage.draw();
   }
@@ -157,6 +177,10 @@ public final class NodeChoicePopup implements Disposable {
 
   @Override
   public void dispose() {
+    // Wave 14 W14-β: 登録した InputProcessor を解除して他画面に干渉しないようにする
+    if (com.badlogic.gdx.Gdx.input.getInputProcessor() == stage) {
+      com.badlogic.gdx.Gdx.input.setInputProcessor(null);
+    }
     stage.dispose();
     skin.dispose();
   }

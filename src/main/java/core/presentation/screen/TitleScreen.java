@@ -165,7 +165,10 @@ public final class TitleScreen extends ScreenAdapter {
     // 表示中は ENTER でダンジョン遷移せず、overlay を閉じる動線を優先する。
     if (tutorial != null) {
       tutorial.render(delta);
-      if (Gdx.input.isKeyJustPressed(Keys.ENTER) || Gdx.input.isKeyJustPressed(Keys.ESCAPE)) {
+      // Wave 14 W14-β: マウスクリックでもチュートリアルを閉じられる (ENTER / ESC と等価)
+      if (Gdx.input.isKeyJustPressed(Keys.ENTER)
+          || Gdx.input.isKeyJustPressed(Keys.ESCAPE)
+          || Gdx.input.justTouched()) {
         // Wave 10 W10-β-2: チュートリアル overlay を閉じる時に決定 SE
         game.soundManager().playSe(SeKind.BUTTON_DECISION);
         tutorial.dispose();
@@ -175,7 +178,8 @@ public final class TitleScreen extends ScreenAdapter {
       return;
     }
 
-    if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
+    // Wave 14 W14-β: タイトル画面の左クリック = ENTER (Start) と等価。サブメニュー (L/T/C/E/S/K/B) はキー継続。
+    if (Gdx.input.isKeyJustPressed(Keys.ENTER) || Gdx.input.justTouched()) {
       // §15-7 / E-2: ラン開始の瞬間にここで startNewRun() を呼ぶ (ソウル消失バグの根治)。
       // ラン外で貯めた playerSoul はこの時点で Player に注入される。
       game.soundManager().playSe(SeKind.BUTTON_DECISION);

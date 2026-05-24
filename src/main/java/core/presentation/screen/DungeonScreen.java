@@ -229,10 +229,16 @@ public final class DungeonScreen extends ScreenAdapter {
       enemyStepTimer = 0f;
       // §15-3 UI 改善: マウスクリックでカード選択 (キーボード入力に先んじて処理)
       boolean cardConsumed = handleHandMouseClick();
-      // Wave 14 W14-α: マップタイルクリックで方向選択 → Move / UseCard (カード未消費かつ
+      // Wave 14 W14-β: ターン終了ボタンクリック判定 (画面右下、カード未消費 + ポップアップ非表示時のみ)
+      boolean endTurnConsumed = !cardConsumed && handleEndTurnButtonClick(director);
+      // Wave 14 W14-α: マップタイルクリックで方向選択 → Move / UseCard (カード/ボタン未消費 +
       // ポップアップ非表示時のみ反応、二重発火回避)
       Optional<Direction> mouseDir =
-          (cardConsumed || nodeChoice != null || eliteReward.isActive() || statusPanelOpen)
+          (cardConsumed
+                  || endTurnConsumed
+                  || nodeChoice != null
+                  || eliteReward.isActive()
+                  || statusPanelOpen)
               ? Optional.empty()
               : PlayerInputs.readMouseDirection(
                   viewport, game.requireRunSession().context().state().player().position());
@@ -531,6 +537,23 @@ public final class DungeonScreen extends ScreenAdapter {
    * <p>スクリーン座標を HUD 仮想座標 (1920x1080) に変換し、{@link HudRenderer#handCardBounds} と当たり判定する。 ポップアップ
    * (層末ノード / Elite カード選択 / ステータス) 表示中はクリック無視。
    */
+  /**
+   * Wave 14 W14-β: ターン終了ボタンクリック判定 (画面右下)。クリック → {@code BattleAction.EndTurn} を 発行。 ポップアップ表示中は無視。
+   */
+  private boolean handleEndTurnButtonClick(TurnDirector director) {
+    if (!Gdx.input.justTouched()) {
+      return false;
+    }
+    if (nodeChoice != null || eliteReward.isActive() || statusPanelOpen) {
+      return false;
+    }
+    if (HudRenderer.endTurnButtonBounds().containsScreenInput(Gdx.input.getX(), Gdx.input.getY())) {
+      director.applyPlayerAction(new BattleAction.EndTurn());
+      return true;
+    }
+    return false;
+  }
+
   private boolean handleHandMouseClick() {
     if (!Gdx.input.justTouched()) {
       return false;

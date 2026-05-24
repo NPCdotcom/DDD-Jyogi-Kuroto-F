@@ -118,6 +118,7 @@ public final class HudRenderer {
     drawLog(batch, font, jp, context.latestEvents(RenderLayout.LOG_LINES_VISIBLE));
     drawHand(batch, font, jp, p, pendingCardIndex, images);
     drawSkillSlots(batch, font, jp, p, t);
+    drawEndTurnButton(batch, font, jp, t);
   }
 
   /**
@@ -162,6 +163,38 @@ public final class HudRenderer {
         RenderLayout.HAND_CARD_BOTTOM_Y,
         RenderLayout.HAND_CARD_WIDTH,
         RenderLayout.HAND_CARD_HEIGHT);
+  }
+
+  // Wave 14 W14-β: ターン終了ボタン (画面右下に常時表示、SPACE / ENTER と同等)
+  private static final int END_TURN_BUTTON_X = 1750;
+  private static final int END_TURN_BUTTON_Y = 30;
+  private static final int END_TURN_BUTTON_WIDTH = 150;
+  private static final int END_TURN_BUTTON_HEIGHT = 60;
+
+  /**
+   * ターン終了ボタンの矩形を返す (Wave 14 W14-β、{@link ButtonBounds} 形式で {@code DungeonScreen} のクリック判定に再利用)。
+   *
+   * <p>位置は手札 (左下〜中央) と被らない画面右下 (x=1750+、Y=30)。クリックで {@code BattleAction.EndTurn} を発行する。
+   */
+  public static ButtonBounds endTurnButtonBounds() {
+    return new ButtonBounds(
+        END_TURN_BUTTON_X, END_TURN_BUTTON_Y, END_TURN_BUTTON_WIDTH, END_TURN_BUTTON_HEIGHT);
+  }
+
+  /**
+   * ターン終了ボタンのラベルを HUD 右下に描画する (Wave 14 W14-β)。背景塗りは YAGNI (SpriteBatch のみで完結)、 テキストだけで「ターン終了
+   * ENTER」のようにキーバインドも併記する。クリック判定は {@link #endTurnButtonBounds} の矩形で行うため、文字位置と判定矩形が ButtonBounds
+   * に集約される (DRY)。
+   */
+  private static void drawEndTurnButton(
+      SpriteBatch batch, BitmapFont font, boolean jp, UiTheme theme) {
+    font.setColor(theme.textColor());
+    String label = jp ? "[ターン終了]" : "[End Turn]";
+    com.badlogic.gdx.graphics.g2d.GlyphLayout layout =
+        new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, label);
+    float textX = END_TURN_BUTTON_X + (END_TURN_BUTTON_WIDTH - layout.width) / 2f;
+    float textY = END_TURN_BUTTON_Y + (END_TURN_BUTTON_HEIGHT + layout.height) / 2f;
+    font.draw(batch, label, textX, textY);
   }
 
   /**
