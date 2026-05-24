@@ -15,7 +15,7 @@ public final class Strings {
   public static final class Ja {
     private Ja() {}
 
-    public static final String TITLE = "DDD-Jyogi-Kuroto-F";
+    public static final String TITLE = "Deep Dead Dungeons";
     public static final String SUBTITLE = "- どこでも動くローグ -";
     public static final String START_HINT = "ENTER で出発する";
     public static final String CONTROLS_HEADER = "操作";
