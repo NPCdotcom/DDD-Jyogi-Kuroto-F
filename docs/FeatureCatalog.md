@@ -1,8 +1,8 @@
 # DDD-Jyogi-Kuroto-F 機能カタログ
 
-> 本作の実装済全機能を網羅するドキュメント (Wave 1〜17 + MVP 累積、合計 58 機能)。チームメイトへの引き継ぎ・ハッカソン審査資料・将来開発者向けの「実装機能の Single Source of Truth」として機能する。
+> 本作の実装済全機能を網羅するドキュメント (Wave 1〜17 + MVP 累積、合計 58 機能)。チームメイトへの引き継ぎ・将来開発者向けの **実装機能の俯瞰インデックス** として機能する。
 >
-> 仕様の意図・設計判断は [GAME_DESIGN.md](GAME_DESIGN.md) を参照。本ドキュメントは「何が実装されているか」を網羅する一方、「なぜそう作ったか」は GAME_DESIGN.md に集約される。
+> 仕様の意図・設計判断は [GAME_DESIGN.md](GAME_DESIGN.md) を参照 (こちらが仕様の Single Source of Truth)。本ドキュメントは「何が実装されているか」を網羅する索引で、「なぜそう作ったか」は GAME_DESIGN.md に集約される。
 
 ---
 
@@ -12,7 +12,7 @@
 - **技術スタック**: Java 25 LTS + LibGDX 1.14.0 + Gradle 9.5 + JUnit 5 + Jackson
 - **アーキテクチャ**: DDD 4 層分離 (`core.domain.*` / `core.application.*` / `core.infrastructure.*` / `core.presentation.*`)
 - **解像度**: 1920×1080 ベース (FitViewport)、初回起動で UI プリセット 3 種選択
-- **テスト**: 770+ 件 PASS (Wave 17 時点)、JUnit 5 + DomainFixtures
+- **テスト**: 755 件 PASS (Wave 17 時点、`@Test` 実カウント)、JUnit 5 + DomainFixtures
 
 ## 関連ドキュメント
 
@@ -79,7 +79,7 @@
 
 ### A-8. スキル機構 (敵側のみ)
 
-`Skill` / `SkillSlot` / `SkillEffect` (record + sealed)。Wave 15 W15-β で **プレイヤー側は空 4 枠廃止** (`SkillSlot.empty(4)`)、F1-F4 入力削除、HUD スキル枠描画削除 → デッキ・カード一本化 (§15-3)。敵側 (`Slime.slimeBite` / `Boss.bossSlam` 等) は SkillSlot 経由で継続使用。
+`Skill` / `SkillSlot` / `SkillEffect` (record + sealed)。Wave 15 W15-β で **プレイヤー側は空 4 枠廃止** (`SkillSlot.empty(4)`)、F1-F4 入力削除、HUD スキル枠描画削除 → デッキ・カード一本化 (§15-3)。**敵側全種** (SLIME / SWIFT_SLIME / TOUGH_SLIME / ELITE_SLIME = `slimeBite`、BOSS = `bossSlam`) は `Enemy.skillSlot` 経由で継続使用、`TurnEngineSkillResolver.applyEnemySkill` から発動。
 
 - 関連: `core/domain/skill/*` / `core/domain/battle/TurnEngineSkillResolver.java`
 - 導入: MVP、Wave 15 W15-β でプレイヤー側廃止
@@ -224,7 +224,7 @@
 
 ### C-7. CardCatalog (cards.json)
 
-68 カードを `cards.json` から起動時ロード、ATTACK / MOVEMENT / BUFF / TRAP タグ分類。Wave 11 で rarity 拡張、Wave 12 で range / areaRadius 拡張、すべて Optional / デフォルト値で graceful 読込。
+59 カードを `cards.json` から起動時ロード (ATTACK / MOVEMENT / BUFF / TRAP タグ分類)。Wave 11 で rarity 拡張、Wave 12 で range / areaRadius 拡張、すべて Optional / デフォルト値で graceful 読込。
 
 - 関連: `core/infrastructure/bootstrap/CardCatalog.java` / `assets/cards.json`
 - 導入: §15-3、Wave 3 W3-A で CardId 化、Wave 11-12 で rarity/range 拡張
@@ -296,9 +296,9 @@ card_frame.png + イラスト + AP コスト + カード名 + element 色枠を 
 - 関連: `core/presentation/input/PlayerInputs.java`
 - 導入: MVP、Wave 14 W14-α でマウス方向選択統合、Wave 15 W15-β で F1-F4 削除
 
-### D-7. マウス操作 (Wave 14 全画面対応)
+### D-7. マウス操作 (Wave 14 主要フロー対応)
 
-マップタイルクリックで方向選択 → Move/UseCard 発火 (Viewport.unproject 経由でレターボックス耐性 / 自分マス short-circuit ガード)、カード手札クリック選択、ターン終了ボタンクリック、Title/Settings/FirstRunPreset/NodeChoicePopup/GameOver/Tutorial 各画面のクリック対応。キーボードと両立。
+マップタイルクリックで方向選択 → Move/UseCard 発火 (Viewport.unproject 経由でレターボックス耐性 / 自分マス short-circuit ガード)、カード手札クリック選択、ターン終了ボタンクリック。**マウス対応済 Screen は 5 種**: DungeonScreen / TitleScreen (起動クリック) / FirstRunPresetScreen / GameOverScreen / EquipmentScreen + NodeChoicePopup / TutorialOverlay 系 Popup。**未対応** (Wave 18+ 候補): SettingsScreen の値変更 < > / CardCollectionScreen / BestiaryScreen / SoulTreeScreen / TitleScreen のサブメニュー (L/T/C/E/S/K/B キー対応分)。キーボードと両立。
 
 - 関連: `core/presentation/render/RenderLayout.screenToTile()` / `directionToward()` / `ButtonBounds.java`
 - 導入: Wave 14 W14-α / W14-β
@@ -432,7 +432,7 @@ BGM (Music) / SE (Sound) 一元管理、graceful fallback (ファイル欠損時
 
 ### F-5. カードイラスト + CardImageRegistry
 
-`assets/cards/*.png` (20+ 種) を `card_image_map.json` で CardId → filename マッピング、test.png fallback。Wave 10 W10-γ でカード枠テクスチャ (icons/cards/card_frame.png) も同時ロード。Nearest filter + 防衛的 dispose。
+`assets/cards/card_01.png 〜 card_50.png` (49 ファイル、card_27 のみ欠番) を `card_image_map.json` で CardId → filename マッピング、test.png fallback。Wave 10 W10-γ でカード枠テクスチャ (icons/cards/card_frame.png) も同時ロード。Nearest filter + 防衛的 dispose。
 
 - 関連: `core/infrastructure/bootstrap/CardImageRegistry.java`
 - 導入: §15-3、Wave 10 W10-γ で frame 追加
@@ -501,14 +501,14 @@ BGM (Music) / SE (Sound) 一元管理、graceful fallback (ファイル欠損時
 
 ## SpecificationIssues.md 最終ステータス
 
-[SpecificationIssues.md](SpecificationIssues.md) で挙げられた 11 件のうち **10 件修正完了**、#4 のみユーザー判断でスコープ外:
+[SpecificationIssues.md](SpecificationIssues.md) で挙げられた 11 件のうち **10 件修正完了**、#4 ソウルツリー描画は既知 UI 不具合として未対応 (ユーザー判断で本セッションスコープ外、Wave 18+ で対応余地):
 
 | # | 項目 | ステータス | 完了 Wave |
 |---|---|---|---|
 | 1 | 壊れる壁の生成位置改善 | ✅ 完了 | Wave 16 W16-β |
 | 2 | 休憩ノード無償全回復 | ✅ 完了 | Wave 15 W15-γ |
 | 3 | SkillSlot 廃止 | ✅ 完了 | Wave 15 W15-β |
-| 4 | ソウルツリー描画 | ❌ スコープ外 | (ユーザー判断「気にしない」) |
+| 4 | ソウルツリー描画 (既知 UI 不具合) | ⏸️ 未対応 | 既知の UI 描画不整合 (枝線/座標)、優先度低でリリース後対応、ユーザー判断で本セッションスコープ外 |
 | 5 | チュートリアル文言充実 | ✅ 完了 | Wave 16 W16-α |
 | 6 | HUD 重なり整理 | ✅ 完了 | Wave 15-16 副次改善 |
 | 7 | CAUTIOUS AI 崩壊 | ✅ 完了 | Wave 15 W15-α |
@@ -531,13 +531,14 @@ BGM (Music) / SE (Sound) 一元管理、graceful fallback (ファイル欠損時
 - **品質**: Wave 9 監査 Must 残 4 件 (DEFAULT_MAX_LAYER DRY / i18n 残 / BattleEvent.CardUsed / 行数表記)
 - **データ整理**: 壁床バリエーション機構 / 階段専用テクスチャ
 - **プラットフォーム**: Android 対応 (Phase D)
-- **未対応**: #4 ソウルツリー描画 (ユーザー判断スコープ外)
+- **#4 ソウルツリー描画 (既知 UI 不具合)**: 枝線/座標の不整合、優先度低でリリース後対応 (本セッションスコープ外、Wave 18+ で実機再現 → CTO チェックポイント「データと UI 分離原則」に則り修正)
 
 ---
 
 ## 運用方針
 
-- 本ドキュメントは「機能の単一ソース」として継続更新する
+- 本ドキュメントは **実装機能の俯瞰インデックス** として継続更新する (仕様の SoT は GAME_DESIGN.md、本ドキュメントは索引)
 - Wave 18+ で新機能追加時は、該当カテゴリの末尾に追記 + 「Wave 別の実装履歴」表に行追加
 - 機能の意図 / 設計判断は `GAME_DESIGN.md` に集約 (本ドキュメントは「何」のみ、「なぜ」は別)
 - バグ修正のみで機能カタログに追加項目がない場合は本ドキュメント無修正で OK
+- 数値 (テスト件数 / カード数 / 装備数 / イラスト数 等) は実コード/JSON/Grep 実測値を反映、推測や下限表記 (「20+」) は避ける
