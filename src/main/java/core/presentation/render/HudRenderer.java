@@ -11,8 +11,6 @@ import core.domain.battle.TurnPhase;
 import core.domain.card.Card;
 import core.domain.card.CardElement;
 import core.domain.entity.Player;
-import core.domain.skill.Skill;
-import core.domain.skill.SkillSlot;
 import core.infrastructure.bootstrap.CardImageRegistry;
 import core.infrastructure.save.UiPreset;
 import java.util.List;
@@ -199,56 +197,8 @@ public final class HudRenderer {
     font.draw(batch, label, textX, textY);
   }
 
-  /**
-   * スキル枠 UI を画面左下 (手札の上) に常時描画する (§15-5 / Wave2 Task C)。
-   *
-   * <p>maxSize に関わらず常に 4 枠固定表示する。装着済みスロットは {@code theme.skillSlotColor()}、 空スロットは暗灰色で表示する。 キー表示
-   * "[F1]"〜"[F4]" を左上に、スキル名を中央に描く。 SpriteBatch のみで完結し、ShapeRenderer は使わない。
-   */
-  private static void drawSkillSlots(
-      SpriteBatch batch, BitmapFont font, boolean jp, Player p, UiTheme theme) {
-    SkillSlot slot = p.skillSlot();
-    // 常に 4 枠表示 (§15-5 スキル枠 4 枠常時表示)
-    int displayCount = 4;
-
-    // small フォント (16px) でキー名・スキル名を描く。large は枠に収まらないため使わない。
-    // HudRenderer は Fonts を受け取らないため、font (large) を縮小設定で代用する。
-    // § 暫定: large (32px) で "[F1] 名前" 形式の 1 行テキストを枠の上に縦並びで表示。
-    for (int i = 0; i < displayCount; i++) {
-      float x =
-          RenderLayout.SKILL_SLOT_FIRST_X
-              + i * (RenderLayout.SKILL_SLOT_SIZE + RenderLayout.SKILL_SLOT_MARGIN);
-      float y = RenderLayout.SKILL_SLOT_Y;
-
-      boolean equipped = i < slot.skills().size();
-      if (equipped) {
-        Skill skill = slot.skills().get(i);
-        // 装着済: theme.skillSlotColor() でスキル名を表示 (§7-2 / W4-ε テーマ連動)
-        font.setColor(theme.skillSlotColor());
-        font.draw(batch, "[F%d]".formatted(i + 1), x, y);
-        // スキル名は 1 行下 (y - 40) に shorter 形式で (フォント 32px、行間考慮)
-        // 装着済スキル名の色を skillSlotColor よりやや明るく (alpha 固定で R/G/B を少し上げる)
-        font.setColor(
-            Math.min(1f, theme.skillSlotColor().r + 0.15f),
-            Math.min(1f, theme.skillSlotColor().g + 0.15f),
-            Math.min(1f, theme.skillSlotColor().b + 0.15f),
-            1f);
-        String name = skill.displayName();
-        // スキル枠幅 (SKILL_SLOT_SIZE=60) を超える長名は先頭 3 文字で省略 (small フォントなし暫定対応)
-        if (name.length() > 4) {
-          name = name.substring(0, 3) + "..";
-        }
-        font.draw(batch, name, x, y - 36f);
-      } else {
-        // 未装着: 暗灰色でキー表示のみ
-        font.setColor(new Color(0.35f, 0.35f, 0.35f, 1f));
-        font.draw(batch, "[F%d]".formatted(i + 1), x, y);
-        font.setColor(new Color(0.25f, 0.25f, 0.25f, 1f));
-        font.draw(batch, jp ? "空" : "---", x, y - 36f);
-      }
-    }
-    font.setColor(Color.WHITE); // 後続描画への影響をリセット
-  }
+  // Wave 15 W15-β / Wave 16 W16-α #6: drawSkillSlots を完全削除 (SkillSlot 廃止に伴い HUD 整理)。
+  // 関連: RenderLayout.SKILL_SLOT_* 定数も削除済。Skill / SkillSlot クラスは敵側 (Boss bossSlam 等) で使用継続。
 
   /** 手札を画面下部にカード画像 120×168 で描画する (§15-3 / UI 改善)。 */
   private static void drawHand(

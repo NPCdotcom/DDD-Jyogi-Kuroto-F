@@ -163,16 +163,21 @@ public final class Strings {
     public static final String TUTORIAL_TITLE = "操作説明";
     public static final String TUTORIAL_BODY =
         """
-        WASD / 矢印キー : 1 マス移動 (1 AP 消費)
-        1 - 9 : 手札のカードを選択
-        矢印キー (選択中) : カード使用方向を指定
-        SPACE : 1 ターン待機
-        ENTER : ターン終了
+        【移動】 WASD / 矢印キー / マップクリック で 1 マス移動 (1 AP 消費)
 
-        階段 (黄) に到達すると次層へ進める。
-        敵を倒すとソウル + 金貨を獲得。
-        層末でステ強化 / ショップ / イベント のノードを選択。""";
-    public static final String TUTORIAL_CLOSE_HINT = "ENTER または ESC で閉じる";
+        【カード使用】
+          1. 数字キー (1-9) or 手札クリック でカード選択
+          2. 矢印キー / マップクリック で発射方向を指定 → カード使用
+          ESC で選択キャンセル、同じ数字キーで選択解除
+
+        【移動カード】 ダッシュ等は AP 消費で「移動権」を貯め、
+                       その後 WASD / マップクリックで 1 マスずつ進む
+
+        【ターン終了】 ENTER / SPACE / 画面右下「ターン終了」ボタン
+
+        階段 (黄色) に到達で次層へ。敵撃破でソウル + 金貨獲得。
+        層末でステ強化 / ショップ / 休憩 / イベント を選択。""";
+    public static final String TUTORIAL_CLOSE_HINT = "ENTER / ESC / クリック で閉じる";
 
     // §15-1 / §15-8 設定画面
     public static final String SETTINGS_TITLE = "設定";
@@ -371,16 +376,22 @@ public final class Strings {
     public static final String TUTORIAL_TITLE = "How to Play";
     public static final String TUTORIAL_BODY =
         """
-        WASD / Arrows  : Move 1 tile (1 AP)
-        1 - 9          : Select a card from hand
-        Arrows (after) : Pick a direction for the card
-        SPACE          : Wait 1 turn
-        ENTER          : End your turn
+        [Move] WASD / Arrows / Click map  - Move 1 tile (1 AP)
+
+        [Use a Card]
+          1. Press 1-9 or click a card to select
+          2. Press an arrow key or click map to fire
+          ESC to cancel, same number key to deselect
+
+        [Movement Cards] Dash etc. spend AP to grant move tokens,
+                          then WASD / map click moves 1 tile each
+
+        [End Turn] ENTER / SPACE / "End Turn" button (bottom right)
 
         Reach the yellow stairs to descend.
         Defeat enemies to earn Soul + Gold.
-        At each layer end, pick a node: stat / shop / event.""";
-    public static final String TUTORIAL_CLOSE_HINT = "Press ENTER or ESC to close";
+        Pick a node at layer end: stat / shop / rest / event.""";
+    public static final String TUTORIAL_CLOSE_HINT = "ENTER / ESC / Click to close";
 
     // §15-1 / §15-8 Settings screen
     public static final String SETTINGS_TITLE = "Settings";

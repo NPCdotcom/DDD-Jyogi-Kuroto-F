@@ -188,28 +188,9 @@ public final class RenderLayout {
   /** 画面下の HUD パネル (手札背景) の高さ (px、§15-3 / §15-6 カメラオフセット計算で使う)。 */
   public static final int HUD_BOTTOM_PANEL_HEIGHT = 300;
 
-  // --- スキル枠 HUD (画面左下、手札の上) ---
-
-  /**
-   * スキル枠先頭の X 座標。
-   *
-   * <p>LOG_X=40 に揃えて、ログ行・手札と左端を統一する。
-   */
-  public static final int SKILL_SLOT_FIRST_X = 40;
-
-  /**
-   * スキル枠の Y 座標 (ベースライン)。
-   *
-   * <p>手札カード (HAND_CARD_BOTTOM_Y=110〜278) の上、ログ (LOG_TOP_Y=520) の下の安全領域: HUD_Y_HINT=170 の直上 (Y=400)
-   * に配置。 large (32px) フォント前提。枠ラベル占有範囲 Y∈[368, 400]。
-   */
-  public static final int SKILL_SLOT_Y = 400;
-
-  /** スキル枠 1 個の幅・高さ (px)。 */
-  public static final int SKILL_SLOT_SIZE = 60;
-
-  /** スキル枠間のマージン (px)。 */
-  public static final int SKILL_SLOT_MARGIN = 12;
+  // Wave 15 W15-β / Wave 16 W16-α #6: スキル枠 HUD は完全廃止 (SkillSlot 廃止、デッキ一本化、§15-3 整合)。
+  // 旧 SKILL_SLOT_FIRST_X / SKILL_SLOT_Y / SKILL_SLOT_SIZE / SKILL_SLOT_MARGIN は削除済。
+  // 画面下部は HUD_BOTTOM_PANEL_HEIGHT 内で手札 (HAND_*) と操作ヒント (HUD_Y_HINT) のみで構成される。
 
   // --- TitleScreen / GameOverScreen 用レイアウト定数 ---
 
