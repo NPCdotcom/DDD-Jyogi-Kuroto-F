@@ -54,7 +54,7 @@ class SettingsManagerTest {
 
   @Test
   void saveAndLoad_roundTrip_customValues() {
-    Settings custom = new Settings(0.3f, 0.5f, true, UiPreset.INFO_RICH);
+    Settings custom = new Settings(0.3f, 0.5f, true, UiPreset.INFO_RICH, ThemeMode.DARK);
     manager.save(custom);
     Settings loaded = manager.load();
 

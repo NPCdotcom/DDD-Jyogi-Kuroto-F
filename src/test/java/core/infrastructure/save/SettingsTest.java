@@ -37,20 +37,22 @@ class SettingsTest {
   @ValueSource(floats = {-0.1f, 1.1f, Float.NaN})
   void constructor_throwsOnInvalidBgmVolume(float vol) {
     assertThrows(
-        IllegalArgumentException.class, () -> new Settings(vol, 0.5f, false, UiPreset.STANDARD));
+        IllegalArgumentException.class,
+        () -> new Settings(vol, 0.5f, false, UiPreset.STANDARD, ThemeMode.DARK));
   }
 
   @ParameterizedTest
   @ValueSource(floats = {-0.1f, 1.1f, Float.NaN})
   void constructor_throwsOnInvalidSeVolume(float vol) {
     assertThrows(
-        IllegalArgumentException.class, () -> new Settings(0.5f, vol, false, UiPreset.STANDARD));
+        IllegalArgumentException.class,
+        () -> new Settings(0.5f, vol, false, UiPreset.STANDARD, ThemeMode.DARK));
   }
 
   @Test
   void constructor_acceptsBoundaryVolumes() {
-    assertDoesNotThrow(() -> new Settings(0.0f, 1.0f, false, UiPreset.STANDARD));
-    assertDoesNotThrow(() -> new Settings(1.0f, 0.0f, false, UiPreset.STANDARD));
+    assertDoesNotThrow(() -> new Settings(0.0f, 1.0f, false, UiPreset.STANDARD, ThemeMode.DARK));
+    assertDoesNotThrow(() -> new Settings(1.0f, 0.0f, false, UiPreset.STANDARD, ThemeMode.DARK));
   }
 
   // --- with* メソッド (immutable コピー) ---

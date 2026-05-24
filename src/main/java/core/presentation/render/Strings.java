@@ -185,6 +185,10 @@ public final class Strings {
     public static final String SETTINGS_SE_VOLUME = "SE 音量";
     public static final String SETTINGS_FULLSCREEN = "フルスクリーン";
     public static final String SETTINGS_UI_PRESET = "UI プリセット";
+    // Wave 17 W17-α / #8 テーマ (ライト / ダーク 2 トグル)
+    public static final String SETTINGS_THEME = "テーマ";
+    public static final String SETTINGS_THEME_LIGHT = "ライト";
+    public static final String SETTINGS_THEME_DARK = "ダーク";
     public static final String SETTINGS_ON = "ON";
     public static final String SETTINGS_OFF = "OFF";
     public static final String SETTINGS_HINT = "↑↓ / WS: 項目選択   ←→ / AD: 値変更   ESC: 戻る";
@@ -399,6 +403,10 @@ public final class Strings {
     public static final String SETTINGS_SE_VOLUME = "SE Volume";
     public static final String SETTINGS_FULLSCREEN = "Fullscreen";
     public static final String SETTINGS_UI_PRESET = "UI Preset";
+    // Wave 17 W17-α / #8 Theme (Light / Dark 2-toggle)
+    public static final String SETTINGS_THEME = "Theme";
+    public static final String SETTINGS_THEME_LIGHT = "Light";
+    public static final String SETTINGS_THEME_DARK = "Dark";
     public static final String SETTINGS_ON = "ON";
     public static final String SETTINGS_OFF = "OFF";
     public static final String SETTINGS_HINT =
