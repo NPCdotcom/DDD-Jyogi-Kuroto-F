@@ -433,25 +433,61 @@ public final class InitialStateFactory {
    * <p>個数は決定性確保のため引数 {@code rng} から取る。候補が空 (極端な層) なら元マップをそのまま返す。
    */
   private static DungeonMap placeBreakableWalls(DungeonMap map, Random rng) {
-    java.util.List<Position> internalWalls = new java.util.ArrayList<>();
+    // Wave 16 W16-β / #1: 配置候補を「対向 2 方向が同時に FLOOR」のショートカット壁優先化 (CTO #2)。
+    // 旧仕様はランダムな内部 WALL 全てを候補にしていたため、壁の塊の中心など「壊しても無意味」な
+    // 位置に置かれることが頻発。対向縛りで「2 つの空間を貫通する真の薄い壁」のみを優先候補に。
+    java.util.List<Position> shortcutWalls = new java.util.ArrayList<>();
+    java.util.List<Position> fallbackWalls = new java.util.ArrayList<>();
     for (int y = 1; y < map.height() - 1; y++) {
       for (int x = 1; x < map.width() - 1; x++) {
         Position p = new Position(x, y);
-        if (map.tileAt(p) == Tile.WALL) {
-          internalWalls.add(p);
+        if (map.tileAt(p) != Tile.WALL) {
+          continue;
+        }
+        if (isShortcutWall(map, p)) {
+          shortcutWalls.add(p);
+        } else {
+          fallbackWalls.add(p);
         }
       }
     }
-    if (internalWalls.isEmpty()) {
+    // 優先順位: shortcutWalls (真のショートカット) → fallbackWalls (通常内部壁)。
+    // shortcutWalls が 2 個以上あれば全候補をそこから取り、足りない場合のみ fallback を補充 (graceful)。
+    java.util.List<Position> candidatePool = new java.util.ArrayList<>(shortcutWalls);
+    java.util.Collections.shuffle(candidatePool, rng);
+    if (candidatePool.size() < 2) {
+      java.util.Collections.shuffle(fallbackWalls, rng);
+      candidatePool.addAll(fallbackWalls);
+    }
+    if (candidatePool.isEmpty()) {
       return map;
     }
-    java.util.Collections.shuffle(internalWalls, rng);
-    int targetCount = Math.min(2 + rng.nextInt(2), internalWalls.size()); // 2 or 3 個
+    int targetCount = Math.min(2 + rng.nextInt(2), candidatePool.size()); // 2 or 3 個
     DungeonMap result = map;
     for (int i = 0; i < targetCount; i++) {
-      result = result.withTileAt(internalWalls.get(i), Tile.BREAKABLE_WALL);
+      result = result.withTileAt(candidatePool.get(i), Tile.BREAKABLE_WALL);
     }
     return result;
+  }
+
+  /**
+   * 「対向する 2 方向 (上下 OR 左右) が同時に FLOOR」の壁を「真のショートカット壁」と判定する (Wave 16 W16-β、CTO チェックポイント #2)。
+   *
+   * <p>単純な「隣接 4 マスのうち FLOOR 2 マス以上」だと L 字コーナー (部屋の内角) も該当して 「壊しても 1 マスえぐれるだけでショートカットにならない」候補が混入する →
+   * 対向縛りで真の貫通壁のみ抽出。
+   */
+  private static boolean isShortcutWall(DungeonMap map, Position p) {
+    boolean upDownFloor =
+        map.inBounds(p.move(core.domain.common.Direction.UP))
+            && map.tileAt(p.move(core.domain.common.Direction.UP)) == Tile.FLOOR
+            && map.inBounds(p.move(core.domain.common.Direction.DOWN))
+            && map.tileAt(p.move(core.domain.common.Direction.DOWN)) == Tile.FLOOR;
+    boolean leftRightFloor =
+        map.inBounds(p.move(core.domain.common.Direction.LEFT))
+            && map.tileAt(p.move(core.domain.common.Direction.LEFT)) == Tile.FLOOR
+            && map.inBounds(p.move(core.domain.common.Direction.RIGHT))
+            && map.tileAt(p.move(core.domain.common.Direction.RIGHT)) == Tile.FLOOR;
+    return upDownFloor || leftRightFloor;
   }
 
   /** 層ごとの敵数 (§15-6 難易度: 層 1=3 / 層 2=6 [雑魚 5+強化個体 1] / 層 3=8 [雑魚 7+ボス 1])。 */
