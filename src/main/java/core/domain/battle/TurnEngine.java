@@ -116,7 +116,10 @@ public final class TurnEngine {
   //  敵ターン処理
   // ===================================================================================
 
-  /** 敵 1 体のアクションを解決する。 */
+  /**
+   * 敵 1 体のアクションを解決する (Wave 13 W13-β: 冒頭で {@link EnemyAi#computeNewState} を呼び、 視界判定 + AI 状態遷移 (IDLE
+   * / ALERT / SEARCHING) を反映してから行動解決する)。
+   */
   public static StepResult resolveEnemyAction(
       DungeonState state, ActorId enemyId, BattleAction action) {
     Objects.requireNonNull(state, "state");
@@ -129,17 +132,20 @@ public final class TurnEngine {
     if (enemyOpt.isEmpty()) {
       return TurnEngineHelpers.reject(state, enemyId, "敵が存在しない");
     }
-    Enemy enemy = enemyOpt.get();
+    // Wave 13 W13-β: AI 状態 (aiState / lastKnownPlayerPos) を更新してから行動解決。
+    // computeNewState は純関数 (視界判定 + 遷移計算)、副作用は state.withEnemyReplaced で反映。
+    Enemy updatedEnemy = EnemyAi.computeNewState(enemyOpt.get(), state);
+    DungeonState updatedState = state.withEnemyReplaced(updatedEnemy);
     return switch (action) {
       case BattleAction.Move move ->
-          TurnEngineMovement.applyEnemyMove(state, enemy, move.direction());
+          TurnEngineMovement.applyEnemyMove(updatedState, updatedEnemy, move.direction());
       case BattleAction.UseSkill use ->
-          TurnEngineSkillResolver.applyEnemySkill(state, enemy, use.slotIndex());
+          TurnEngineSkillResolver.applyEnemySkill(updatedState, updatedEnemy, use.slotIndex());
       // §15-3 / ADR-18: 敵はカードを使わない (Skill ベース)。誤って UseCard が渡されたら reject。
       case BattleAction.UseCard ignored ->
-          TurnEngineHelpers.reject(state, enemy.id(), "敵はカードを使えない");
-      case BattleAction.Wait ignored -> applyEnemyWait(state, enemy);
-      case BattleAction.EndTurn ignored -> new StepResult(state, List.of());
+          TurnEngineHelpers.reject(updatedState, updatedEnemy.id(), "敵はカードを使えない");
+      case BattleAction.Wait ignored -> applyEnemyWait(updatedState, updatedEnemy);
+      case BattleAction.EndTurn ignored -> new StepResult(updatedState, List.of());
     };
   }
 
