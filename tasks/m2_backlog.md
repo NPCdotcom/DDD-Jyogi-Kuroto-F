@@ -8,9 +8,9 @@
 
 ---
 
-## 2026-05-24 セッション最終アップデート + Wave 1〜13 完了
+## 2026-05-24 セッション最終アップデート + Wave 1〜14 完了
 
-本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1〜9 + M2 Wave 10 (5 段階 α/β/β-2/γ/δ) + M2 Wave 11 (3 段階 α/β/γ) + M2 Wave 12 (3 段階 α/β/γ) + M2 Wave 13 (3 段階 α/β/γ) を完了。テスト 545 → 753 件前後 (+208)。DddGame は 9 Wave 通算で 700+ → 549 行 = ~22% 削減、責務 4 集約 (RunSession / GameResources / PlayerProgress / PersistenceServices) に分離。Wave 10 でチームメイト素材 (音声 19 / スプライト 5 / 装備 2 / カード枠 1) を一括投入し、ShapeRenderer 矩形描画 → Texture 描画 + カード枠合成 + SE 9 箇所追加で UI 質感を大幅向上。Wave 11 で壊れる壁ギミック (Tile.BREAKABLE_WALL + 移動カード破壊 + block_brake SE) + CARD_DRAW レアリティ別音分け (Card.rarity Optional + drawSeFor 純関数) を実装。Wave 12 で攻撃範囲 (射程 + AOE 爆風) を実装、礫投げが 3 マス先まで届くようになり、爆炎・隕石が爆風範囲で複数の敵を巻き込めるように。Wave 13 で敵 AI 強化 (視界 LOS + IDLE/ALERT/SEARCHING 3 状態 + AGGRESSIVE/CAUTIOUS kind 別行動プロファイル) を実装、SWIFT_SLIME が距離 2-3 を保つ kite 型に、視界外の敵は探索状態で最後の目撃位置を追跡するように。残った M2 着手項目:
+本セッションで P2 (致命 3) / P3 (テスト 9 / 26 件追加) / P4 (設計負債 7) + M2 Wave 1〜9 + M2 Wave 10 (5 段階 α/β/β-2/γ/δ) + M2 Wave 11 (3 段階 α/β/γ) + M2 Wave 12 (3 段階 α/β/γ) + M2 Wave 13 (3 段階 α/β/γ) + M2 Wave 14 (3 段階 α/β/γ) を完了。テスト 545 → 768 件前後 (+223)。DddGame は 9 Wave 通算で 700+ → 549 行 = ~22% 削減、責務 4 集約 (RunSession / GameResources / PlayerProgress / PersistenceServices) に分離。Wave 10 でチームメイト素材 (音声 19 / スプライト 5 / 装備 2 / カード枠 1) を一括投入し、ShapeRenderer 矩形描画 → Texture 描画 + カード枠合成 + SE 9 箇所追加で UI 質感を大幅向上。Wave 11 で壊れる壁ギミック (Tile.BREAKABLE_WALL + 移動カード破壊 + block_brake SE) + CARD_DRAW レアリティ別音分け (Card.rarity Optional + drawSeFor 純関数) を実装。Wave 12 で攻撃範囲 (射程 + AOE 爆風) を実装、礫投げが 3 マス先まで届くようになり、爆炎・隕石が爆風範囲で複数の敵を巻き込めるように。Wave 13 で敵 AI 強化 (視界 LOS + IDLE/ALERT/SEARCHING 3 状態 + AGGRESSIVE/CAUTIOUS kind 別行動プロファイル) を実装、SWIFT_SLIME が距離 2-3 を保つ kite 型に、視界外の敵は探索状態で最後の目撃位置を追跡するように。Wave 14 でマウス操作対応 (マップクリック方向移動 + ターン終了ボタン + タイトル/設定/プリセット/ノード選択/ゲームオーバー/チュートリアル のクリック対応) を実装、主要フローがマウスのみで完結可能に (キーボードと両立)。残った M2 着手項目:
 
 - **完了 (P2-P4)**: JSON 欠損 graceful、セーブ後ドロー仕様確認、Texture リーク、ダメージ計算 DRY 集約、
   BuffKindLabels 集約、HAND_DETAIL_TEXT_Y 文字数上限、EnemyKind isElite/isBoss、Optional 可読性、
@@ -54,12 +54,16 @@
 - **完了 (M2 Wave 11)**: 壊れる壁ギミック実装 (Tile.BREAKABLE_WALL + DungeonMap.withTileAt + 外枠境界防御 IAE + BattleEvent.WallBroken + TurnEngineMovement 3 段順序遵守 + InitialStateFactory 各層 2-3 個配置 + DungeonRenderer 茶色ティント (既存 wall.png 流用、新素材ゼロ) + DungeonScreen BLOCK_BREAK SE 発火、W11-α、commit 04995d2、テスト 8 件追加)、CARD_DRAW レアリティ別音分け (CardRarity enum 新規 + Card.rarity Optional + 後方互換コンストラクタ + rarityOrDefault 型安全窓口 + CardCatalog graceful 読込 + cards.json 4 枚仮設定 + DungeonScreen.drawSeFor 純関数で手札最高 rarity → SE 分岐、W11-β、commit 03ae133、テスト 9 件追加)
 - **完了 (M2 Wave 12)**: 攻撃範囲の実装 (CardEffect.Damage に range + areaRadius 追加 + 後方互換コンストラクタ 2 個 + CardCatalog graceful 読込 + optionalInt ヘルパ DRY、W12-α、commit 7a6f6da、テスト 8 件追加)、TurnEngineCardResolver 直線スキャン + AOE (findLineTarget で step=1 から line scan / WALL + BREAKABLE_WALL 遮断 / 中心ターゲット必須 / チェビシェフ距離 AOE / ActorId スナップショットで連鎖死亡保護、cards.json 7 枚仮設定 (stone_throw range=3 / piercing_arrow range=4 / magic_bolt range=4 / fireball range=5 / ice_lance range=4 / blaze_nova range=4+areaRadius=1 / meteor_drop range=6+areaRadius=2)、W12-β、commit ef0960c、テスト 8 件追加)、CardDescriber 射程・範囲サフィックス表示 + try-catch graceful フォールバック (W12-γ、commit 3d73f57、テスト 3 件追加)
 - **完了 (M2 Wave 13)**: 敵 AI 強化 (EnemyAiState / EnemyAiProfile enum 新規 + EnemyKind に sightRange + aiProfile + Enemy record に aiState + lastKnownPlayerPos 後方互換コンストラクタ + DungeonMap.hasLineOfSight (Bresenham line、CTO #2 で from/to マスは壁判定対象外) + canSeeWithin、W13-α、commit 11495ed、テスト 12 件追加)、AI 振る舞い分岐 (EnemyAi.computeNewState 純関数 + decide を 3 状態 (IDLE/ALERT/SEARCHING) × 2 プロファイル (AGGRESSIVE/CAUTIOUS) で分岐 + CAUTIOUS の袋小路フォールバック CTO #3 + TurnEngine.resolveEnemyAction で computeNewState 統合、W13-β、commit 3931692、テスト 13 件追加)
-- **M2 送り (Wave 14+ 候補)**:
+- **完了 (M2 Wave 14)**: マウス操作対応 (RenderLayout.screenToTile Viewport.unproject 経由 CTO #1 + directionToward 純関数 + 自分マス short-circuit ガード CTO #2 + PlayerInputs.readMouseDirection + poll(state, mouseDirection) オーバーロード、DungeonScreen.handleMapMouseClick で Move/UseCard 発火 + 二重発火フラグ管理、W14-α、commit 9f228f4、テスト 11 件追加)、ターン終了ボタン + メニュー画面マウス対応 (ButtonBounds record + containsScreenInput の Viewport 版 + 簡易版 CTO #3 + HudRenderer.endTurnButtonBounds 画面右下ラベル、TitleScreen クリックで Start + チュートリアル閉じ、GameOverScreen クリックで SoulTree、FirstRunPresetScreen 3 行クリック、NodeChoicePopup に Scene2D ClickListener + InputProcessor 登録、W14-β、commit f3aef30、テスト 4 件追加)
+- **M2 送り (Wave 15+ 候補)**:
   - **敵側 SkillEffect への range 追加 (敵の遠距離攻撃)**: ユーザー明示「射程強化はやらない」(Wave 13 時)、Wave 14+ で別途。新敵種 (弓兵 / 魔法使い) はチームメイト領域とセット
   - **IDLE 中のランダムウォーク**: 現状 IDLE = 待機固定、うろつき行動は乱数注入 API 拡張要 (EnemyAi.decide / TurnEngine.resolveEnemyAction に Random 引数追加)
   - **複数 AI プロファイル拡張**: PATROL (固定経路パトロール) / DEFENDER (特定位置防衛) / RANGED (遠距離攻撃 AI、敵側射程とセット) 等
   - **CAUTIOUS の理想射程攻撃化**: 距離 2-3 維持 + 敵側遠距離スキル発動 (Wave 14+ 敵射程強化とセット)
-  - **新機能 2 件** (ユーザー要望、要仕様詰め): マウス操作 / 文字出るときにアクション
+  - **文字出るときにアクション** (ユーザー要望、要仕様詰め)
+  - **マウス操作の完全網羅** (Wave 14 で主要フローのみ。SettingsScreen 値変更 < > ボタン / CardCollectionScreen 項目選択 / BestiaryScreen 項目選択 / SoulTreeScreen のクリックノード詳細表示 / 完全な TitleScreen サブメニュー (L/T/C/E/S/K/B) クリックなどは未対応)
+  - **ドラッグ & ドロップカード使用** (Slay the Spire 風、カードをマップにドラッグでターゲット指定)
+  - **マウスホバーでツールチップ** (カード詳細・敵情報のホバー表示)
   - **CARD_USED カード種別別音分け**: BattleEvent.SkillUsed に CardEffect 情報追加 (sealed switch 全箇所影響 = 破壊的変更)
   - **cards.json への rarity / range / areaRadius 全カード割当** (チームメイト領域、カードバランス確定とセット)
   - **AOE の line-of-sight 判定精密化**: 「壁越しに爆風が当たる」KISS から「壁越しは半減」等 (現状は壁越し OK)
