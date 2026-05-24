@@ -180,6 +180,76 @@ public final class DungeonMap {
   }
 
   /**
+   * 視界 (line of sight) 判定 (Wave 13 W13-α)。Bresenham line で {@code from} から {@code to} の中間マスを 順に辿り、
+   * Tile.WALL または Tile.BREAKABLE_WALL があれば視線が遮断される。
+   *
+   * <p>CTO チェックポイント #2: 障害物判定の対象は **「from の次のマス」から「to の直前のマス」までの中間マスのみ**。{@code from} と {@code to}
+   * のマス自体は壁判定対象外 (敵が自分のマスを壁扱いしない / プレイヤーが階段等の上にいても LOS が通る)。 {@code from == to} は同一マスで常に true。
+   *
+   * <p>Wave 11/12 一貫性: BREAKABLE_WALL は移動カード専用ギミックだが、LOS 判定では WALL と同等に遮断扱い (敵 AI
+   * が「壊れる壁の向こうのプレイヤーを察知する」を禁止)。
+   */
+  public boolean hasLineOfSight(Position from, Position to) {
+    Objects.requireNonNull(from, "from");
+    Objects.requireNonNull(to, "to");
+    if (from.equals(to)) {
+      return true;
+    }
+    int x0 = from.x();
+    int y0 = from.y();
+    int x1 = to.x();
+    int y1 = to.y();
+    int dx = Math.abs(x1 - x0);
+    int dy = Math.abs(y1 - y0);
+    int sx = (x0 < x1) ? 1 : -1;
+    int sy = (y0 < y1) ? 1 : -1;
+    int err = dx - dy;
+    int x = x0;
+    int y = y0;
+    while (true) {
+      int e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        x += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        y += sy;
+      }
+      if (x == x1 && y == y1) {
+        return true; // to 到達 (to 自体は壁判定対象外)
+      }
+      // 中間マスのみ壁判定
+      Position step = new Position(x, y);
+      if (!inBounds(step)) {
+        return false;
+      }
+      Tile t = tilesByYx[y][x];
+      if (t == Tile.WALL || t == Tile.BREAKABLE_WALL) {
+        return false;
+      }
+    }
+  }
+
+  /**
+   * 視界距離 + LOS の組合せ判定 (Wave 13 W13-α)。チェビシェフ距離が {@code maxSightRange} 以下かつ {@link #hasLineOfSight}
+   * が true なら、{@code from} から {@code to} が「見える」とみなす。
+   *
+   * <p>{@link EnemyAi} がプレイヤー視認判定に使う。
+   */
+  public boolean canSeeWithin(Position from, Position to, int maxSightRange) {
+    Objects.requireNonNull(from, "from");
+    Objects.requireNonNull(to, "to");
+    int dx = Math.abs(to.x() - from.x());
+    int dy = Math.abs(to.y() - from.y());
+    int chebyshev = Math.max(dx, dy);
+    if (chebyshev > maxSightRange) {
+      return false;
+    }
+    return hasLineOfSight(from, to);
+  }
+
+  /**
    * 値等価性: width / height / 全タイル内容が一致すれば等しい (record ではないため明示実装)。
    *
    * <p>2 次元配列の比較は {@link Arrays#deepEquals} を使う (要素の {@code Tile} まで再帰比較)。

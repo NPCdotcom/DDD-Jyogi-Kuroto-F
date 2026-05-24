@@ -234,4 +234,57 @@ class DungeonMapTest {
     assertThrows(
         IllegalArgumentException.class, () -> m.withTileAt(new Position(99, 2), Tile.FLOOR));
   }
+
+  // Wave 13 W13-α: hasLineOfSight + canSeeWithin
+
+  @Test
+  void hasLineOfSightTrueForSamePosition() {
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
+    assertTrue(m.hasLineOfSight(new Position(2, 2), new Position(2, 2)));
+  }
+
+  @Test
+  void hasLineOfSightTrueOnOpenStraightLine() {
+    // (1,1) → (3,1) は床直線、視線通る
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
+    assertTrue(m.hasLineOfSight(new Position(1, 1), new Position(3, 1)));
+  }
+
+  @Test
+  void hasLineOfSightTrueOnDiagonal() {
+    // (1,1) → (3,3) 斜め、すべて床
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#...#", "#...#", "#####"));
+    assertTrue(m.hasLineOfSight(new Position(1, 1), new Position(3, 3)));
+  }
+
+  @Test
+  void hasLineOfSightFalseBlockedByWall() {
+    // (1,2) → (3,2)、間の (2,2) が壁
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#.#.#", "#...#", "#####"));
+    assertFalse(m.hasLineOfSight(new Position(1, 2), new Position(3, 2)));
+  }
+
+  @Test
+  void hasLineOfSightFalseBlockedByBreakableWall() {
+    // CTO #2: BREAKABLE_WALL も視線遮断 (Wave 11 一貫性)
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#.B.#", "#...#", "#####"));
+    assertFalse(m.hasLineOfSight(new Position(1, 2), new Position(3, 2)));
+  }
+
+  @Test
+  void canSeeWithinFalseWhenOutOfRange() {
+    DungeonMap m =
+        DungeonMap.of(List.of("########", "#......#", "#......#", "#......#", "########"));
+    // (1,2) → (6,2) はチェビシェフ距離 5、視界半径 4 では見えない
+    assertFalse(m.canSeeWithin(new Position(1, 2), new Position(6, 2), 4));
+    // 視界半径 5 にすれば見える
+    assertTrue(m.canSeeWithin(new Position(1, 2), new Position(6, 2), 5));
+  }
+
+  @Test
+  void canSeeWithinFalseWhenBlockedEvenIfInRange() {
+    // 距離は範囲内だが間に壁があれば見えない
+    DungeonMap m = DungeonMap.of(List.of("#####", "#...#", "#.#.#", "#...#", "#####"));
+    assertFalse(m.canSeeWithin(new Position(1, 2), new Position(3, 2), 5));
+  }
 }
