@@ -9,6 +9,8 @@ import core.domain.common.Direction;
 import core.domain.common.Position;
 import core.domain.dungeon.DungeonState;
 import core.domain.dungeon.PlacedTrap;
+import core.domain.dungeon.Tile;
+import core.domain.entity.ActorId;
 import core.domain.entity.Enemy;
 import core.domain.entity.Player;
 import core.domain.entity.PlayerStatuses;
@@ -55,24 +57,26 @@ final class TurnEngineCardResolver {
   }
 
   /**
-   * Damage カードの解決。方向指定で隣接マスを取り、敵不在なら reject、存在すれば
+   * Damage カードの解決 (Wave 12 W12-β: 射程 (range) + 爆風半径 (areaRadius) 対応)。
    *
    * <ol>
-   *   <li>{@link CardEffect.Damage#resolve} で最終ダメージを確定 (ADR-17)
-   *   <li>AP 消費 + Hand→Discard 移動 (純関数操作)
-   *   <li>{@link TurnEngine#resolveDamageToEnemy} 経由でダメージ反映 + 死亡判定
+   *   <li>direction 方向に step=1 から range マスまで line scan で「中心ターゲット」(最初の敵) を探す (CTO #1:
+   *       自分マス除外厳守、step=0 不開始)。壁 / 壊れる壁で line of sight 遮断 (CTO #2: BREAKABLE_WALL
+   *       は移動カード専用ギミック、Damage カードでは「ただの壁」)
+   *   <li>中心ターゲット不在なら reject (爆風があっても中心不在では発動しない、CTO #2)
+   *   <li>AP 消費 + Hand→Discard + SkillUsed イベント発火
+   *   <li>areaRadius == 0: 中心 1 体に {@link TurnEngineHelpers#resolveDamageToEnemy} でダメージ反映
+   *   <li>areaRadius > 0: 中心位置を基準にチェビシェフ距離 ≤ areaRadius の全敵に順次ダメージ (壁越し OK、KISS)
    * </ol>
    */
   private static StepResult resolveCardDamage(
       DungeonState state, Card card, CardEffect.Damage dmg, Direction direction, int handIndex) {
     Player player = state.player();
-    Position targetPos = player.position().move(direction);
-    Optional<Enemy> targetOpt = state.findEnemyAt(targetPos);
-    if (targetOpt.isEmpty()) {
+    Optional<Enemy> centerOpt = findLineTarget(state, player.position(), direction, dmg.range());
+    if (centerOpt.isEmpty()) {
       return TurnEngineHelpers.reject(state, player.id(), "対象がいない");
     }
-    Enemy target = targetOpt.get();
-    int finalDamage = dmg.resolve(player.effectiveStats(), target.stats(), card.element());
+    Enemy centerEnemy = centerOpt.get();
     Player afterAction =
         player
             .withActionPoints(player.actionPoints().spend(card.apCost()))
@@ -80,7 +84,66 @@ final class TurnEngineCardResolver {
     DungeonState afterCostState = state.withPlayer(afterAction);
     List<BattleEvent> events = new ArrayList<>();
     events.add(new BattleEvent.SkillUsed(player.id(), card.displayName()));
-    return TurnEngineHelpers.resolveDamageToEnemy(afterCostState, finalDamage, target, events);
+
+    if (dmg.areaRadius() == 0) {
+      int finalDamage =
+          dmg.resolve(afterAction.effectiveStats(), centerEnemy.stats(), card.element());
+      return TurnEngineHelpers.resolveDamageToEnemy(
+          afterCostState, finalDamage, centerEnemy, events);
+    }
+
+    // AOE: 中心敵を基準にチェビシェフ距離 <= areaRadius の全敵を巻き込む。
+    // 巻き込み対象は発動瞬間の enemies リストでスナップショット (連鎖死亡で参照失効しないよう ActorId で保持)。
+    Position centerPos = centerEnemy.position();
+    int radius = dmg.areaRadius();
+    List<ActorId> targetIds = new ArrayList<>();
+    for (Enemy e : afterCostState.enemies()) {
+      int dx = Math.abs(e.position().x() - centerPos.x());
+      int dy = Math.abs(e.position().y() - centerPos.y());
+      if (Math.max(dx, dy) <= radius) {
+        targetIds.add(e.id());
+      }
+    }
+    DungeonState curState = afterCostState;
+    for (ActorId id : targetIds) {
+      Optional<Enemy> aliveOpt = curState.findEnemy(id);
+      if (aliveOpt.isEmpty()) {
+        continue; // 既に撃破済 (理論上は同じ AOE 内で連鎖死亡が起きないが防衛)
+      }
+      Enemy alive = aliveOpt.get();
+      int finalDamage = dmg.resolve(afterAction.effectiveStats(), alive.stats(), card.element());
+      StepResult sub = TurnEngineHelpers.resolveDamageToEnemy(curState, finalDamage, alive, events);
+      curState = sub.state();
+    }
+    return new StepResult(curState, events);
+  }
+
+  /**
+   * direction 方向に step=1 から range マス先まで line scan で最初の敵を探す (Wave 12 W12-β)。
+   *
+   * <p>CTO チェックポイント #1: step=1 から開始 (自分マスを探索しない、自爆バグ回避)。 CTO チェックポイント #2: WALL / BREAKABLE_WALL で
+   * line of sight 遮断 (Wave 11 一貫性死守)。
+   *
+   * @return 最初に発見された敵、または Optional.empty() (壁遮断 / マップ外 / 射程内に敵不在)
+   */
+  private static Optional<Enemy> findLineTarget(
+      DungeonState state, Position origin, Direction direction, int range) {
+    for (int step = 1; step <= range; step++) {
+      Position scanPos =
+          new Position(origin.x() + direction.dx() * step, origin.y() + direction.dy() * step);
+      if (!state.map().inBounds(scanPos)) {
+        return Optional.empty();
+      }
+      Tile tile = state.map().tileAt(scanPos);
+      if (tile == Tile.WALL || tile == Tile.BREAKABLE_WALL) {
+        return Optional.empty();
+      }
+      Optional<Enemy> enemy = state.findEnemyAt(scanPos);
+      if (enemy.isPresent()) {
+        return enemy;
+      }
+    }
+    return Optional.empty();
   }
 
   /**
