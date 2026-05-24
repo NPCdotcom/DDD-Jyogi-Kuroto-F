@@ -126,13 +126,12 @@ public final class DddGame extends Game {
   }
 
   /**
-   * 現在のロードアウトから UI テーマを動的に決定する (§7-2 / W4-ε)。
+   * 現在の Settings.themeMode (LIGHT / DARK) から UI テーマを動的に決定する (Wave 17 W17-β / #8、旧装備依存テーマ廃止)。
    *
-   * <p>主武器優先で {@code themeName} が設定されている装備を探し、{@link UiThemeResolver} で解決する。 全装備が {@code
-   * themeName=empty} の場合は {@link UiTheme#defaultTheme()} にフォールバック。
+   * <p>毎フレーム呼ばれる前提 → SettingsScreen で themeMode を切替えると即座に UI が明暗反転する (CTO #3 リアルタイム反映)。
    */
   public UiTheme activeUiTheme() {
-    return UiThemeResolver.resolve(progress.loadout());
+    return UiThemeResolver.resolve(persistence.settings().themeMode());
   }
 
   /** 装備をそのスロットに装着する (同スロットの既存装備は置き換え、§15-9、次ラン開始時に反映)。 */

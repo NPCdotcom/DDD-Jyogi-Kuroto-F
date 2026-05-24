@@ -1,67 +1,36 @@
 package core.presentation.render;
 
-import core.domain.equipment.Equipment;
-import core.domain.equipment.EquipmentSlot;
-import java.util.Map;
+import core.infrastructure.save.ThemeMode;
 
 /**
- * 現在の装備ロードアウトから {@link UiTheme} を解決するユーティリティ (§7-2 / W4-ε)。
+ * {@link ThemeMode} から {@link UiTheme} を解決するユーティリティ (Wave 17 W17-β、§7-2 / W4-ε 改訂)。
  *
- * <p>優先順位: MAIN → HAND → HEAD → BODY → FEET → ACCESSORY。 この順で先に {@code themeName}
- * が設定されている装備を探し、最初に見つかったテーマを返す。 全装備の {@code themeName} が空なら {@link UiTheme#defaultTheme()}
- * にフォールバックする。
+ * <p>Wave 17 W17-β / SpecificationIssues.md #8: 旧仕様の「装備依存テーマ (fire/frost/earth/dark)」は廃止し、 ユーザー が
+ * SettingsScreen で明示的に切替える「LIGHT / DARK」の 2 トグル化に統一した。装備テーマ機能は
+ * 「個性的な見た目」を提供したが、新装備追加時のテーマ追加コストと「気づかぬうちに色が変わる」UX 問題から Settings 直参照のシンプル設計に置換。
  *
- * <p>純粋関数として実装しているため、インスタンス生成は不要。
+ * <p>Equipment.themeName field は equipment.json + Equipment record に残置 (record API 維持、後方互換確保) するが、
+ * 本リゾルバからは参照されなくなる。UiTheme の旧 4 factory (fire/frost/earth/dark) は将来の装備ビジュアル機能復活 余地として残置。
+ *
+ * <p>純粋関数として実装。インスタンス生成は不要。
  */
 public final class UiThemeResolver {
-
-  /** スロット優先順位 (主武器 → 手 → 頭 → 胴 → 足 → 装飾)。 */
-  private static final EquipmentSlot[] PRIORITY_ORDER = {
-    EquipmentSlot.MAIN,
-    EquipmentSlot.HAND,
-    EquipmentSlot.HEAD,
-    EquipmentSlot.BODY,
-    EquipmentSlot.FEET,
-    EquipmentSlot.ACCESSORY
-  };
 
   private UiThemeResolver() {}
 
   /**
-   * ロードアウトから UI テーマを解決する。
+   * テーマモードから UI テーマを解決する (Wave 17 W17-β、新仕様)。
    *
-   * @param loadout 装備スロット → 装備の Map (防御コピー不要、参照のみ)
-   * @return 解決した {@link UiTheme}、未設定時は {@link UiTheme#defaultTheme()}
-   */
-  public static UiTheme resolve(Map<EquipmentSlot, Equipment> loadout) {
-    if (loadout == null || loadout.isEmpty()) {
-      return UiTheme.defaultTheme();
-    }
-    for (EquipmentSlot slot : PRIORITY_ORDER) {
-      Equipment eq = loadout.get(slot);
-      if (eq == null) {
-        continue;
-      }
-      if (eq.themeName().isPresent()) {
-        return fromName(eq.themeName().get());
-      }
-    }
-    return UiTheme.defaultTheme();
-  }
-
-  /**
-   * テーマ名文字列から {@link UiTheme} を返す。未知の名前はデフォルトにフォールバックする。
-   *
-   * @param name equipment.json の {@code themeName} 値 (例: {@code "fire"})
+   * @param mode テーマモード (LIGHT / DARK、null は DARK にフォールバック)
    * @return 対応する {@link UiTheme}
    */
-  private static UiTheme fromName(String name) {
-    return switch (name) {
-      case "fire" -> UiTheme.fire();
-      case "frost" -> UiTheme.frost();
-      case "earth" -> UiTheme.earth();
-      case "dark" -> UiTheme.dark();
-      default -> UiTheme.defaultTheme();
+  public static UiTheme resolve(ThemeMode mode) {
+    if (mode == null) {
+      return UiTheme.dark();
+    }
+    return switch (mode) {
+      case LIGHT -> UiTheme.light();
+      case DARK -> UiTheme.dark();
     };
   }
 }

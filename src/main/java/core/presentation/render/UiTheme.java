@@ -64,4 +64,19 @@ public record UiTheme(
         new Color(0.4f, 0.05f, 0.55f, 1f) // warnFrameColor = 深紫
         );
   }
+
+  /**
+   * ライトテーマ (Wave 17 W17-β / #8、SettingsScreen の LIGHT 切替で適用される明色背景前提)。
+   *
+   * <p>明色背景でも視認できる十分濃いテキスト色 (text=濃灰) と、コントラスト高い accent (深青) で 構成。dark() との明確な色相差で「フォント色
+   * Color.WHITE ハードコード残し」を視覚的に気づきやすくする (CTO #2 ステルステキストバグ防衛、ライト背景に白文字が溶ける現象を未然に検出)。
+   */
+  public static UiTheme light() {
+    return new UiTheme(
+        new Color(0.1f, 0.1f, 0.12f, 1f), // textColor  = 濃灰 (明色背景に対して高コントラスト)
+        new Color(0.15f, 0.35f, 0.75f, 1f), // accentColor = 深青
+        new Color(0.1f, 0.5f, 0.25f, 1f), // skillSlotColor = 深緑
+        new Color(0.7f, 0.1f, 0.15f, 1f) // warnFrameColor = 深赤
+        );
+  }
 }
