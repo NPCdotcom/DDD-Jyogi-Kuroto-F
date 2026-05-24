@@ -258,7 +258,10 @@ public final class InitialStateFactory {
         new PlayerStatuses(
             new Stats(30, 30, 3, 1, 2, 1, 1),
             ActionPoints.full(5),
-            new SkillSlot(List.of(lightSlash(), heavySlash()), 4),
+            // Wave 15 W15-β / #3: SkillSlot 完全廃止 (デッキ・カード一本化、§15-3 整合)。
+            // Player record 構造は維持し、空 4 枠で初期化する KISS 案。
+            // lightSlash() / heavySlash() は Boss / Enemy 専用 fixture として残置。
+            SkillSlot.empty(4),
             equipmentMap,
             List.of()),
         initialPile,
@@ -559,7 +562,8 @@ public final class InitialStateFactory {
             new PlayerStatuses(
                 savedStats,
                 ActionPoints.full(savedStats.speed()),
-                new SkillSlot(List.of(lightSlash(), heavySlash()), 4),
+                // Wave 15 W15-β / #3: SkillSlot 完全廃止、空 4 枠でロード復元
+                SkillSlot.empty(4),
                 equipmentMap,
                 List.of()),
             cardPileState,

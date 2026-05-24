@@ -136,9 +136,8 @@ public final class DungeonScreen extends ScreenAdapter {
     batch = new SpriteBatch();
     shapes = new ShapeRenderer();
     playerInputs = new PlayerInputs();
-    // §15-5 Wave2 Task C: F1〜F4 スキル発動のため、スキルスロット装着済み数を供給する。
-    playerInputs.bindSkillSlotSizeSupplier(
-        () -> game.requireRunSession().context().state().player().skillSlot().size());
+    // Wave 15 W15-β / #3: SkillSlot 完全廃止 (デッキ・カード一本化、§15-3 整合)。
+    // bindSkillSlotSizeSupplier は不要 (F1-F4 入力経路を PlayerInputs から削除済)。
     statusPopup = new StatusPopup(game.fonts().large(), game.fonts().isJapaneseAvailable());
     eliteReward = new EliteRewardOrchestrator(game, rng, effects);
     // マップタイルテクスチャをロード (ピクセルアート → Nearest filter で 80px 拡大時のボケ防止)。

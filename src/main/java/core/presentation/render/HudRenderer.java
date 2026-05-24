@@ -117,7 +117,9 @@ public final class HudRenderer {
         preset);
     drawLog(batch, font, jp, context.latestEvents(RenderLayout.LOG_LINES_VISIBLE));
     drawHand(batch, font, jp, p, pendingCardIndex, images);
-    drawSkillSlots(batch, font, jp, p, t);
+    // Wave 15 W15-β / #3 #6: SkillSlot 完全廃止 + HUD 重なり整理。
+    // drawSkillSlots(...) を廃止 (Player.skillSlot は空 4 枠固定なので何も描かれていなかったが念のため削除、
+    // 画面下部のスキル枠領域も廃止で HUD が整理される)
     drawEndTurnButton(batch, font, jp, t);
   }
 
