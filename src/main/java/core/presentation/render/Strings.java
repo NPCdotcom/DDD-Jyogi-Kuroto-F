@@ -29,8 +29,7 @@ public final class Strings {
     public static final String HUD_SOUL = "ソウル";
     public static final String HUD_PHASE = "フェーズ";
     public static final String HUD_SPEED = "速度";
-    public static final String HUD_HINT =
-        "WASD/矢印: 移動   1〜9: カード   SPACE: 待機   ENTER: ターン終了   Tab: ステータス";
+    public static final String HUD_HINT = "Tab: ステータス   ENTER: ターン終了";
 
     // 移動権保持中の操作ヒント (ADR-21 §15-5)
     public static final String MOVE_TOKEN_HINT = "移動権保持中: WASD/矢印で移動   ENTER で終了";
@@ -243,8 +242,7 @@ public final class Strings {
     public static final String HUD_SOUL = "Soul";
     public static final String HUD_PHASE = "Phase";
     public static final String HUD_SPEED = "Speed";
-    public static final String HUD_HINT =
-        "WASD/Arrows: Move   1-9: Card   SPACE: Wait   ENTER: End turn   Tab: Status";
+    public static final String HUD_HINT = "Tab: Status   ENTER: End Turn";
 
     // Move token hint during movement mode (ADR-21 §15-5)
     public static final String MOVE_TOKEN_HINT =

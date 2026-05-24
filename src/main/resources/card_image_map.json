@@ -1,5 +1,5 @@
 {
-  "_comment": "cards.json の id → assets/cards/<value>.png のマッピング。視認 (CTO による 2026-05-23 確認)。未マッピングは test.png フォールバック。card_23 は spare (転がり 重複) で実行時未使用。",
+  "_comment": "cards.json の id → assets/cards/<value>.png のマッピング。2026-05-24 視認で全 59 種マッピング完了 (test.png フォールバックゼロ)。card_23 は spare (転がり 重複) で実行時未使用。",
   "schemaVersion": 1,
   "imageDir": "cards/",
   "fileExtension": ".png",
@@ -51,12 +51,19 @@
     "thunder_rune": "card_47",
     "void_rune": "card_48",
     "acid_pool": "card_49",
-    "dark_snare": "card_50"
+    "dark_snare": "card_50",
+    "zangeki": "card_51",
+    "strong_strike": "card_52",
+    "magic_bolt": "card_53",
+    "fireball": "card_54",
+    "ember_shot": "card_55",
+    "blaze_nova": "card_56",
+    "blink_step": "card_57",
+    "flame_circle": "card_58",
+    "arcane_veil": "card_59",
+    "stone_wall": "card_60",
+    "haste": "card_61"
   },
-  "unmappedCards": [
-    "zangeki", "strong_strike", "magic_bolt", "fireball", "ember_shot",
-    "blaze_nova", "blink_step", "flame_circle", "arcane_veil",
-    "stone_wall", "haste"
-  ],
+  "unmappedCards": [],
   "spareImages": ["card_23"]
 }

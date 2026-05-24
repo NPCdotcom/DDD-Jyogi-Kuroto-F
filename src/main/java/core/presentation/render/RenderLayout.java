@@ -133,12 +133,13 @@ public final class RenderLayout {
   public static final int HUD_Y_MOVE_TOKEN = 800;
 
   /**
-   * 操作ヒント (WASD/矢印: 移動 等) の Y 座標。
+   * 操作ヒント (Tab: ステータス 等) の Y 座標。
    *
-   * <p>large (32px) で画面左下に左寄せで配置。ログ最下 (Y=222) と HAND_LABEL (Y=112) の間に置く。 pendingCardIndex /
-   * movementToken / cleared モード時はここで HAND_HINT 等に切り替えるため、 drawHand 側のヒント描画は削除して二重表示を防ぐ。
+   * <p>large (32px) で画面左下に左寄せで配置。手札画像 Y∈[110, 278] とログ Y∈[472, 520] の間 (Y=350) に置くことで手札との視覚衝突を回避
+   * (2026-05-24)。pendingCardIndex / movementToken / cleared モード時はここで HAND_HINT 等に切り替えるため、drawHand
+   * 側のヒント描画は削除して二重表示を防ぐ。
    */
-  public static final int HUD_Y_HINT = 170;
+  public static final int HUD_Y_HINT = 350;
 
   /**
    * メッセージログ表示開始位置 (下方向に展開)。
@@ -146,7 +147,7 @@ public final class RenderLayout {
    * <p>画面中段右寄り、HUD パネル + 手札 + カード詳細テキストの上に配置。large (32px) で行間 LARGE_LINE_HEIGHT=48 を取り、 2 行表示する。
    *
    * <p>LOG_TOP_Y=520 → ログ占有範囲 Y∈[472, 520]。手札カード画像 (HAND_CARD_BOTTOM_Y=110 + HAND_CARD_HEIGHT=168 =
-   * Y∈[110, 278]) およびカード詳細テキスト (HAND_DETAIL_TEXT_Y=80、画像の下に配置) と衝突せず、 HUD_Y_HINT=170 /
+   * Y∈[110, 278]) およびカード詳細テキスト (HAND_DETAIL_TEXT_Y=80、画像の下に配置) と衝突せず、 HUD_Y_HINT=350 /
    * HUD_Y_MOVE_TOKEN=800 とも干渉しない安全領域。
    */
   public static final int LOG_X = 40;
@@ -158,7 +159,7 @@ public final class RenderLayout {
   /**
    * 手札表示の Y 座標。ログ領域より上、画面下部に配置する。
    *
-   * <p>large (32px) フォント前提。HAND_Y=64 でラベル (Y=112) が HUD_Y_HINT (170) と十分離れる。 手札選択中のヒントは
+   * <p>large (32px) フォント前提。HAND_Y=64 でラベル (Y=112) が HUD_Y_HINT (350) と十分離れる。 手札選択中のヒントは
    * drawControlsHint 側に統合したため、HAND_Y 直下の余白は不要。
    */
   public static final int HAND_Y = 64;
@@ -178,7 +179,7 @@ public final class RenderLayout {
    * 選択中カードの詳細テキスト (displayName + AP + 効果説明) を描画する Y 座標。
    *
    * <p>カード画像 (Y∈[110, 278]) と被らないよう、画像の**下** (画面下端側) に配置する。 large (32px) baseline Y=80 → 描画範囲
-   * Y∈[48, 80]、画面下端から 48px 余白、HAND_CARD_BOTTOM_Y=110 とも 30px 余白、HUD_Y_HINT=170 とも 90px 離れて干渉なし。
+   * Y∈[48, 80]、画面下端から 48px 余白、HAND_CARD_BOTTOM_Y=110 とも 30px 余白、HUD_Y_HINT=350 とも 270px 離れて干渉なし。
    */
   public static final int HAND_DETAIL_TEXT_Y = 80;
 

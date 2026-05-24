@@ -216,11 +216,8 @@ public final class HudRenderer {
     // 描画ステート初期化 (前段の描画から色が引き継がれないよう保険、§UI ブレンドモード明示)
     batch.setColor(Color.WHITE);
 
-    // Wave 10 W10-γ: カード枠 (card_frame.png) が CardImageRegistry にあれば CardRenderer 経由で合成描画、
-    // 無ければ既存テキスト/画像フォールバックを維持 (graceful)。
-    Texture cardFrame = (images != null) ? images.frame() : null;
-
     // カード画像列 — 各カードは固定 X 位置 (handCardBounds と DRY)。選択中は Y を持ち上げ + 黄色ティント。
+    // 2026-05-24: card_frame.png 合成描画を廃止し、card_XX.png (完成形カード絵) を 1 枚描画するのみ。
     for (int i = 0; i < cards.size(); i++) {
       Card card = cards.get(i);
       boolean selected = (i == pendingCardIndex);
@@ -229,26 +226,8 @@ public final class HudRenderer {
       Texture cardImage = (images != null) ? images.get(card.id()) : null;
       Color tint = selected ? new Color(1f, 1f, 0.6f, 1f) : Color.WHITE;
 
-      if (cardFrame != null && cardImage != null) {
-        // Wave 10 W10-γ: 枠 + イラスト + コスト + 名前 + element 色 を合成描画
-        CardRenderer.drawCard(
-            batch,
-            font,
-            card,
-            cardImage,
-            cardFrame,
-            bounds.x,
-            y,
-            bounds.width,
-            bounds.height,
-            tint);
-      } else if (cardImage != null) {
-        // 枠未投入時の旧描画パス (graceful フォールバック)
-        batch.setColor(tint);
-        batch.draw(cardImage, bounds.x, y, bounds.width, bounds.height);
-        batch.setColor(Color.WHITE);
-        font.setColor(Color.WHITE);
-        font.draw(batch, "AP%d".formatted(card.apCost()), bounds.x + bounds.width - 60f, y + 28f);
+      if (cardImage != null) {
+        CardRenderer.drawCard(batch, cardImage, bounds.x, y, bounds.width, bounds.height, tint);
       } else {
         // CardImageRegistry 未注入 or テクスチャ欠落時はテキストフォールバック (テスト・後方互換)
         font.setColor(selected ? Color.YELLOW : Color.WHITE);

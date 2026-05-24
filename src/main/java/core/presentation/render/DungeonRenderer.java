@@ -20,15 +20,16 @@ import java.util.Map;
  *
  * <p>State から SpriteBatch / ShapeRenderer への一方向描画のみ。状態を変更しない。
  *
- * <p>Wave 10 W10-β: drawPlayer / drawEnemies を ShapeRenderer 矩形 → SpriteBatch + Texture 描画に置換。 描画は
- * 3 フェーズ構造 ((1) マップテクスチャ batch / (2) 境界線 + 階段マーカー + 罠 shapes / (3) アクター batch) で構成。
+ * <p>Wave 10 W10-β: drawPlayer / drawEnemies を ShapeRenderer 矩形 → SpriteBatch + Texture 描画に置換。
+ *
+ * <p>2026-05-24: 階段 / 罠も専用テクスチャに置換。描画は 3 フェーズ構造 ((1) マップテクスチャ batch (床/壁/階段) / (2) 境界線 shapes / (3)
+ * 罠 + アクター batch) で構成。
  *
  * <p>ELITE_SLIME はスライム画像を {@link SpriteBatch#setColor} で赤くティントして描画する (テクスチャ加工不要)。 Stateful な
  * setColor は描画後に必ず {@link Color#WHITE} へリセットして「色リーク」を防ぐ (Wave 4 W4-ε 同型)。
  */
 public final class DungeonRenderer {
 
-  private static final Color STAIRS_COLOR = new Color(0.85f, 0.75f, 0.25f, 1f);
   private static final Color ELITE_TINT = new Color(0.95f, 0.3f, 0.3f, 1f);
 
   /** Wave 11 W11-α: 壊れる壁の茶色ティント (既存 wall.png を流用、新素材なし)。 */
@@ -63,22 +64,23 @@ public final class DungeonRenderer {
       DungeonState state,
       Texture wallTexture,
       Texture floorTexture,
+      Texture stairsTexture,
+      Texture trapTexture,
       Texture playerTexture,
       Map<EnemyKind, Texture> enemyTextures) {
-    // フェーズ 1: マップテクスチャ (batch、床 + 壁)。
+    // フェーズ 1: マップテクスチャ (batch、床 + 壁 + 階段)。
     batch.begin();
-    drawMapTextures(batch, state.map(), wallTexture, floorTexture);
+    drawMapTextures(batch, state.map(), wallTexture, floorTexture, stairsTexture);
     batch.end();
 
-    // フェーズ 2: 境界線 + 階段マーカー + 罠 (shapes)。
+    // フェーズ 2: 境界線 (shapes)。
     shapes.begin(ShapeType.Filled);
     drawWallFloorBorders(shapes, state.map());
-    drawStairsMarker(shapes, state.map());
-    drawTraps(shapes, state);
     shapes.end();
 
-    // フェーズ 3: アクター (batch + Texture)。
+    // フェーズ 3: 罠 + アクター (batch + Texture)。
     batch.begin();
+    drawTraps(batch, state, trapTexture);
     drawEnemies(batch, state, enemyTextures);
     drawPlayer(batch, state.player().position(), playerTexture);
     batch.end();
@@ -87,16 +89,22 @@ public final class DungeonRenderer {
   /**
    * マップタイルをテクスチャで描画する (チームメイト素材投入)。
    *
-   * <p>壁は wall.png、床と階段は floor.png を 80×80 に引き伸ばして敷き詰める。階段の識別マーカーは {@link #drawStairsMarker}
-   * がシェイプフェーズで重ねる。
+   * <p>壁は wall.png、床は floor.png、階段は stairs.png を 80×80 に引き伸ばして敷き詰める。
    */
   private static void drawMapTextures(
-      SpriteBatch batch, DungeonMap map, Texture wallTex, Texture floorTex) {
+      SpriteBatch batch, DungeonMap map, Texture wallTex, Texture floorTex, Texture stairsTex) {
     int tile = RenderLayout.TILE_SIZE;
     for (int y = 0; y < map.height(); y++) {
       for (int x = 0; x < map.width(); x++) {
         Tile t = map.tileAt(new Position(x, y));
-        Texture tex = (t == Tile.WALL || t == Tile.BREAKABLE_WALL) ? wallTex : floorTex;
+        Texture tex;
+        if (t == Tile.WALL || t == Tile.BREAKABLE_WALL) {
+          tex = wallTex;
+        } else if (t == Tile.STAIRS_DOWN) {
+          tex = stairsTex;
+        } else {
+          tex = floorTex;
+        }
         int sx = RenderLayout.MAP_ORIGIN_X + x * tile;
         int sy = RenderLayout.MAP_ORIGIN_Y + y * tile;
         // Wave 11 W11-α: BREAKABLE_WALL は wall.png を茶色ティントで区別 (色変えハック、新素材なし)。
@@ -108,28 +116,6 @@ public final class DungeonRenderer {
         } else {
           batch.draw(tex, sx, sy, tile, tile);
         }
-      }
-    }
-  }
-
-  /**
-   * 階段タイルの識別マーカーを床テクスチャの上に描画する (黄色矩形、タイルの中央 1/2)。
-   *
-   * <p>階段専用テクスチャは未投入のため、識別マーカーで視認性を確保する。M2 で素材投入時にこの メソッドを削除し、{@link #drawMapTextures} に階段専用
-   * Texture を渡すパターンに切り替える。
-   */
-  private static void drawStairsMarker(ShapeRenderer shapes, DungeonMap map) {
-    shapes.setColor(STAIRS_COLOR);
-    int tile = RenderLayout.TILE_SIZE;
-    int inset = tile / 4;
-    for (int y = 0; y < map.height(); y++) {
-      for (int x = 0; x < map.width(); x++) {
-        if (map.tileAt(new Position(x, y)) != Tile.STAIRS_DOWN) {
-          continue;
-        }
-        int sx = RenderLayout.MAP_ORIGIN_X + x * tile + inset;
-        int sy = RenderLayout.MAP_ORIGIN_Y + y * tile + inset;
-        shapes.rect(sx, sy, tile - inset * 2, tile - inset * 2);
       }
     }
   }
@@ -177,15 +163,21 @@ public final class DungeonRenderer {
     return t == Tile.WALL || t == Tile.BREAKABLE_WALL;
   }
 
-  /** 設置済みの罠を小マーカーで描画する (§15-3、物理 = 橙 / 魔法 = 紫)。空タイル上の罠を可視化する。 */
-  private static void drawTraps(ShapeRenderer shapes, DungeonState state) {
-    int inset = RenderLayout.TILE_SIZE / 4;
+  /**
+   * 設置済みの罠を trap.png で描画する (§15-3、物理 = 橙ティント / 魔法 = 紫ティント)。
+   *
+   * <p>setColor の状態を必ず Color.WHITE にリセットして色リーク防止 (Wave 4 W4-ε 同型原則)。
+   */
+  private static void drawTraps(SpriteBatch batch, DungeonState state, Texture trapTexture) {
+    int tile = RenderLayout.TILE_SIZE;
     for (PlacedTrap trap : state.placedTraps()) {
-      shapes.setColor(
-          trap.element() == CardElement.PHYSICAL ? TRAP_PHYSICAL_COLOR : TRAP_MAGICAL_COLOR);
-      int sx = RenderLayout.MAP_ORIGIN_X + trap.position().x() * RenderLayout.TILE_SIZE + inset;
-      int sy = RenderLayout.MAP_ORIGIN_Y + trap.position().y() * RenderLayout.TILE_SIZE + inset;
-      shapes.rect(sx, sy, RenderLayout.TILE_SIZE - inset * 2, RenderLayout.TILE_SIZE - inset * 2);
+      Color tint =
+          trap.element() == CardElement.PHYSICAL ? TRAP_PHYSICAL_COLOR : TRAP_MAGICAL_COLOR;
+      int sx = RenderLayout.MAP_ORIGIN_X + trap.position().x() * tile;
+      int sy = RenderLayout.MAP_ORIGIN_Y + trap.position().y() * tile;
+      batch.setColor(tint);
+      batch.draw(trapTexture, sx, sy, tile, tile);
+      batch.setColor(Color.WHITE);
     }
   }
 

@@ -115,6 +115,12 @@ public final class DungeonScreen extends ScreenAdapter {
   /** プレイヤースプライト (Wave 10 W10-β、チームメイト素材)。 */
   private com.badlogic.gdx.graphics.Texture playerTexture;
 
+  /** 階段タイル (2026-05-24 素材投入、旧 ShapeRenderer 黄色マーカーを置換)。 */
+  private com.badlogic.gdx.graphics.Texture stairsTexture;
+
+  /** 罠マーカー (2026-05-24 素材投入、物理/魔法は SpriteBatch.setColor でティント)。 */
+  private com.badlogic.gdx.graphics.Texture trapTexture;
+
   /** 敵スプライト群 (Wave 10 W10-β、EnemyKind → Texture、ELITE_SLIME は SLIME を流用)。 */
   private java.util.Map<core.domain.entity.EnemyKind, com.badlogic.gdx.graphics.Texture>
       enemyTextures;
@@ -149,6 +155,8 @@ public final class DungeonScreen extends ScreenAdapter {
     floorTexture.setFilter(
         com.badlogic.gdx.graphics.Texture.TextureFilter.Nearest,
         com.badlogic.gdx.graphics.Texture.TextureFilter.Nearest);
+    stairsTexture = loadPixelTexture("tiles/stairs.png");
+    trapTexture = loadPixelTexture("tiles/trap.png");
     // Wave 10 W10-β: キャラスプライトをロード (player + 4 種の敵 Texture、Nearest filter)
     playerTexture = loadPixelTexture("sprites/player.png");
     com.badlogic.gdx.graphics.Texture slimeTex = loadPixelTexture("sprites/slime.png");
@@ -401,6 +409,8 @@ public final class DungeonScreen extends ScreenAdapter {
         game.requireRunSession().context().state(),
         wallTexture,
         floorTexture,
+        stairsTexture,
+        trapTexture,
         playerTexture,
         enemyTextures);
     batch.begin();
@@ -661,6 +671,14 @@ public final class DungeonScreen extends ScreenAdapter {
     if (floorTexture != null) {
       floorTexture.dispose();
       floorTexture = null;
+    }
+    if (stairsTexture != null) {
+      stairsTexture.dispose();
+      stairsTexture = null;
+    }
+    if (trapTexture != null) {
+      trapTexture.dispose();
+      trapTexture = null;
     }
     // Wave 10 W10-β: スプライト Texture を順次解放 (ELITE_SLIME は SLIME と同 Texture 共有のため重複 dispose 回避)
     if (playerTexture != null) {

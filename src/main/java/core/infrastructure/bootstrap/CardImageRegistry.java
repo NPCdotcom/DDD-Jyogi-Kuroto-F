@@ -32,21 +32,10 @@ public final class CardImageRegistry implements Disposable {
   private static final String DEFAULT_EXT = ".png";
   private static final String FALLBACK_PATH = "icons/cards/test.png";
 
-  /** Wave 10 W10-γ: 全カード共通の枠テクスチャ (合成描画用、{@link core.presentation.render.CardRenderer} 経由)。 */
-  private static final String FRAME_PATH = "icons/cards/card_frame.png";
-
   private final Map<CardId, Texture> textures = new HashMap<>();
   private Texture fallbackTexture;
 
-  /** Wave 10 W10-γ: カード枠テクスチャ (起動時に 1 度だけロード、null 時は枠なし描画にフォールバック)。 */
-  private Texture frameTexture;
-
   private CardImageRegistry() {}
-
-  /** カード枠テクスチャ (Wave 10 W10-γ)。欠落時は null、呼出側は null チェックで描画スキップ。 */
-  public Texture frame() {
-    return frameTexture;
-  }
 
   /**
    * クラスパスからマッピングをロードし、各 PNG を Texture 化する。LibGDX の {@code Gdx} 初期化後に呼ぶこと。 欠損は警告ログ + fallback で吸収する。
@@ -77,23 +66,7 @@ public final class CardImageRegistry implements Disposable {
       LOG.log(Level.WARNING, "Failed to load card_image_map.json (using fallback only)", e);
     }
     registry.loadFallback();
-    registry.loadFrame();
     return registry;
-  }
-
-  /** Wave 10 W10-γ: 枠 Texture をロード。欠落時は null のまま (CardRenderer 側で null チェック → 枠なし描画)。 */
-  private void loadFrame() {
-    try {
-      FileHandle fh = Gdx.files.internal(FRAME_PATH);
-      if (fh.exists()) {
-        frameTexture = new Texture(fh);
-        applyPixelFilter(frameTexture);
-      } else {
-        LOG.warning("Card frame image not found: " + FRAME_PATH);
-      }
-    } catch (Exception e) {
-      LOG.log(Level.WARNING, "Failed to load card frame texture", e);
-    }
   }
 
   private void loadFallback() {
@@ -167,10 +140,6 @@ public final class CardImageRegistry implements Disposable {
     if (fallbackTexture != null) {
       fallbackTexture.dispose();
       fallbackTexture = null;
-    }
-    if (frameTexture != null) {
-      frameTexture.dispose();
-      frameTexture = null;
     }
   }
 }
