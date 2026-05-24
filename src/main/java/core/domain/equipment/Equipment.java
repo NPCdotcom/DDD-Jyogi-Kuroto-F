@@ -1,0 +1,67 @@
+package core.domain.equipment;
+
+import core.domain.card.CardId;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+/**
+ * 装備品 (§15-9 / ADR-20 B 案 / ADR-25)。1 部位スタート (ADR-08 維持) で、ステ補正 + 装備固有カード自動付与を表現。
+ *
+ * <p>{@code grantedCards} は空リスト可。装備変更時は層末ショップノードのみで行い、戦闘中の装備変更は禁止 (ADR-26)。 装備変更時は {@link
+ * core.domain.card.CardPileState} を再生成する (山札・手札・捨て札はリセット)。
+ *
+ * <p>耐久・特殊能力なし (§15-9)。{@code themeName} は UI テーマ変動 (§7-2 / W4-ε) 用、{@code iconPath} は装備画面のアイコン描画
+ * (Wave 10 W10-γ) 用。 未設定 ({@code Optional.empty()}) の場合はそれぞれデフォルトテーマ / 描画スキップにフォールバックする。
+ */
+public record Equipment(
+    EquipmentId id,
+    String displayName,
+    EquipmentSlot slot,
+    StatsBonus statsBonus,
+    List<CardId> grantedCards,
+    Optional<String> themeName,
+    Optional<String> iconPath) {
+
+  public Equipment {
+    Objects.requireNonNull(id, "id");
+    Objects.requireNonNull(displayName, "displayName");
+    if (displayName.isBlank()) {
+      throw new IllegalArgumentException("displayName must not be blank");
+    }
+    Objects.requireNonNull(slot, "slot");
+    Objects.requireNonNull(statsBonus, "statsBonus");
+    Objects.requireNonNull(grantedCards, "grantedCards");
+    grantedCards = List.copyOf(grantedCards);
+    themeName = Objects.requireNonNullElse(themeName, Optional.empty());
+    iconPath = Objects.requireNonNullElse(iconPath, Optional.empty());
+  }
+
+  /**
+   * {@code themeName} 省略コンストラクタ (後方互換)。{@code themeName = Optional.empty()} でデフォルトテーマになる。
+   *
+   * <p>既存の 5 引数 callsite (テスト等) が {@code Optional.empty()} 追加なしでコンパイルできるよう提供する。
+   */
+  public Equipment(
+      EquipmentId id,
+      String displayName,
+      EquipmentSlot slot,
+      StatsBonus statsBonus,
+      List<CardId> grantedCards) {
+    this(id, displayName, slot, statsBonus, grantedCards, Optional.empty(), Optional.empty());
+  }
+
+  /**
+   * {@code iconPath} 省略コンストラクタ (後方互換、Wave 10 W10-γ)。既存の 6 引数 callsite が iconPath なしで
+   * コンパイルできるよう提供する。
+   */
+  public Equipment(
+      EquipmentId id,
+      String displayName,
+      EquipmentSlot slot,
+      StatsBonus statsBonus,
+      List<CardId> grantedCards,
+      Optional<String> themeName) {
+    this(id, displayName, slot, statsBonus, grantedCards, themeName, Optional.empty());
+  }
+}

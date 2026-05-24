@@ -36,10 +36,30 @@
 
 | # | 機能 | 概要 | 優先度 |
 |---|---|---|---|
-| D-1 | Desktop ビルド | Gradle で Win/Mac/Linux 用 JAR 出力 | P0 |
+| D-1 | Desktop ビルド | Gradle で Win/Mac/Linux 用 JAR 出力。**基本解像度 1920×1080 ([GAME_DESIGN.md §15-1](./GAME_DESIGN.md))** | P0 |
 | D-2 | CI/CD 整備 | GitHub Actions で lint / build / test | P1 |
 | D-3 | デモシナリオ | プレイ動画 or ライブデモの構成 | P1 |
 | D-4 | Android ビルド | LibGDX Android backend (MVP後) | P2 |
+
+## カテゴリE: MVP 後の拡張機能 (§15 実装)
+
+> MVP 達成後に着手する拡張機能群。詳細仕様は [GAME_DESIGN.md §15](./GAME_DESIGN.md) を参照。
+>
+> **重要**: M1.5 (本番提出まで約 10 日) で全 10 項目の実装は困難。優先度は **P1 を初期値** としているが、**実装着手前にチームで再評価** し、[Schedule.md M1.5 チェックリスト](./Schedule.md) と整合させること。
+> 依存性が高く優先する目安: **E-1 (カード) / E-3 (層) / E-4 (通貨) / E-5 (装備) / E-6 (UI) は基盤、E-2 (ソウルツリー) は強化軸、その他は余力で実装**。
+
+| # | 機能 | 概要 | 優先度 |
+|---|---|---|---|
+| E-1 | カードシステム | タグ (移動/攻撃/バフ/罠) × 属性 (物理/魔法) のカード式デッキ。AP コスト最低 1 ([GAME_DESIGN.md §15-3](./GAME_DESIGN.md)) | P1 |
+| E-2 | ソウルツリー | 円樹形 + 派生ノード構造のソウル消費型強化ツリー ([GAME_DESIGN.md §15-7](./GAME_DESIGN.md)) | P1 |
+| E-3 | 層構造 / ノード分岐 | 初期 3 層、N 層 = N 部屋、ソウルで層拡張。層末に分岐ノード ([GAME_DESIGN.md §15-6](./GAME_DESIGN.md)) | P1 |
+| E-4 | 通貨二層構造 | ソウル (永続) / 金貨 (ラン限定) の二系統通貨 ([GAME_DESIGN.md §15-2](./GAME_DESIGN.md)) | P1 |
+| E-5 | ショップ / 装備 | ステ補正 + テーマ変動 + 装備固有カード。耐久・特殊能力なし ([GAME_DESIGN.md §15-9](./GAME_DESIGN.md)) | P1 |
+| E-6 | ウィンドウベース UI | ポップアップ式サブウィンドウ、基本解像度 1920×1080 ([GAME_DESIGN.md §15-1](./GAME_DESIGN.md), [§15-8](./GAME_DESIGN.md)) | P1 |
+| E-7 | Bestiary / 敵情報 | 敵の図鑑・情報閲覧機能 ([GAME_DESIGN.md §15-5](./GAME_DESIGN.md)) | P1 |
+| E-8 | シームレス戦闘進行 | グリッド上シームレス戦闘、敵 AP = 層番号 ([GAME_DESIGN.md §15-5](./GAME_DESIGN.md)) | P1 |
+| E-9 | セーブシステム拡張 | 層単位でのセーブ ([GAME_DESIGN.md §15-11](./GAME_DESIGN.md)) | P1 |
+| E-10 | チュートリアル | 初回ポップアップのみで実装 ([GAME_DESIGN.md §15-10](./GAME_DESIGN.md)) | P1 |
 
 ---
 

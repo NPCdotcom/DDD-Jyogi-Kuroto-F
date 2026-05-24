@@ -1,0 +1,624 @@
+# ai_log/decisions.md
+
+> **ADR (Architecture Decision Record) 風の不可逆判断ログ**。
+> 一度決めて、覆すのに大きなコストが伴う判断を追記専用で蓄積する。
+> Issue 本文や docs 改訂履歴に散らばる「なぜそうしたか」を集約。
+
+---
+
+## 形式
+
+```
+## ADR-NN: 短いタイトル
+
+- **Status**: Accepted | Superseded by ADR-MM | Deprecated
+- **Date**: YYYY-MM-DD
+- **Context**: 何が問題だったか、どんな選択肢があったか
+- **Decision**: 何を選んだか
+- **Consequences**: その結果として何が起きるか (良い影響と悪い影響)
+- **Reference**: 関連 Issue / PR / docs
+```
+
+---
+
+## ADR-01: AP モデルを蓄積型 → 使い切り型 (§15-3) に変える
+
+- **Status**: Accepted
+- **Date**: 2026-05-13
+- **Context**: MVP は AP 蓄積型 (`ActionPoints.regenerate(speed)` で上限まで貯まる)。§15 でカードデッキ構築型 (Slay the Spire 風) を採用するにあたり、AP の意味論が衝突
+- **Decision**: §15 では AP **使い切り型** に変更。毎ターン頭で速度ステ分まで全リセット、AP 切れ or 手札切れで相手ターン
+- **Consequences**:
+  - + Slay the Spire のメンタルモデル流用可能、初心者でも分かりやすい
+  - + 「今ターン使い切らないと損」の戦術的緊張感
+  - − MVP コードの `ActionPoints` / `TurnEngine` を書き直し必要 (M1.5 で対応)
+- **Reference**: [docs/GAME_DESIGN.md §15-3](../../docs/GAME_DESIGN.md), tasks/todo.md Phase 9 の breaking change リスト
+
+## ADR-02: Stats を 3 ステ → 6 ステ (§15-4) に拡張
+
+- **Status**: Accepted
+- **Date**: 2026-05-13
+- **Context**: MVP は HP / 速度 のみ、攻撃力 (`Stats.power`) を YAGNI で削除済。§15 でカードに物理 / 魔法属性を入れるため、防御も対応が必要
+- **Decision**: HP / 速度 / 物攻 / 魔攻 / 物防 / 魔防 の 6 種。ダメージ計算は `max(1, カード基礎値 + 物攻 - 物防)` 加減算のみ (最低 1 ダメ保証)
+- **Consequences**:
+  - + 物理 / 魔法のキャラビルドが成立
+  - + MVP の `Stats.power` 削除判断が「将来 2 つに分けて入れる」前提だったので整合
+  - − `Stats` record の引数増、テスト fixture 全部書き換え
+- **Reference**: [§15-4](../../docs/GAME_DESIGN.md), [phase_6_5_review.md](./phase_6_5_review.md) ドメイン層レビュー反映
+
+## ADR-03: UI を画面遷移 → ポップアップ式に変える
+
+- **Status**: Accepted
+- **Date**: 2026-05-13
+- **Context**: MVP は Screen 単位の画面遷移 (TitleScreen → DungeonScreen → GameOverScreen)。§15 で「シームレス戦闘 + 編成画面 + ソウルツリー + Bestiary」と画面要素が増加、画面遷移では UX が分断される
+- **Decision**: 全 UI を **Scene2D の Window でポップアップ式** に変更。FancyMenu Mod 的なイメージ。基本解像度 1920×1080、初回起動でプリセット 3 種 (ミニマル / 標準 / 情報マシマシ) から選ばせる
+- **Consequences**:
+  - + モードレス UI で「戦闘中も編成画面開ける」等の体験
+  - + テーマ変動 (装備系統で UI 着替え) と相性
+  - − MVP の `Screen` 群を全部書き直し必要
+  - − Stage / Window / Skin の習熟コスト
+- **Reference**: [§15-1, §15-8](../../docs/GAME_DESIGN.md)
+
+## ADR-04: 解像度 800×600 → 1920×1080 ベースに変更
+
+- **Status**: Accepted
+- **Date**: 2026-05-13
+- **Context**: MVP の `RenderLayout` は 800×600 ハードコード。ポップアップ UI 16 種を並べるには狭い
+- **Decision**: 1920×1080 ベース、ユーザー設定でリサイズ可能、ViewPort で吸収
+- **Consequences**:
+  - + フル HD で UI が映える、デモ映え◯
+  - − 全座標を比率化、`RenderLayout` 書き直し必要
+- **Reference**: [§15-1](../../docs/GAME_DESIGN.md)
+
+## ADR-05: 戦闘モードの境界を廃止 (シームレス戦闘)
+
+- **Status**: Accepted
+- **Date**: 2026-05-13
+- **Context**: 古典 JRPG は「ダンジョン探索 → 戦闘画面切替 → 戦闘終了 → 探索戻り」の境界がある。ToME / Nethack 系はそれを持たない
+- **Decision**: **戦闘モードという概念を廃止**。タイル単位ターン制ローグライク。プレイヤーが動かないと敵も動かない (待ち戦術 OK)、敵が居れば敵ターン、居なければスキップ
+- **Consequences**:
+  - + 画面遷移なしでテンポ◯
+  - + MVP の `DungeonState` 中心の設計と一致 (もともとシームレスだった)
+  - − Bestiary 連動の予告表示などで「動かないと敵も動かない」の長考対策が必要
+- **Reference**: [§15-5](../../docs/GAME_DESIGN.md)
+
+## ADR-06: 敵 AP = 層番号 N を据置き (バランス専門 C 評価でも変更しない)
+
+- **Status**: Accepted
+- **Date**: 2026-05-14
+- **Context**: バランス専門のサブエージェントから「敵 AP = 層番号は 3 層で敵 1 体が 12 ダメ/ターン → 3 ターンで HP 30 が溶ける、詰む」と C 評価を受けた
+- **Decision**: ユーザー判断で **据置き**。「指数的難易度」の意図は「プレイヤーが追いつかれて死亡 → 強化 → 再挑戦のローグライト的サイクル」を生むため、AP の同一性で実現する設計
+- **Consequences**:
+  - + ローグライト的な死亡 → 再挑戦のリズム生成
+  - − プレイテストで「詰む」「リトライ多すぎ」が出たら HP / 攻撃力側で再調整 (AP は変えない)
+- **Reference**: [phase_6_5_review.md](./phase_6_5_review.md) のバランス専門 C 評価、[§15-5](../../docs/GAME_DESIGN.md)
+
+## ADR-07: クリア条件は階段踏破のみ (敵全滅では遷移しない)
+
+- **Status**: Accepted
+- **Date**: 2026-05-12 (MVP 段階で確定)
+- **Context**: MVP の初期実装では「敵全滅で CLEARED」だったが、敵 1 体配置の MVP では撃破直後に毎回クリア = 戦闘体験が薄い
+- **Decision**: クリア条件は **階段踏破のみ**。敵全滅は単に敵がいなくなるだけ
+- **Consequences**:
+  - + ローグライク的踏破感
+  - − 敵を避けて階段直行が最適戦略になりうる (敵配置で対策)
+- **Reference**: [§15-6](../../docs/GAME_DESIGN.md), [phase_6_5_review.md](./phase_6_5_review.md) 全体レビュー反映
+
+## ADR-08: 装備は 1 部位スタート、耐久値なし、特殊能力なし
+
+- **Status**: Accepted
+- **Date**: 2026-05-13
+- **Context**: タルコフ風の「装備耐久」は MVP § で示唆されていたが、UI が煩雑、楽しみより面倒さが勝つ可能性
+- **Decision**: 装備は **1 部位**、耐久なし、特殊能力なし、ステ補正 + UI テーマ変動 + 装備固有カードのみ
+- **Consequences**:
+  - + 実装が極シンプル
+  - + 装備固有カードがソウルツリー連動 (初期装備 = 初期デッキ) で綺麗に設計統合
+  - − 「装備の個性」が薄くなる、ハッカソン後にカード固有効果で差別化検討
+- **Reference**: [§15-9](../../docs/GAME_DESIGN.md)
+
+## ADR-09: ソウルツリーはリセット可能 (1 回 5 ソウル)
+
+- **Status**: Accepted
+- **Date**: 2026-05-13
+- **Context**: Path of Exile 風 Passive Tree は通常リセット不可だが、ハッカソン規模ではビルド試行 / デバッグの容易性が重要
+- **Decision**: **リセット可能**、1 回 5 ソウル消費、消費したソウル残量は復元、ラン中の取得カード・装備は影響なし
+- **Consequences**:
+  - + ビルド試行が気軽、デバッグも楽
+  - − 「永続強化」の重みが薄れる、本番では微課金にして「不可逆らしさ」を残す
+- **Reference**: [§15-7](../../docs/GAME_DESIGN.md)
+
+## ADR-10: Stop hook で全テスト走行 ON (ユーザー要望)
+
+- **Status**: Accepted
+- **Date**: 2026-05-14
+- **Context**: サブエージェントは「応答ごとに 17 秒待ちは体感速度損失」と OFF 推奨だったが、ユーザーは「テスト毎回 ON、仕様固めて意味のあるテスト最初から書けば AI が書いてもちゃんと動く」と主張
+- **Decision**: `.claude/settings.json` で `Stop` hook により **全テスト走行を常時 ON**
+- **Consequences**:
+  - + テスト書き忘れや破壊変更を即検知
+  - + 「意味のあるテスト」を最初から書く文化形成
+  - − 応答ごとに数十秒待つ (テスト件数が増えるほど顕在化)、後で時間問題になったら見直し
+- **Reference**: [.claude/settings.json](../../.claude/settings.json), [.claude/hooks/final-check.sh](../../.claude/hooks/final-check.sh)
+
+## ADR-11: フォントは DotGothic16 採用
+
+- **Status**: Accepted
+- **Date**: 2026-05-13
+- **Context**: Noto Sans JP 等の汎用日本語フォントは綺麗だが大きい (4.5MB)、ピクセル方針との相性も微妙。ユーザーが DotGothic16 (16 ドットフォント、SIL OFL 1.1) の ZIP を提供
+- **Decision**: `assets/fonts/DotGothic16-Regular.ttf` を採用、Nearest フィルタ + 16 倍数サイズ (16 / 32 / 48) で pixel-perfect
+- **Consequences**:
+  - + ピクセル方針との一貫性、ピクセルゲームらしい外観
+  - + 軽量 (約 2 MB)、SIL OFL 1.1 で再配布可
+  - − 漢字カバレッジは Noto より狭い (実用上問題なし)
+- **Reference**: [docs/AssetGuidelines.md](../../docs/AssetGuidelines.md), [LICENSES/INDEX.md](../../LICENSES/INDEX.md), [LICENSES/DotGothic16_OFL.txt](../../LICENSES/DotGothic16_OFL.txt)
+
+## ADR-12: Agent Teams は当面 OFF
+
+- **Status**: Accepted
+- **Date**: 2026-05-14
+- **Context**: Claude Code 2026 の Agent Teams (実験機能) は M1.5 並列実装に魅力的だが、トークン 3〜5 倍消費、不安定性、Claude Max 上限懸念
+- **Decision**: **当面 OFF**。Subagent + Skills + Hooks 運用が落ち着いてから段階導入を検討
+- **Consequences**:
+  - + Claude Max のトークン上限を守りやすい
+  - + 単一セッション + Subagent 呼出という枯れたパターンを徹底
+  - − 真の並列実行はできない (1 Claude セッション内で逐次)
+- **Reference**: [CLAUDE.md](../../CLAUDE.md) の「Agent Teams は当面オフ」記述、[PR #11](../../) 本文
+
+## ADR-13: mvp ブランチを develop に `-X ours` で統合
+
+- **Status**: Accepted
+- **Date**: 2026-05-14
+- **Context**: mvp ブランチに MVP コード一式 + ドキュメント (MVP 段階の説明)、develop に §15 仕様反映済 docs。`docs/` が両方で更新されていて衝突多数
+- **Decision**: `git merge mvp -X ours` で **develop 側を優先**、コード一式は新規追加で取り込み
+- **Consequences**:
+  - + docs の §15 反映 + MVP コード + ビルド基盤 がすべて develop に揃う
+  - + 衝突解消が自動 (`-X ours`)、手動コンフリクト解消ゼロ
+  - − mvp 側の docs (MVP 段階の説明) は失われる (= 履歴を mvp ブランチで参照する必要、ただしリポジトリ参照ブランチとして保持)
+- **Reference**: commit `4a9382f` の merge ログ、[handoff.md](./handoff.md) 直近のマージ済成果
+
+## ADR-14: PR は Draft で出して self-merge 可 (リーダー権限)
+
+- **Status**: Accepted
+- **Date**: 2026-05-14
+- **Context**: [ContributingGuide §3](../../docs/ContributingGuide.md) は「人間レビュー 1 名以上必須」だが、リーダー単独運用 (AI 駆動) の現状ではボトルネックになる
+- **Decision**: 整備・docs 更新等の **低リスク PR はリーダー権限で self-merge 可**。コードの設計変更を伴う PR はチームレビュー必須を維持
+- **Consequences**:
+  - + リーダーの開発テンポを保てる
+  - + AI レビュー (`final-architect`) で品質ゲートを担保
+  - − ContributingGuide のルール (人間レビュー必須) と乖離、いずれ更新が必要
+- **Reference**: [PR #11](../../), [PR #9](../../) の self-merge 運用
+
+## ADR-15: E-7 Bestiary は P2 (捨て候補) に降格
+
+- **Status**: Accepted
+- **Date**: 2026-05-14
+- **Context**: サブエージェント PM レビューで M1.5 スコープ過大 (10 機能 10 日) を指摘。E-7 Bestiary は他機能と独立性が高く、デモシナリオ §15-12 にも必須でない
+- **Decision**: E-7 を **P2 (本番後)** に降格、M1.5 では P0' (E-1 / E-3 / E-4 / E-6 / E-2) を優先
+- **Consequences**:
+  - + M1.5 のリアルなスコープ縮小、本番までに到達可能
+  - − 「敵を倒すたびに図鑑記録」というメタ進行的楽しさは本番には間に合わない
+- **Reference**: [tasks/todo.md Phase 9](../todo.md), [phase_6_5_review.md](./phase_6_5_review.md) チームメイト視点レビュー
+
+## ADR-16: E-1 カードシステムのドメイン設計を確定
+
+- **Status**: **Accepted (ユーザー承認済、実装はコンテキスト圧縮後の次セッションで)**
+- **Date**: 2026-05-14
+- **Context**: M1.5 P0' の E-1 (カードシステム、§15-3) 実装にあたり、`core.domain.card/` パッケージのドメイン構造を確定する必要があった。domain-architect Agent が設計案を提案、ユーザーが承認
+- **Decision**: 以下のドメイン構造で実装する:
+
+  ```
+  core.domain.card/
+  ├── CardId.java          record(String value), of(String) ファクトリ
+  ├── CardTag.java         enum: ATTACK, MOVEMENT, BUFF, TRAP
+  ├── CardElement.java     enum: PHYSICAL, MAGICAL (ハイブリッドは YAGNI)
+  ├── Card.java            record(CardId, String displayName, int apCost,
+  │                                 CardTag, CardElement, CardEffect)
+  │                        ※ apCost >= 1 を compact constructor で強制
+  ├── CardEffect.java      sealed interface permits Damage, Move, Buff, Trap
+  │                          ├ record Damage(int baseValue)
+  │                          ├ record Move(int distance)
+  │                          ├ record Buff(BuffKind kind, int amount, int durationTurns)
+  │                          └ record Trap(int baseValue, TrapLifetime lifetime)
+  ├── TrapLifetime.java    sealed interface permits UntilStepped, Turns
+  │                          ├ record UntilStepped()   // 物理罠
+  │                          └ record Turns(int remaining)  // 魔法罠
+  ├── Deck.java            record(List<Card> cards) 静的マスター
+  ├── DrawPile.java        record(List<Card> cards), drawOne(), shuffledFrom(List, Random)
+  ├── DiscardPile.java     record(List<Card> cards), add(Card), reshuffleInto(Random)
+  ├── Hand.java            record(List<Card> cards), MAX_SIZE=9, add(Card), remove(int)
+  └── CardPileState.java   record(DrawPile, Hand, DiscardPile)
+                           initialDrawCount(int totalDeckSize) static
+                           drawN(int n, Random rng), playFromHand(int)
+  ```
+
+  **核となる設計判断**:
+  1. Card は単一 record (8 サブクラスを作らない)、多態性は CardEffect (sealed) に集約 — KISS
+  2. CardPileState で戦闘中の動的状態を局所閉包 (山札切れ → 捨て札再シャッフルもここ)
+  3. Random は引数注入、ドメイン副作用ゼロ (テスト時は決定的シードで検証)
+  4. TrapLifetime を sealed で物理/魔法の差を型表現 (boolean フラグにしない、驚き最小)
+  5. すべての List フィールドは compact constructor で `List.copyOf` (defensive copy)
+
+  **数値定数 (CardPileState 内 `static final`)**:
+  - `MAX_HAND_SIZE = 9`
+  - `INITIAL_DRAW_CAP = 3`
+  - `DRAW_CONVERGENCE_DECK_SIZE = 6`
+
+- **Consequences**:
+  - + KISS / 不変性 / 副作用分離 / sealed 網羅性 を守れる
+  - + テスト容易 (決定的シードで山札シャッフル検証可)
+  - + 既存 `SkillEffect` (sealed) と並列で共存 (統合しない、§15-3 のスキル枠 + デッキ併存を尊重)
+  - − **依存事項 A〜E** が別途必要 (本 ADR では `core.domain.card/` のみ実装):
+    - **A**: `ActionPoints` 蓄積→使い切り型書き換え (§15-3 ターン終了条件)
+    - **B**: `Stats` 6 ステ化 (物攻/魔攻/物防/魔防 追加、ダメージ計算で使う)
+    - **C**: `Direction8` 新設 (罠の周囲 8 方向用、`Direction` は 4 方向のまま残す)
+    - **D**: `BattleAction.UseCard(int handIndex, Direction)` 追加 + `TurnEngine` switch 全網羅修正
+    - **E**: `core.domain.equipment.Equipment` 新設 (装備固有カードを `List<CardId>` で持つ)
+  - − E-1 単体では「ゲーム内で動くカード」にはならない。動かすには A〜E の少なくとも一部が必要
+
+- **次セッションでの作業順** (圧縮後の Claude が読む想定):
+  1. ブランチ `feat/#12/E-1-card-skeleton` をチェックアウト
+  2. 上記 11 ファイルを `core/domain/card/` に Write (`domain-architect` Agent に再依頼してもよい)
+  3. `test-writer` Agent で `src/test/java/core/domain/card/` 配下のテスト追加 (検証ポイント 6 種):
+     - `Card.apCost = 0` で例外 / `>= 1` で成功
+     - `Hand` の 10 枚目 add で例外
+     - `CardPileState.initialDrawCount`: deck=1→1, deck=3→3, deck=5→3, deck=6→5, deck=10→5
+     - `drawN` で山札切れ時に Random で再シャッフル (固定シードで決定的検証)
+     - `CardEffect` sealed switch 網羅性
+     - `TrapLifetime.Turns(remaining=0)` で例外
+  4. `gradlew test` で既存 61 件 + 新規 ~15 件全 PASS 確認
+  5. `/architect-review` で最終レビュー (A or B 判定なら次へ)
+  6. `/japanese-pr-create draft` で Draft PR
+  7. 別 Issue を立てて依存 A〜E を順次着手
+
+- **Reference**: [Issue #12](https://github.com/NPCdotcom/DDD-Jyogi-Kuroto-F/issues/12), [docs/GAME_DESIGN.md §15-3](../../docs/GAME_DESIGN.md), [.claude/agents/domain-architect.md](../../.claude/agents/domain-architect.md), domain-architect Agent 出力 (本セッション、2026-05-14)
+
+## ADR-17: ダメージ計算は CardEffect.Damage.resolve に置く + fixture 新フィールドは暫定 0 埋め
+
+- **Status**: Accepted (3 サブエージェント並列レビュー結論、ユーザー承認済)
+- **Date**: 2026-05-14
+- **Context**: ADR-02 で「Stats を 6 ステ化、ダメージ計算は `max(1, 基礎値 + 物攻 - 物防)`」と確定したが、計算ロジックをどこに置くかは未定。設計時の候補 4 案:
+  - (a) `Stats` 内 static method
+  - (b) `core.domain.battle.DamageFormula` 新クラス
+  - (c) `TurnEngine` 内 private method
+  - (d) `CardEffect.Damage` record にメソッド追加
+
+  3 サブエージェント (domain-architect 自己再評価 / general-purpose docs 横断 / final-architect 8 原則) で並列検証した結果、(b) と (d) の対立があり、final-architect が「battle → card は層越境、card 層内に閉じる (d) が依存方向クリーン」と指摘。実コード調査で `core.domain.battle` は現状 `core.domain.card` を一切 import していないことが確認された。
+- **Decision**: 以下を採用
+  1. ダメージ計算は **`CardEffect.Damage.resolve(Stats attacker, Stats defender, CardElement element)`** メソッドとして `CardEffect.Damage` record 内に置く ((d) 案)
+  2. `core.domain.battle.DamageFormula` 新クラスは **作らない** (KISS、層越境回避)
+  3. `Stats` 内 static method は **作らない** (entity → card 逆方向依存を回避)
+  4. `SkillEffect.Damage` は **触らない** (Skill = 固定ダメ継続、対称性確保 = `SkillEffect.Damage.amount` をそのまま使う)
+  5. `Stats` に `withPhysicalAttack` 等の `with*` メソッドは **本 PR で追加しない** (バフ適用 Issue で必要時に追加、YAGNI)
+  6. fixture (`DomainFixtures.java:63,78` / `InitialStateFactory.java:77,87`) の新フィールド 4 つは **暫定 0 埋め**。プレイヤー / 敵のキャラビルド数値は別 Issue で再設計 (本 PR スコープ外)
+- **Consequences**:
+  - + 依存方向が `battle → card → entity` のクリーンな単方向に保たれる
+  - + `CardEffect.Damage` 自身が「自分のダメージ確定」責務を持つ自然な設計
+  - + Skill 経路と Card 経路の意味論分離が明確 (Skill=固定ダメ、Card=計算式)
+  - + fixture 暫定 0 埋めにより既存 TurnEngineTest 全 PASS を保てる (`max(1, 15+0-0) = 15` で等価)
+  - − キャラビルド数値設計が別 Issue になり、ゲーム内バランスは本 PR で確定しない
+  - − ADR-16 の `CardEffect.java` Javadoc 「application 層の解決器 (TurnEngine 等) が Stats と組み合わせて算出」と若干齟齬。実装時に Javadoc を「CardEffect.Damage.resolve が算出、TurnEngine は結果を反映」に書き換える
+  - − Issue #15 のスコープが「Stats 7 引数化 + CardEffect.Damage.resolve + テスト」に狭まる (DamageFormula 廃案、with\* 廃案、fixture 数値設計は別 Issue)
+- **Reference**: ADR-02, ADR-16, [Issue #15](https://github.com/NPCdotcom/DDD-Jyogi-Kuroto-F/issues/15), 3 サブエージェント並列レビュー出力 (本セッション、2026-05-14)
+
+## ADR-18: CardPileState は Player record に内蔵 + UseCard は Damage カードのみ実装
+
+- **Status**: Accepted (3 サブエージェント並列レビュー結論、main session 統合判断、ユーザー承認済)
+- **Date**: 2026-05-14
+- **Context**: 依存事項 D (BattleAction.UseCard + TurnEngine カード解決統合) の最大の設計分岐 = `CardPileState` の所有者をどうするか。初版 (domain-architect) は **案 Y (DungeonState に Map で集約)** を推奨したが、3 並列レビューで final-architect と domain-architect 自己再評価が **案 X (Player に内蔵)** を推奨。general-purpose は ADR-16 の「戦闘中の動的状態を局所閉包」を根拠に案 Y を推奨し、3 観点で意見分岐。
+
+  分岐点の整理:
+  - **案 X (Player に CardPileState 内蔵)**: `Player(ActorId, Position, Stats, ActionPoints, SkillSlot, Soul, CardPileState)` 7 引数化
+  - **案 Y (DungeonState に Map で集約)**: `DungeonState(..., Map<ActorId, CardPileState>)` 5 引数化
+  - **案 Z (PlayerCards 中間 record)**: 1:1 関係を 1 階層余分に包む、却下
+
+- **Decision**: 以下を採用
+  1. **案 X (Player に CardPileState 内蔵)** を採用 — 投票 2 対 1、実測コスト最小、ドメイン意味論的整合
+  2. `Player` record を 6 引数 → 7 引数化 (`CardPileState cardPileState` 追加)、`withCardPileState` 1 メソッド追加、既存 4 with* で新フィールド伝播
+  3. `BattleAction.UseCard(int handIndex, Direction direction)` を sealed permits に追加 (`direction` は本 Issue では Damage カードの隣接攻撃方向指定で必須)
+  4. **Damage カードのみ実装**、Move/Buff/Trap は `BattleEvent.ActionRejected` で「未実装のカード効果」を明示 (本 Issue スコープ外、別 Issue で実装)
+  5. `BattleEvent.CardUsed` は **新設しない**、既存 `SkillUsed(ActorId, String)` を流用してカード表示文言 (`card.displayName()`) を渡す (YAGNI)
+  6. `TurnEngine.resolveDamageToEnemy/Player` を `int finalDamage` 受け取り形に統一 (DRY、Skill 経路と Card 経路で共有)
+  7. `CardPileState.empty()` static factory を追加 (Player 初期生成時に空デッキ状態を渡せるよう)
+  8. `InitialStateFactory.newPlayer` / `DomainFixtures.playerAt` を 7 引数化、`CardPileState.empty()` を渡す (Deck 接続は別 Issue / E-5 Equipment で後付け)
+  9. TurnEngineTest に UseCard 系 6 件追加: 正常系 / AP 不足 / 対象不在 / Hand 範囲外 / MAGICAL 属性ダメ計算 / 敵 UseCard reject
+
+- **Consequences**:
+  - + 依存方向が `entity → card` 追加 (既存 `entity → skill` の前例ありで驚き最小)
+  - + 実装コスト最小 (実測: `new Player(...)` 直接呼出 2 箇所 + `with*` 内部 4 箇所伝播)
+  - + Player の「持ち物」「戦闘中状態」が record 内に一元化、§15-9 Equipment 系列との所有レイヤー統一
+  - + Skill 経路と Card 経路の対称性確保 (固定ダメと計算式ダメの差を `int finalDamage` 受け取り形で吸収)
+  - − `Player` record が 6 → 7 引数化 (fat record の懸念だが、§15 全体で見れば必然)
+  - − 戦闘終了時に CardPileState を `empty` 化するロジックが将来必要 (現状はラン中ずっと保持で OK、明示クリアは別 Issue)
+  - − general-purpose 指摘「Deck=永続 / CardPileState=戦闘中限り」の二層分離は、本 PR では `CardPileState` のみ Player に持たせ、Deck (永続) は別 Issue / E-5 Equipment で後付けする形で両立 (Deck 接続は本 PR スコープ外)
+  - − Move/Buff/Trap カードを本 Issue で reject するため、E-1 単体ではまだゲーム内で「攻撃カードのみ」しか使えない (Move/Buff/Trap は別 Issue で順次)
+
+- **Reference**: ADR-05 (戦闘モード境界廃止), ADR-16 (E-1 カード設計), ADR-17 (Damage.resolve 配置), [Issue #18](https://github.com/NPCdotcom/DDD-Jyogi-Kuroto-F/issues/18), 3 サブエージェント並列レビュー出力 (本セッション、2026-05-14)
+
+## ADR-19: 毎ターンドロー 1 枚を本日実装 / 移動カード化は明日以降に E-5 装備とセットで実装
+
+- **Status**: Accepted (3 サブエージェント並列レビュー結論、ユーザー承認済)
+- **Date**: 2026-05-14
+- **Context**: M1.5 コア機能 (PR #21) 完成直後、リーダーから 2 つの追加要望が来た:
+  - (1) **毎ターン (プレイヤーターン頭) ドロー** — §15-3 「ターン終了条件: AP 切れ or 手札切れ」「Slay the Spire のエナジー近似」を踏まえると StS 流の毎ターン補充ドローが暗黙仕様
+  - (2) **移動のカード化** — §15-5 「移動カードを切らないと動けない (Slay the Spire 純粋路線)」(L534) で明文化、§15-9 「ぼろ靴 (固有: 移動カード)」(L711) で初期装備設計
+
+  ADR-18 では Move/Buff/Trap カード実装を「本 PR スコープ外、別 Issue で順次」と保留中。今回の要望はこの「別 Issue」の前倒し相当。
+
+  3 並列レビュー (domain-architect / final-architect / general-purpose) の意見:
+  - **毎ターンドロー**: 全員賛成、§15-3 / StS 準拠、実装規模小 (TurnEngine + TurnDirector + DddGame で 30 行程度)
+  - **移動カード化**: 意見分岐 (X 完全廃止 / Y 共存 / 今日見送り)。final-architect は「ADR-18 と矛盾、E-5 装備 (ぼろ靴) + EnemyAi の Move 利用調査 + sealed permits 改修が連鎖し軽量修正にならない」と保留推奨
+
+- **Decision**: 以下を採用
+  1. **毎ターン 1 枚ドローを本日実装** — `TurnEngine.startPlayerTurn(DungeonState, Random)` に Random 引数を追加し、内部で `player.cardPileState().drawN(1, rng)` を呼ぶ。AP リフィル + ドローを 1 メソッドで担う
+  2. **API 破壊許容** — `startPlayerTurn(state)` → `startPlayerTurn(state, Random)` は ADR-16「Random 引数注入」と整合するため許容。caller の `TurnDirector` / `DddGame` も Random を保持・注入する
+  3. **ドロー枚数は 1 枚固定** — §15-3 仕様で「毎ターンドロー枚数」は未明文。1 枚固定が最小実装、Hand 上限 (`MAX_HAND_SIZE=9`) で自然に停止。将来「速度ステ連動」「StS 流 5 枚 (initialDrawCount 経由)」への拡張は別 Issue
+  4. **山札切れ時の挙動** — `drawN` 内で自動再シャッフル (CardPileState.drawN 既設、§15-3 通り)
+  5. **移動カード化は本日見送り、明日 5/15 以降に E-5 装備とセットで実装** — 仕様は §15-5 で明文化されているが、E-5 (ぼろ靴 = 装備固有カードで初期デッキ構成) + EnemyAi の Move 利用調査 + `BattleAction.Move` 廃止 (or プレイヤー側だけ reject) + `PlayerInputs.pollNormalMode` WASD 経路改修と連鎖。軽量修正のスコープを超えるため別 Issue 起票
+  6. **移動カード化の最終案は別 ADR で確定する** — 案 X (完全廃止) / 案 Y (WASD = 移動カード自動プレイ) / 案 Z (ショートカット) のうちどれを採るかは、E-5 装備実装時に再評価して新 ADR で記録
+
+- **Consequences**:
+  - + StS 風カードゲームのテンポが今日のうちに成立 (毎ターンで手札補充が見える)
+  - + ターン終了条件「AP 切れ or 手札切れ」の手札切れ側が現実的な閾値になる
+  - + `TurnEngine` 純関数性は保たれる (Random 引数注入で副作用分離維持、ADR-16 と整合)
+  - + 移動カード化を別 Issue にしたことで ADR-18 (Move/Buff/Trap は別 Issue) と矛盾せず、計画的に着手可能
+  - − 移動は当面 WASD/矢印で動かせる状態が続き、§15-5 「移動カードを切らないと動けない」とは仕様乖離 (明日以降に解消予定)
+  - − `TurnDirector` コンストラクタ API が変わる (`new TurnDirector(context)` → `new TurnDirector(context, Random)`)、`DddGame.startNewRun` が `new Random()` を渡すため毎ラン異なるシード = 再現性は失われる (テストでは固定シード `Random(42)` を渡す)
+
+- **Reference**: §15-3 (L443-513), §15-5 (L529-569), ADR-01 (AP 使い切り型), ADR-16 (E-1 設計), ADR-17 (Damage.resolve), ADR-18 (Move/Buff/Trap は別 Issue)、3 サブエージェント並列レビュー (本セッション、2026-05-14)
+
+## ADR-20: M1.5 残仕様の一括確定 (移動 α 案 / 装備折衷 / 解像度 1920×1080 / 音タグ予約 / Android デモ動画代替)
+
+- **Status**: Accepted (3 サブエージェント並列レビュー結論 + ユーザー承認済)
+- **Date**: 2026-05-14
+- **Context**: M1.5 コア機能 (PR #21〜#23) 完成 + 毎ターンドロー実装後、リーダー (ユーザー) からチーム共有前提で 5 つの仕様確認・決定事項。3 並列レビュー (libgdx-implementer / domain-architect / general-purpose) で各論点を検証し、ユーザーが最終確定。
+- **Decision**:
+  1. **移動仕様 = 案 α** — 「移動カード 1 枚を切る → そのカードの `CardEffect.Move(distance)` の `distance` ぶん AWSD で連続移動権を得る」。`UseCard(handIndex, dir)` で「移動権取得」、その後 `PlayerInputs` の状態 (`pendingMoveCount`) を持ち、AWSD で 1 マスずつ消費。残カウント 0 で通常モード復帰。`§15-5` L534「移動カードを切らないと動けない」純粋路線を維持しつつ、方向操作の直感性を確保。案 β (WASD 自動プレイ) は「切る意識」が消えるため不採用、案 X (毎マス UseCard) は操作性最悪で不採用、案 γ (両刀共存) は §15-5 違反で不採用
+  2. **装備フォーマット = 案 B (折衷)** — `Equipment(EquipmentId id, String displayName, EquipmentSlot slot, StatsBonus statsBonus, List<CardId> grantedCards)` の 5 引数 record。`grantedCards` は **空リスト可** (ステ補正のみの装備も許容、§15-9 の「装備固有カード」と整合)。装備の個性は「ステ補正の組み合わせ」 + 「装備固有カードの有無」の 2 軸で表現。初期装備例: ぼろ靴 (速度+1, grantedCards=[移動カード ID]) / ぼろい短剣 (物攻+1, grantedCards=[斬撃カード ID]) / 革の鎧 (HP+5, grantedCards=[]) など。チームメンバー案「ステ補正のみ」は「特定装備で grantedCards=空」で表現可能
+  3. **画面解像度 = 1920×1080 (16:9) を今日中に着手** — `DesktopLauncher.setWindowedMode(1920, 1080)` + `setResizable(true)`、`FitViewport(1920, 1080)` で全 Screen を統一、`resize()` メソッドで `viewport.update(width, height, true)` 呼出。`RenderLayout` 定数を 1920×1080 基準に再計算、絶対座標箇所 (TitleScreen / GameOverScreen) を比率ベースに置換。素材作成は **1920×1080 基準** で。実装は本セッションで開始 (E-6 ポップアップ UI 基盤の前提整備)
+  4. **音タグ仕様 = M2 以降に予約** — `docs/GAME_DESIGN.md` には明文化されていないが、ユーザー提案として「主タグ (ATTACK/MOVEMENT/BUFF/TRAP) × 副タグ (PHYSICAL/MAGICAL) で SE を出し分け」を将来仕様として記録。本セッションでは実装しない。BGM / SE は本番デモまでに 2〜3 個あれば映え◯
+  5. **Android 方針 = Desktop 基本 + デモ動画代替** — §15-12 「Doko-demo (クロスプラットフォーム実演)」は本番デモの訴求軸だが、Android backend は未着手で 3〜5 日要する。**Desktop 単独で機能完成度を優先**、Android はビルドが通れば本番ライブで見せる、無理なら録画動画でクロスプラットフォーム感を補足。§15-12 のセーブ続きデモは Desktop 2 セッションで代替可能
+- **Consequences**:
+  - + 移動 α 案により §15-5 純粋路線 + 直感操作の両立、`UseCard` API 拡張不要 (`PlayerInputs` 状態追加のみ)
+  - + 装備 B 案により §15-9 仕様準拠 + チームメンバー案 (ステ補正のみ) を「grantedCards=空」で表現可能、柔軟性最大
+  - + 解像度を今日着手することで E-6 (ポップアップ UI) 着手時に解像度トラブル回避、素材作成基準も早期確定
+  - + 音タグ予約により今は他機能に集中可能
+  - + Android 方針確定でデモ準備にリソース集中、本番までに無理な実装を避けられる
+  - − 移動 α 案は `PlayerInputs` の状態管理が複雑化 (現状の 2 ステート: 通常 / カード選択中 → 3 ステート: 通常 / カード選択中 / 移動権保持中)。テスト網羅必須
+  - − 装備 5 引数 record で `Player` も `Optional<Equipment>` を持つことになり、`Player.finalStats()` で合算ロジックが必要 (E-5 実装時に対応)
+  - − 解像度変更で TitleScreen / GameOverScreen / HudRenderer の絶対座標を比率化する作業発生 (libgdx-implementer 見積 標準 2〜3h)
+- **Reference**: §15-1 (L405-419 解像度), §15-5 (L529-569 移動), §15-9 (L697-714 装備), §15-12 (L732-755 デモ), ADR-03 (ポップアップ UI), ADR-04 (1920×1080 確定), ADR-08 (装備 1 部位 / 耐久なし), ADR-18 (Move/Buff/Trap 別 Issue), ADR-19 (毎ターンドロー + 移動カード化予告), 3 サブエージェント並列レビュー (本セッション、2026-05-14)、ユーザー最終確定 (装備=B 案)
+
+## ADR-21: Move カード実装 + 移動 α 案 PlayerInputs ステート (Player.pendingMoveCount 保持)
+
+- **Status**: Accepted (3 サブエージェント並列レビュー結論、ユーザー承認済)
+- **Date**: 2026-05-14 (深夜継続セッション)
+- **Context**: ADR-20 で「移動 α 案: カード切る → distance ぶん AWSD で連続移動」を確定済だが、状態管理の置き場 (PlayerInputs 側 / Player record 側 / 両側) は未確定。3 並列レビューで:
+  - domain-architect: PlayerInputs 側 (ドメイン非侵食、案 ii)
+  - libgdx-implementer: 両側 (Player.pendingMoveCount をドメインで持つ、案 Z)
+  - final-architect: スコープを Move のみに絞れ、Buff/Trap は明日
+
+  libgdx-implementer の指摘「セーブ整合 + AP 切れ自動ターン終了との競合回避」が決定的。`TurnDirector.autoEndPlayerTurnIfApDepleted()` が AP 0 で発火し pendingMoveCount を宙ぶらりんにする競合状態を避けるため、ドメイン側 (Player) に状態を持つ判断。
+- **Decision**: 以下を採用
+  1. **`Player` record 8 引数化** — `int pendingMoveCount` を追加、`withPendingMoveCount(int)` 提供。compact constructor で 0 以上検証
+  2. **`TurnEngine.applyPlayerUseCard` の `CardEffect.Move` case 実装** — reject 解除、`pendingMoveCount = distance` を Player に設定 + AP cost ぶん消費 + Hand→Discard 移動 (UseCard の標準処理)。**カード使用時点では移動しない** (移動は次の AWSD 入力で発生、距離 1 のカードでも UseCard 直後に AWSD が必要)
+  3. **`TurnEngine.applyPlayerMove` の AP スキップ分岐** — `pendingMoveCount > 0` なら AP 消費せず 1 マス移動 + pendingMoveCount-- に。0 なら従来通り AP 1 消費の通常移動
+  4. **途中ブロックは reject 統一** — distance 2 で 2 マス目に壁 / 敵がある場合、移動キー押下を reject (AP 消費なし、pendingMoveCount も減らない)。final-architect「驚き最小」推奨
+  5. **`BattleEvent.MovementGranted(ActorId, int remainingSteps)` 新規追加** — UseCard(Move) で発火、HudRenderer が拾って「移動権 残 N 歩」表示
+  6. **`PlayerInputs` 3 ステート拡張** — 状態 2 = `state.player().pendingMoveCount() > 0` で WASD = `BattleAction.Move(direction)` (TurnEngine 側で AP 0 処理)。ESC でドメインに「pendingMoveCount リセット」アクションを送る (AP は戻さない、移動権破棄は YAGNI で AP 戻し回避)
+  7. **HudRenderer.drawHand** — `pendingMoveCount > 0` のとき画面に「移動権 残 N 歩」を CYAN で追加表示
+  8. **スコープは Move のみ** — Buff (`Player.activeBuffs`) と Trap (`DungeonState.placedTraps`) は明日 5/15 以降の別 PR、本 PR では引き続き reject 維持
+- **Consequences**:
+  - + §15-5 「移動カードを切らないと動けない」純粋路線を達成
+  - + dash カードがゲーム内で動作 (Damage 系のみだった現状から拡張)
+  - + セーブ時に pendingMoveCount が自然に永続化される (層単位セーブ、§15-11 と整合)
+  - + AP 切れと移動権の競合を完全に解消
+  - + ADR-20 の移動 α 案を実装完了
+  - − `Player` record が 8 引数化、record 引数 9 超え見直しタイミングと隣り合わせ (装備 E-5 追加で 9 引数 = 見直しライン)
+  - − Buff/Trap は引き続き reject、テンプレ提示の iron_skin / spike_trap は死札のまま (明日解決)
+  - − `BattleAction.Move(direction)` 自体は変更なし (AP 消費判定は TurnEngine 側に集約) で互換性維持、ただし TurnEngine の applyPlayerMove ロジックは pendingMoveCount 分岐で複雑化
+  - − DomainFixtures / InitialStateFactory の `new Player(...)` 呼出 2 箇所を 8 引数版に更新が必要 (デフォルト pendingMoveCount=0)
+- **Reference**: §15-5 (L529-569), ADR-18 (CardPileState を Player に内蔵), ADR-19 (毎ターンドロー + 移動カード化予告), ADR-20 (移動 α 案 / 装備 B 案 / 解像度確定), 3 サブエージェント並列レビュー (本セッション深夜、2026-05-14)、libgdx-implementer 指摘 (セーブ整合と AP 切れ競合回避)
+
+## ADR-22: Trap カード実装 (DungeonState 5 引数化 + PlacedTrap record + 踏み判定 + ライフタイム管理)
+
+- **Status**: Accepted (3 サブエージェント並列レビュー結論、test-writer による微修正含む)
+- **Date**: 2026-05-14 (深夜継続)
+- **Context**: ADR-21 で Move カードを完成させた後、ADR-18 / ADR-21 で「Move/Buff/Trap の本実装は別 Issue」と保留中の Trap を実装する。テンプレ (docs/templates/cards.json) で提示済の `spike_trap` を実動作させ、§15-3 「タグ × 属性」のうち TRAP × PHYSICAL/MAGICAL を網羅する。3 並列レビューで:
+  - domain-architect: 案 P (DungeonState 5 引数化、`List<PlacedTrap>`) 推奨
+  - final-architect: Gold 単独推奨 (Trap は Player 触らないが DungeonState 拡張のリスクあり、深夜帯非推奨)
+  - general-purpose: A + B 推奨 (テンプレ完全動作)
+
+  Gold (D) を 30 分で先行完了したため余力ありと判断、domain-architect 推奨に従い Trap 単独実装に着手。
+- **Decision**: 以下を採用
+  1. **`PlacedTrap` record 新設** — `(Position position, int baseValue, TrapLifetime lifetime, CardElement element)` の 4 引数。`decrementedLifetime()` / `isAlive()` / `resolveDamage(Stats victim)` を提供
+  2. **`DungeonState` 5 引数化** — `List<PlacedTrap> placedTraps` 追加、`withPlacedTraps`、`findTrapAt`、**4 引数互換コンストラクタ** で既存呼出を破壊しない
+  3. **`TurnEngine.applyPlayerUseCard` の Trap case 実装** — `reject` 解除 → `resolveCardTrap`、設置先 walkable チェック、同座標重複は **上書き** (3 並列レビュー結論「驚き最小 = 最新が優先」)、AP 消費 + Hand→Discard
+  4. **`TurnEngine.applyPlayerMove` / `applyEnemyMove` で踏み判定** — `checkAndTriggerTrap` 共通ヘルパ、player/enemy 両経路で罠検出 + ダメージ適用 + UntilStepped 除去 / Turns 維持
+  5. **`TurnEngine.startPlayerTurn` で Turns ライフタイム管理** — `Turns(N)` 罠を `Turns(N-1)` にデクリメント、0 で除去。`UntilStepped` 罠は据置 (踏まれるまで永続)
+  6. **罠ダメージ計算** — `PlacedTrap.resolveDamage(Stats victim)` で `max(1, baseValue - 物防 or 魔防)` (element に応じた防御参照)。**設置者ステ依存なし** (KISS、設置時スナップショット保存の複雑性を回避)
+  7. **`BattleEvent.TrapPlaced` / `BattleEvent.TrapTriggered` 新規追加** — sealed permits 拡張、HudRenderer の switch で日英文言対応
+  8. **`TrapLifetime.Turns` の制約緩和** — `remaining < 1` で例外 → `remaining < 0` で例外に緩和。理由: `decrementedLifetime()` が `Turns(1)` を `Turns(0)` (期限切れ中間値) に変換するため、設置時 (CardEffect.Trap の compact constructor) で `>= 1` を保証しつつ内部中間値 `0` を許容する KISS 判断。`TrapLifetimeTest` の該当ケース (`turnsRemainingZeroThrowsIllegalArgumentException`) を `turnsRemainingZeroIsAcceptedAsExpiredIntermediateValue` に書き換え
+- **Consequences**:
+  - + テンプレ提示済 `spike_trap` が実動作、§15-3 4 タグ × 2 属性 = 8 種のうち TRAP × PHYSICAL/MAGICAL が完全動作 (Buff のみ残)
+  - + 敵 AI 経路でも罠踏み判定が機能 (敵を罠タイルに誘導する戦術が成立)
+  - + DungeonState 4 引数互換コンストラクタで既存呼出 (DomainFixtures / InitialStateFactory) を破壊しない
+  - + `Turns(0)` を中間値として許容することで `decrementedLifetime()` が単純化、ライフタイム管理が KISS
+  - − `DungeonState` 5 引数化、`Player` も 8 引数のままで合計フィールド数は増加 (ただし `DungeonState` は引数見直しライン未到達、4→5 で余裕)
+  - − 罠ダメージ計算が「設置者ステ無視」なので、強化系装備で罠を強化する余地がない (将来必要なら PlacedTrap にスナップショット追加で拡張)
+  - − テスト追加 7 件 (`TurnEngineTest` 6 件 + `TrapLifetimeTest` 1 件書換)、合計 176 件 PASS
+- **Reference**: §15-3 (L443-513), ADR-16 (E-1 設計、Turns 制約を本 ADR で緩和), ADR-18 (Move/Buff/Trap 別 Issue 予告), ADR-21 (Move 実装、本 ADR-22 は連続実装の続き), 3 並列レビュー (本セッション深夜、2026-05-14)、test-writer による Turns(0) 中間値検出
+
+## ADR-23: E-3 層構造の最小実装 (Layer record + DungeonState.layer + advanceLayer)
+
+- **Status**: Accepted (Stage 1 メタレビュー + Stage 2 異質コホート [チーム/プレイヤー/審査員] 視点の統合判断、ユーザー実装続行宣言で進行)
+- **Date**: 2026-05-14 (深夜継続)
+- **Context**: 本セッションで 18 PR (#13〜#34) を消化。メタレビューで「multifaceted ≠ 並列数」「6 ラウンド中 5 が同質コホート (技術者 3 名)」を指摘され、Stage 2 で異質 3 並列を回した:
+  - **チームメイト視点**: 「もう休んでほしい、徹夜で品質落ちると私がカバーしきれない」← ユーザー判断で除外 (実装続行宣言)
+  - **プレイヤー視点**: 「Buff 緊急 5、戦略性ゼロは致命的」「現状『もう一回』のフックなし」「移動 α 案は直感じゃない (×)」
+  - **審査員視点**: 「**E-3 層構造を後回しは敗北筋**」「現状『お!』要素はゼロ」「Doko-demo は AI 駆動訴求に差し替えるべき」「残 9 日で E-3/E-2/E-6/演出/E-5 が必須、Buff/Gold 統合/セーブ/Android は捨ててよい」
+
+  プレイヤー + 審査員両視点の最大公約数として **E-3 (層構造)** を選択。Buff は明日以降に持ち越し。
+- **Decision**: 以下を採用 (本 PR はドメイン層 + infrastructure 静的メソッドのみ、UI 連動は別 PR)
+  1. **`core.domain.layer.Layer` record 新設** — `(int number, String displayName)`、`first()` / `next()` 静的ファクトリ
+  2. **`DungeonState` 6 引数化** — `Layer layer` 追加、`withLayer`、5 引数互換コンストラクタ + 4 引数互換コンストラクタ (Layer.first() で初期化) で既存呼出を破壊しない
+  3. **`InitialStateFactory.advanceLayer(DungeonState current)` 新設** — 現在の `Layer.next()` で層番号 +1、同じマップ流用、プレイヤーは持ち越し (位置だけ (1,1) にリセット)、敵 AP = 層番号 (ADR-06 と整合)、罠は層間で持ち越さない
+  4. **`InitialStateFactory.newSlimeForLayer(String, Position, int layerNumber)` 新設** — 敵 AP を層番号に応じて強化。既存 `newSlime(String, Position)` は `newSlimeForLayer(id, spawn, 1)` を呼ぶ互換ラッパに簡略化
+  5. **`BattleEvent.FloorAdvanced(int newLayer)` 新規追加** — sealed permits 拡張、HudRenderer の switch で日英文言対応 (「N 層に到達」)
+  6. **UI 連動 (CLEARED → 次フロア入力) は別 PR** — 本 PR では `advanceLayer` を呼ぶ責務は持たない (TurnDirector or DddGame での連結は明日 E-6 ポップアップ UI と一緒に)
+- **Consequences**:
+  - + 1 部屋ローグライト → **多階層ローグライトに進化**、§15-12 デモシナリオの「層末ノード」着手の前提整備
+  - + ADR-06 「敵 AP = 層番号 N」が初めて意味を持つ (1 層 = AP 1、2 層 = AP 2、3 層 = AP 3...)
+  - + プレイヤー視点の「もう一回のフック」が出る (フロア進行 = リプレイ性)
+  - + 審査員視点で「敗北筋を回避」、`spike_trap` / `dash` 等のテンプレカードが多階層で価値発揮
+  - − UI 連動 (CLEARED 画面 → ENTER で次フロア) は別 PR 必要 (本 PR だけでは実機で層遷移できない)
+  - − `DungeonState` が 6 引数 (Player 8 引数と合わせて record 拡大進行中)、集約 record (ADR-23+1) の検討タイミング近づく
+  - − 既存 `newSlime` の AP が 3 → 1 に変わる (ADR-06 通り)、初期難度は下がる方向 (これは仕様正しい状態への是正)
+- **Reference**: §15-6 (L605-630 層構造) / §15-12 (L732-755 デモシナリオ), ADR-06 (敵 AP = 層番号、本 ADR で初めて実装に反映), ADR-22 (DungeonState 5 引数化、本 ADR で 6 引数に拡張), メタレビュー (Stage 1) + 異質 3 並列 (Stage 2 プレイヤー + 審査員、チームメイト視点はユーザー判断で除外)、ユーザー実装続行宣言 (2026-05-14 深夜)
+
+## ADR-24: チームメイトカード提案 (5+5) の段階的採用
+
+- **Status**: Accepted (異質 3 並列レビュー [チームメイト/バランス / 技術 / プレイヤー試遊] の統合判断、ユーザー作業継続宣言)
+- **Date**: 2026-05-14 (深夜継続、23 PR 目相当)
+- **Context**: チームメイトから魔法系統一のカード 5 種 + 装備 5 種が JSON で提示された。本セッション最大の学び (ADR-23 同時の memory feedback_review_diversity.md) を実践し、**異質コホート 3 並列 (チームメイト視点 / 技術判断 / プレイヤー試遊)** で評価:
+  - **チームメイト/バランス視点**: 装備=ステ補正+grantedCard 1 枚の 1:1 対応が綺麗、blaze_nova/ember_shot で「軽量連打 vs 重量フィニッシャー」のロール分け明確。ただし全 5 種 MAGICAL 偏重で物理ビルド枯渇、次バッチで物理 5 種を依頼推奨
+  - **技術判断視点**: JSON ロード機構 (Jackson) は YAGNI、深夜帯にやらない。テンプレ追加 + 動くカード 4 種ハードコードが最小投資。装備は Player 9 引数化問題と一緒に明日 ADR-25 で
+  - **プレイヤー試遊視点**: ember_shot は fireball とビジュアル被り (`max(1, 2+2-0) = 4` ダメで 3 撃、fireball は 2 撃)、blink_step は 10x10 マップでスカ感、flame_circle は敵 AI が踏む動線設計と同期必要、物理偏重 2/5 で即採用は危険
+
+  3 視点共通の指摘: (1) arcane_veil (Buff) は今日入れない (死札確定)、(2) 装備 5 種は明日 E-5、(3) JSON ロード機構は YAGNI。
+- **Decision**: 以下を採用 (段階導入)
+  1. **テンプレファイル (`docs/templates/cards.json` + `equipments.json`) に 5 + 5 全件追加** — チームメイトの貢献を「採用済」として記録、Discord で「採用しました」と返答可能
+  2. **動くカード 4 種 (ember_shot/blaze_nova/blink_step/flame_circle) を `InitialStateFactory` に Java メソッドとして追加** — マスター登録のみ、将来「ショップ販売」「強化個体撃破時の選択肢」「装備固有カード解放」で参照される素材
+  3. **arcane_veil (Buff) は Java 化しない** — TurnEngine で reject されるため死札確定、明日 Buff 実装 (ADR-25) と同 PR で取り込み
+  4. **装備 5 種は本 PR では Java 化しない** — Equipment record 未実装、明日 E-5 で `Player` 引数増加問題 (8 → 9) と一緒に `PlayerStatuses` 集約 record 案 (ADR-25) を確定してから着手
+  5. **初期デッキは温存 (既存 4 枚据置)** — 既存 195 件テストの回帰を回避、プレイヤー視点で指摘された「ember_shot/blink_step の体験壊し」を回避。新カードは「マスターには登録されているが初期デッキには入らない」状態が §15 仕様の「初期デッキ = 装備固有カードのみ」と整合
+  6. **チームへの応答に「次バッチで物理 5 種お願い」を含める** — 物理偏重を緩和、見習いローブ STARTER 重複問題 (既存 tattered_boots/tattered_dagger と 3 種同時 STARTER) も次回 Discord で相談
+- **Consequences**:
+  - + チームメイトの貢献が「採用済」として残る (テンプレ + Java マスター)
+  - + 既存 195 件テスト完全保護 (初期デッキ不変)
+  - + プレイヤー視点の体験リスク (ビジュアル被り / スカ感) を回避
+  - + 深夜帯 23 PR 目の品質リスクを最小化 (30〜45 分の局所変更)
+  - + 明日の Buff 実装 (ADR-25) と装備実装 (E-5) で自然に合流できる土台が整う
+  - − arcane_veil と装備 5 種は本 PR では「動かない」、テンプレに記載のみ
+  - − 物理偏重は次バッチ依頼まで未解決
+  - − 「マスター登録だけして使わない」中間状態が一時的に発生 (明日のショップ実装 or 強化個体撃破イベントで解消)
+- **Reference**: ADR-22 (Trap 実装) / ADR-23 (E-3 層構造)、本セッション memory `feedback_review_diversity.md` (異質コホート必須)、Stage 2 異質 3 並列 (チームメイト+バランス / 技術 / プレイヤー試遊)、docs/templates/ (本 PR で 5+5 追加)、チームメイト JSON 提案 (2026-05-14 深夜)
+
+## ADR-25: PlayerStatuses 集約 record で Player を 6 引数化 (Buff + E-5 装備同時着地の前提)
+
+- **Status**: Accepted (2026-05-19 多角的レビュー [Plan agent / multi-perspective / devils-advocate] の統合判断)
+- **Date**: 2026-05-19 (M1.5 ハッカソン残り 4 日、本日 5/19 残り時間で起票 → 着手)
+- **Context**:
+  - `Player` record は現状 8 引数 (`id, position, stats, actionPoints, skillSlot, soul, cardPileState, pendingMoveCount`)。ADR-18 / ADR-21 で「9 引数 = record 設計見直しライン」を予告済
+  - 残り 4 日で着地予定の機能で引数追加圧力:
+    - **Buff カード実装** (§15-3): `List<ActiveBuff>` を Player に持たせる必要 → 9 引数
+    - **E-5 装備 (B 案 ADR-20)**: `Optional<Equipment>` を Player に持たせる必要 → 10 引数
+  - 多角的レビュー 3 並列で「8 引数維持」「集約 record」「Soul/Gold だけ集約」の 3 案を評価し、集約案を採用
+- **Decision**:
+  1. **`core.domain.entity.PlayerStatuses(Stats stats, ActionPoints actionPoints, SkillSlot skillSlot, Optional<Equipment> equipment, List<ActiveBuff> activeBuffs)`** 5 フィールド集約 record を新設
+  2. **`Player(ActorId id, Position position, Soul soul, PlayerStatuses statuses, CardPileState cardPileState, int pendingMoveCount)`** 6 引数に縮退
+  3. **`Player.effectiveStats() → Stats`** 純関数を新設: `statuses.stats().plus(equipment.statsBonus orElse zero).plus(buffSum)`。`TurnEngine` の全ダメージ計算は `effectiveStats()` 経由に変更 (素ステ + 装備補正 + Buff 合算を 1 箇所で表現)
+  4. **本セッションでは Equipment / ActiveBuff の record は空骨組み** (`Optional.empty()` / `List.of()` 初期化) で先に組み、E-5 (5/20) と Buff (5/21) で中身を埋める
+  5. **既存の `Player.stats()` / `actionPoints()` / `skillSlot()` アクセサは委譲メソッドとして残す** (大量の呼出箇所の機械的書換コストを最小化、戦闘ロジックは委譲経由でも素ステを参照可能)
+- **Consequences**:
+  - + Buff + E-5 装備を同じ「statuses」レイヤーに着地、HudRenderer の表示ロジックも `statuses` 単位で整理しやすい
+  - + `Player.effectiveStats()` で「素ステ + 装備補正 + Buff 合算」を 1 箇所表現、ダメージ計算系の重複を予防 (DRY)
+  - + 8 → 6 引数で record 行が読みやすくなり、`with*` メソッドのコピペが減る
+  - − `DomainFixtures` / `InitialStateFactory` / Player 関連テスト 24 件で一括書換が必要 (機械的、IDE リファクタで自動化容易)
+  - − `PlayerStatuses` 経由のアクセスが 1 段深くなる (`player.statuses().stats()` vs `player.stats()`) → 委譲メソッドで吸収
+  - − Enemy には適用しない (本 ADR は Player 限定、Enemy は §15 範囲で Buff/装備対象外)
+- **Alternatives (検討却下)**:
+  - **案 B (8 引数維持)**: KISS だが Buff + E-5 で 10 引数まで膨らみ、record の見通しが悪化。with* メソッドのコピペ量が累積する
+  - **案 C (Soul/Gold だけ MetaResources 集約)**: 中途半端、ADR-18 で導入した `Player.soul` の所在変更が無意味な書換を増やすため却下
+- **撤退ライン**: 5/19 22:00 までに `gradlew test` 全 PASS してなければ、4 引数集約 (Equipment/Buff を除外して `PlayerStatuses(Stats, ActionPoints, SkillSlot)` のみ) に縮退、Equipment/Buff は Player 直結で実装
+- **Reference**: ADR-18 (CardPileState を Player 内蔵) / ADR-21 (Player 8 引数化と「9 引数 = 見直しライン」予告) / ADR-22 (Trap 実装 + DungeonState 集約パターン)、Plan ファイル `c-program-code-ddd-jyogi-kuroto-f-tasks-gentle-galaxy.md` (2026-05-19 多角的レビュー結果)、§15-3 (Buff カード) / §15-9 (E-5 装備)
+
+## ADR-26: 装備固有カードの自動デッキ統合経路 (2 段持ち、装備変更時 CardPileState 再生成)
+
+- **Status**: Accepted (2026-05-19 多角的レビュー統合)
+- **Date**: 2026-05-19
+- **Context**: §15-9 で「装備を着けると対応カードが自動デッキ入り、外すとデッキから抜ける」。実装方式 3 案:
+  - (i) 装備変更時に `CardPileState` を再生成 → 戦闘中のデッキ書換問題あり
+  - (ii) `Player.effectiveDeck()` を毎ターン算出 → ターン途中で装備が無効化されるとデッキ状態が崩壊
+  - (iii) `Player.baseDeck` + `equipmentCards()` の 2 段持ち → 戦闘中の装備変更を「層末ノードのみ」に制限する仕様と整合
+- **Decision**:
+  1. **案 (iii) 2 段持ち を採用**。`InitialStateFactory.newPlayer` の `CardPileState` は装備の `grantedCards` から生成
+  2. **装備変更は層末ショップノードのみ** (LayerEndNode.Shop)、戦闘中の装備変更 UI は提供しない
+  3. **装備変更時の `CardPileState` 再生成 = ラン中の山札/手札/捨て札はリセット** (層末でしか変更できない仕様と整合、戦況リセットの体験は説明文で明示)
+- **Consequences**:
+  - + 仕様の「装備変更でデッキ更新」が層遷移単位で自然に成立
+  - + 戦闘中のデッキ書換問題を構造的に回避
+  - − 装備外し = 山札リセット = 戦況リセット、UI で説明必須 ("装備変更すると手札・山札がリセットされます")
+- **Reference**: §15-9 (装備固有カード) / §15-3 (デッキ管理) / ADR-20 (Equipment B 案)
+
+## ADR-27: Buff の所在は PlayerStatuses.activeBuffs のみ (Enemy Buff は M2 送り)
+
+- **Status**: Accepted (2026-05-19 多角的レビュー統合)
+- **Date**: 2026-05-19
+- **Context**:
+  - `PlacedTrap` は場の状態として `DungeonState.placedTraps` に置く設計 (ADR-22)
+  - Buff は「対象 (Player or Enemy) の状態」なので、当面 Player 側に置くのが自然
+  - 将来 Enemy Buff が来た時の備えとして `Map<ActorId, List<ActiveBuff>>` を `DungeonState` 集約する案もあるが、§15 範囲では Enemy への Buff/デバフは未定義
+- **Decision**:
+  1. **`PlayerStatuses.activeBuffs: List<ActiveBuff>`** に保持。`List.copyOf` 防御コピー
+  2. **Enemy Buff/デバフは本 ADR スコープ外**、M2 以降で要件が来たら `DungeonState` 集約への引っ越しを検討
+  3. **重複 `BuffKind` の合成 = 加算ではなく上書き** (KISS、ADR-22 罠の上書きパターン踏襲)
+- **Consequences**:
+  - + KISS、+ セーブ単位 (層単位、§15-11) で Player に集約され直列化容易
+  - − Enemy Buff が来た時に DungeonState 集約への引っ越しが必要 (M2 負債、本 ADR で明示記録)
+- **Reference**: §15-3 (Buff カード) / ADR-22 (PlacedTrap 同型ライフタイム管理)
+
+## ADR-28: 層末ショップノードを「単発カード追加」に縮退 (装備変更 UI は M2 送り)
+
+- **Status**: Accepted (2026-05-19 多角的レビュー 5 視点で発見、ハッカソン本番までの是正)
+- **Date**: 2026-05-19
+- **Context**: ADR-26 で §15-9 Shop の完成形を「装備変更 UI + デッキ再生成 + Gold 消費」と定義したが、ハッカソン残り 4 日でこの UI 改修 (Scene2D の装備選択画面 + 装備外し動線 + デッキ再生成ロジック) を完成させるのは時間不足。一方で「Shop ノードが何もしないままハッカソン本番」も訴求 0
+- **Decision**:
+  1. **Shop ノードは `Shop(int goldCost, Card grantedCard)` の単発効果に縮退**: Gold 消費 + DrawPile に Card 1 枚追加で完結 (`LayerEndNode.java:131-156`)
+  2. **装備変更 UI は M2 送り** (ADR-26 完成形を維持、ハッカソン後の整備イテレーションで対応)
+  3. **Shop の選択候補は `DungeonScreen.createNodeChoicePopup` でハードコード** ("ショップ: 強打 +1 枚 (金貨 5)"): 4 種以上の装備固有カードからのランダム選択は M2
+- **Consequences**:
+  - + ハッカソン本番で「金貨でカードを 1 枚買う」体験が成立、§15-9 関連の存在感が出る
+  - + 既存 NodeChoicePopup を改修なしで流用、開発工数最小
+  - − ADR-26 の完成形 (装備変更 + デッキ再生成) は実装されない、handoff.md / Discord 投稿で「縮退」と明示する必要
+  - − Gold 不足時に silent fail (apply が引数の Player をそのまま返す) で UX バグの温床 → 別途 H2 (DungeonScreen でフラッシュ通知) で対応
+- **Reference**: §15-9 (装備システム) / ADR-26 (装備固有カード自動デッキ統合経路、本 ADR で M2 送り宣言)
+
+## ADR-29: §15-8 層末ノード抽選を「5 個別ノードから shuffle 3」に縮退
+
+- **Status**: Accepted (2026-05-19 多角的レビュー)
+- **Date**: 2026-05-19
+- **Context**: §15-8 仕様の本来形は「4 種カテゴリ (ステ強化 / 休憩 / イベント / ショップ) から 3 提示」で、ステ強化系から 1 つ・休憩・イベント・ショップから各 1 つを別個に抽選するカテゴリ抽選方式。本実装は HpMaxUp(5) / SpeedUp(1) / Rest / Shop(5, strong_strike) / Event(30, -5, 0, ソウルの祠) の 5 個別ノードから Random で 3 個 shuffle 抽出
+- **Decision**:
+  1. **5 個別ノードから shuffle 3 で本セッションは確定** (`DungeonScreen.createNodeChoicePopup:163-178`)
+  2. **4 種カテゴリ抽選は M2 送り**: ステ強化サブカテゴリ (HP/速度/物攻/魔攻/物防/魔防) の中から 1 つ抽出するロジックは整備イテレーションで対応
+  3. **重複なし保証**: `Collections.shuffle` でリスト順をランダム化し `subList(0, 3)` で重複なく抽出 (現状の実装と整合)
+- **Consequences**:
+  - + 仕様の「異なる 3 種が提示される」体感は維持される (5 種それぞれが別カテゴリと見なせる)
+  - + 候補プール拡張時は allCandidates に追加するだけ、コードシンプル
+  - − 「ステ強化が 2 枚同時に提示される」がない反面、「ショップが連続層で出る」可能性あり (Random 性のブレ)
+  - − §15-8 仕様の「カテゴリ抽選」を厳密に満たさない、handoff.md で「縮退」明示必要
+- **Reference**: §15-8 (層末ノード 4 種抽選) / `DungeonScreen.java` の createNodeChoicePopup 改修
+
+## ADR-30: §15-2 数値レート修正 (雑魚 Soul 5 → 1) + §15-7 ノードコスト仕様準拠
+
+- **Status**: Accepted (2026-05-19 devils-advocate + judge-pov 独立発見、緊急修正)
+- **Date**: 2026-05-19
+- **Context**: 多角的レビューで以下の数値仕様乖離が判明:
+  - `EnemyKind.SLIME.soulReward = 5` だが `GAME_DESIGN.md:437` 仕様は **0.5 (10 倍誇張)**
+  - `SoulTree.allNodes()` のステノードコストが §15-7 仕様値の 3〜5 倍誇張 (HP+5: 20 vs 仕様 6、物攻+1: 25 vs 仕様 5 等)
+  - 影響: デモ動画 + GAME_DESIGN.md を照合する審査員に「実装が仕様を裏切っている」明白な証拠になる
+- **Decision**:
+  1. **`Soul` record は整数制約のため、仕様 0.5 を切り上げて 1 に正規化**: `EnemyKind.SLIME.soulReward = 1` で確定
+  2. **`SoulTree.allNodes()` のステノードコストを §15-7 仕様値に合わせる**:
+     - HP+5: 20 → **6**
+     - 物攻+1: 25 → **5**
+     - 魔攻+1: 25 → **5**
+     - 物防+1: 20 → **4**
+     - 魔防+1: 20 → **4**
+     - 速度+1: 35 → 35 (一致、変更なし)
+  3. **カード獲得 (30〜50) / 枠拡張 (40) ノードコストは据置**: §15-7 で具体値指定なし、現状値で問題なし
+  4. **既存テストの期待値を新値に揃える**: `SoulTreeTest.unlockStatRootChildSucceedsWithSufficientSoul` 等
+- **Consequences**:
+  - + 1 ラン 10〜15 ソウル想定 (10 体撃破) で HP+5 (6 ソウル) を 1〜2 個解放可能、§15-7 設計バランスを取り戻す
+  - + 仕様と実装の整合性が回復、審査員照合に対する信頼性向上
+  - − 既存 SoulTreeTest / TurnEngineGoldRewardTest の期待値が変わる (テスト改修済み)
+  - − Soul 0.5 の小数表現は整数制約で 1 に丸めるため、厳密な仕様準拠ではない (handoff.md で「整数 1 = 仕様 0.5 を切り上げ」と注釈)
+- **Reference**: §15-2 (Gold/Soul レート) / §15-7 (ノードコスト) / GAME_DESIGN.md:437,649 / multi-perspective + devils-advocate + judge-pov 5 視点レビュー (2026-05-19)

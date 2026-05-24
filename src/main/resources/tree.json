@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "nodes": [
+    {"id":"root","displayName":"中央","soulCost":0,"effect":{"type":"None"},"prerequisites":[]},
+
+    {"id":"hp_up_1","displayName":"HP +5","soulCost":6,"effect":{"type":"StatsBonus","maxHp":5,"speed":0,"physicalAttack":0,"magicalAttack":0,"physicalDefense":0,"magicalDefense":0},"prerequisites":["root"]},
+    {"id":"speed_up_1","displayName":"速度 +1","soulCost":22,"effect":{"type":"StatsBonus","maxHp":0,"speed":1,"physicalAttack":0,"magicalAttack":0,"physicalDefense":0,"magicalDefense":0},"prerequisites":["root"]},
+    {"id":"phys_atk_up_1","displayName":"物攻 +1","soulCost":5,"effect":{"type":"StatsBonus","maxHp":0,"speed":0,"physicalAttack":1,"magicalAttack":0,"physicalDefense":0,"magicalDefense":0},"prerequisites":["root"]},
+    {"id":"mag_atk_up_1","displayName":"魔攻 +1","soulCost":5,"effect":{"type":"StatsBonus","maxHp":0,"speed":0,"physicalAttack":0,"magicalAttack":1,"physicalDefense":0,"magicalDefense":0},"prerequisites":["root"]},
+    {"id":"phys_def_up_1","displayName":"物防 +1","soulCost":4,"effect":{"type":"StatsBonus","maxHp":0,"speed":0,"physicalAttack":0,"magicalAttack":0,"physicalDefense":1,"magicalDefense":0},"prerequisites":["root"]},
+    {"id":"mag_def_up_1","displayName":"魔防 +1","soulCost":4,"effect":{"type":"StatsBonus","maxHp":0,"speed":0,"physicalAttack":0,"magicalAttack":0,"physicalDefense":0,"magicalDefense":1},"prerequisites":["root"]},
+
+    {"id":"card_grant_strong_strike","displayName":"強打 +1 枚","soulCost":30,"effect":{"type":"CardGrant","cardId":"strong_strike"},"prerequisites":["phys_atk_up_1"]},
+    {"id":"card_grant_fireball","displayName":"火球 +1 枚","soulCost":40,"effect":{"type":"CardGrant","cardId":"fireball"},"prerequisites":["mag_atk_up_1"]},
+    {"id":"card_grant_magic_bolt","displayName":"魔法弾 +1 枚","soulCost":30,"effect":{"type":"CardGrant","cardId":"magic_bolt"},"prerequisites":["mag_atk_up_1"]},
+    {"id":"card_grant_iron_skin","displayName":"鉄の皮膚 +1 枚","soulCost":50,"effect":{"type":"CardGrant","cardId":"iron_skin"},"prerequisites":["phys_def_up_1"]},
+    {"id":"card_grant_arcane_veil","displayName":"魔力の帳 +1 枚","soulCost":50,"effect":{"type":"CardGrant","cardId":"arcane_veil"},"prerequisites":["mag_def_up_1"]},
+
+    {"id":"slot_expand_1","displayName":"スキル枠 +1","soulCost":40,"effect":{"type":"SlotExpand","amount":1},"prerequisites":["card_grant_strong_strike"]},
+    {"id":"slot_expand_2","displayName":"スキル枠 +1","soulCost":40,"effect":{"type":"SlotExpand","amount":1},"prerequisites":["card_grant_fireball"]},
+    {"id":"slot_expand_3","displayName":"スキル枠 +1","soulCost":40,"effect":{"type":"SlotExpand","amount":1},"prerequisites":["card_grant_magic_bolt"]},
+    {"id":"slot_expand_4","displayName":"スキル枠 +1","soulCost":40,"effect":{"type":"SlotExpand","amount":1},"prerequisites":["card_grant_iron_skin"]},
+    {"id":"slot_expand_5","displayName":"スキル枠 +1","soulCost":40,"effect":{"type":"SlotExpand","amount":1},"prerequisites":["card_grant_arcane_veil"]},
+
+    {"id":"hp_up_2","displayName":"HP +10","soulCost":14,"effect":{"type":"StatsBonus","maxHp":10,"speed":0,"physicalAttack":0,"magicalAttack":0,"physicalDefense":0,"magicalDefense":0},"prerequisites":["hp_up_1"]},
+    {"id":"speed_up_2","displayName":"速度 +2","soulCost":30,"effect":{"type":"StatsBonus","maxHp":0,"speed":2,"physicalAttack":0,"magicalAttack":0,"physicalDefense":0,"magicalDefense":0},"prerequisites":["speed_up_1"]},
+    {"id":"phys_atk_up_2","displayName":"物攻 +2","soulCost":12,"effect":{"type":"StatsBonus","maxHp":0,"speed":0,"physicalAttack":2,"magicalAttack":0,"physicalDefense":0,"magicalDefense":0},"prerequisites":["phys_atk_up_1"]},
+    {"id":"mag_atk_up_2","displayName":"魔攻 +2","soulCost":12,"effect":{"type":"StatsBonus","maxHp":0,"speed":0,"physicalAttack":0,"magicalAttack":2,"physicalDefense":0,"magicalDefense":0},"prerequisites":["mag_atk_up_1"]},
+    {"id":"phys_def_up_2","displayName":"物防 +2","soulCost":10,"effect":{"type":"StatsBonus","maxHp":0,"speed":0,"physicalAttack":0,"magicalAttack":0,"physicalDefense":2,"magicalDefense":0},"prerequisites":["phys_def_up_1"]},
+    {"id":"mag_def_up_2","displayName":"魔防 +2","soulCost":10,"effect":{"type":"StatsBonus","maxHp":0,"speed":0,"physicalAttack":0,"magicalAttack":0,"physicalDefense":0,"magicalDefense":2},"prerequisites":["mag_def_up_1"]},
+
+    {"id":"layer_extend_4","displayName":"層数 +1 (4 層化)","soulCost":100,"effect":{"type":"LayerExtend","amountToAdd":1},"prerequisites":["hp_up_2","phys_atk_up_2"]},
+    {"id":"layer_extend_5","displayName":"層数 +1 (5 層化)","soulCost":200,"effect":{"type":"LayerExtend","amountToAdd":1},"prerequisites":["layer_extend_4"]}
+  ]
+}
