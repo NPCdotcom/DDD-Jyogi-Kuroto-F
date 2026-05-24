@@ -77,28 +77,31 @@ public final class TurnEngine {
     Objects.requireNonNull(state, "state");
     Objects.requireNonNull(rng, "rng");
     Player p = state.player();
-    // ADR-25 / ADR-27: アクティブ Buff の残ターンを 1 減らし、0 (expired) は除去する。
-    // PlacedTrap.Turns と同型パターン (ADR-22)。effectiveStats() で AP リフィル量が変化するため、
-    // Buff 期限切れ処理を AP リフィルより先に行う。
-    List<ActiveBuff> aliveBuffs = new ArrayList<>(p.statuses().activeBuffs().size());
-    for (ActiveBuff b : p.statuses().activeBuffs()) {
+    // Wave 15 W15-α / #10: AP リフィル → Buff decrement の順に変更 (旧 SPEED_UP 持続1の論理消滅バグ修正)。
+    // 持続1の SPEED_UP は「使用ターン中 effectiveStats() 経由で効力 + 次ターンリフィル時にも反映 → 消滅」の
+    // 2 ターン挙動になる (§15-3 持続 N ターンの自然な解釈)。他バフ (ATTACK_UP / DEFENSE_UP) も
+    // effectiveStats() 経由で使用ターン中既に効いているため、順序入れ替えは TurnEngineBuffTest 全件緑で検証済。
+    // ADR-21: pendingMoveCount はターンまたぎ持ち越さない (移動権は当該ターンに使い切る)。
+    // ADR-25: effectiveStats().speed() を使い、装備 + Buff 込みの速度で AP をリフィルする。
+    Player refilled =
+        p.withActionPoints(p.actionPoints().refilledTo(p.effectiveStats().speed()))
+            .withPendingMoveCount(0);
+    // ADR-25 / ADR-27: AP リフィル後にアクティブ Buff の残ターンを 1 減らし、0 (expired) は除去する。
+    // PlacedTrap.Turns と同型パターン (ADR-22)。
+    List<ActiveBuff> aliveBuffs = new ArrayList<>(refilled.statuses().activeBuffs().size());
+    for (ActiveBuff b : refilled.statuses().activeBuffs()) {
       ActiveBuff decremented = b.decrementedTurn();
       if (!decremented.isExpired()) {
         aliveBuffs.add(decremented);
       }
     }
-    PlayerStatuses buffsApplied = p.statuses().withActiveBuffs(aliveBuffs);
-    Player buffsDecremented = p.withStatuses(buffsApplied);
-    // ADR-21: pendingMoveCount はターンまたぎ持ち越さない (移動権は当該ターンに使い切る)。
-    // ADR-25: effectiveStats().speed() を使い、装備 + Buff 込みの速度で AP をリフィルする。
+    PlayerStatuses buffsApplied = refilled.statuses().withActiveBuffs(aliveBuffs);
+    // Wave 15 W15-α / #17: 毎ターンドローは「手札 5 枚補充」に変更 (drawN(1) → drawToHandSize(5))。
+    // 山札 + 捨て札 < 5 のときは引けるだけ引く graceful、手札 >= 5 のときは no-op (3 段防衛線、CardPileState.drawToHandSize)。
     Player refreshed =
-        buffsDecremented
-            .withActionPoints(
-                buffsDecremented
-                    .actionPoints()
-                    .refilledTo(buffsDecremented.effectiveStats().speed()))
-            .withCardPileState(buffsDecremented.cardPileState().drawN(1, rng))
-            .withPendingMoveCount(0);
+        refilled
+            .withStatuses(buffsApplied)
+            .withCardPileState(refilled.cardPileState().drawToHandSize(5, rng));
     // ADR-22: Turns 罠の remaining-- + expired (=0) を除去。UntilStepped 罠は据置。
     List<PlacedTrap> aliveTraps = new ArrayList<>(state.placedTraps().size());
     for (PlacedTrap t : state.placedTraps()) {

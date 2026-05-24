@@ -553,8 +553,9 @@ public final class InitialStateFactory {
         new Player(
             ActorId.of("player"),
             dungeon.spawn(),
-            Soul.zero(),
-            Gold.zero(),
+            // Wave 15 W15-α / #11: ラン中通貨を SaveData から復元 (Soul.zero/Gold.zero ハードコード排除)
+            new Soul(data.currentRunSoul()),
+            new Gold(data.currentRunGold()),
             new PlayerStatuses(
                 savedStats,
                 ActionPoints.full(savedStats.speed()),

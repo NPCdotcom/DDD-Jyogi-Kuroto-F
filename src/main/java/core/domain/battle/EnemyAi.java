@@ -106,7 +106,9 @@ public final class EnemyAi {
   }
 
   // CAUTIOUS (kite 型): 距離 2-3 を保つ、近すぎたら離れる、遠すぎたら近づく。
-  // CTO チェックポイント #3: 袋小路フォールバック (逃げ場なし時は隣接攻撃 or 待機)。
+  // CTO チェックポイント #3 (Wave 13): 袋小路フォールバック (逃げ場なし時は隣接攻撃 or 待機)。
+  // Wave 15 W15-α / #7: 距離 2-3 でも遠距離スキルを持たない敵は AGGRESSIVE 相当で詰めて隣接攻撃する
+  //   (敵側 range 未実装の現状で「無限ウェイト無害化バグ」を解消、敵側 range 実装時に kite 復活)。
   private static BattleAction cautiousAction(Enemy enemy, DungeonState state, Position playerPos) {
     Position me = enemy.position();
     int chebyshev = chebyshevDistance(me, playerPos);
@@ -116,7 +118,7 @@ public final class EnemyAi {
       if (flee.isPresent() && enemy.actionPoints().canSpend(1)) {
         return new BattleAction.Move(flee.get());
       }
-      // フォールバック: 隣接プレイヤーなら腹を括って攻撃 (CTO #3)
+      // フォールバック: 隣接プレイヤーなら腹を括って攻撃 (CTO Wave 13 #3)
       if (me.isAdjacentTo(playerPos) && canUseSkill(enemy, 0)) {
         return new BattleAction.UseSkill(0);
       }
@@ -126,8 +128,26 @@ public final class EnemyAi {
       // 遠すぎ: BFS 追跡
       return chaseToward(enemy, state, playerPos);
     }
-    // 理想射程 2-3: 待機 (Wave 14+ で敵側遠距離スキルを発動)
+    // 理想射程 2-3: 遠距離スキルを持つなら待機 (kite 維持)、持たないなら AGGRESSIVE 相当で詰める。
+    // Wave 15 W15-α / #7 #15: 敵側 range 未実装の現状では「攻撃手段あり = 近接スキル」しかない →
+    // この理想射程で何もせずウロウロする無害化を防ぐため、隣接まで詰めて通常攻撃にフォールバック。
+    // (Wave 14+ で敵側遠距離スキル実装時に hasRangedSkill() 判定を追加し kite を復活させる)
+    if (!hasRangedSkill(enemy)) {
+      return aggressiveAction(enemy, state, playerPos);
+    }
     return new BattleAction.Wait();
+  }
+
+  /**
+   * 敵が遠距離スキル (range > 1) を持っているか判定する (Wave 15 W15-α、Wave 14+ 拡張の布石)。
+   *
+   * <p>現状 {@link Skill} record には range フィールドがないため常に false (= 敵側射程は CardEffect.Damage と異なり未実装)。 敵側
+   * SkillEffect への range 追加 (Wave 14+ 候補) 後にこの判定を実装し、CAUTIOUS が理想射程で待機する kite 挙動を復活させる。
+   */
+  private static boolean hasRangedSkill(Enemy enemy) {
+    // 現状 false 固定。敵側 SkillEffect.Damage に range が入ったら、enemy.skillSlot() の全スキルを
+    // 走査して range > 1 の Damage 効果があれば true を返すロジックに置き換える。
+    return false;
   }
 
   // SEARCHING: lastKnownPlayerPos に向けて BFS 移動。

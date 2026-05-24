@@ -41,7 +41,10 @@ public record SaveData(
     // §15-5 / E-7 (Wave 6 W6-β) 撃破済敵種 (EnemyKind.name())
     @JsonProperty("defeatedEnemyKinds") List<String> defeatedEnemyKinds,
     // §15-10 / E-10 (Wave 6 W6-β) チュートリアル既読フラグ
-    @JsonProperty("tutorialSeen") boolean tutorialSeen) {
+    @JsonProperty("tutorialSeen") boolean tutorialSeen,
+    // Wave 15 W15-α / #11: ラン中の Gold / Soul (層境界セーブ時の永続化、ロード後ゼロ消失バグ修正)
+    @JsonProperty("currentRunGold") int currentRunGold,
+    @JsonProperty("currentRunSoul") int currentRunSoul) {
 
   /**
    * 現在のスキーマバージョン。フィールド構造が変わった時に上げる。
@@ -49,8 +52,12 @@ public record SaveData(
    * <p>v1 (旧): defeatedEnemyKinds / tutorialSeen なし。Wave 6 W6-β で 2 フィールド追加。 v1 セーブのロード時は Jackson
    * が欠落フィールドを null / false で埋め、compact constructor で graceful migration: defeatedEnemyKinds →
    * List.of()、tutorialSeen → false に正規化する。
+   *
+   * <p>v2 (旧): currentRunGold / currentRunSoul なし。Wave 15 W15-α で 2 フィールド追加。 v2 セーブのロード時は Jackson
+   * が欠落フィールドを 0 (プリミティブ int のデフォルト) で埋める = graceful migration (ロード後にラン中 Gold/Soul が 0 から再開、
+   * バグではなく仕様で「v2 セーブからの再開はラン途中の通貨を失う」と明示)。
    */
-  public static final int CURRENT_SCHEMA_VERSION = 2;
+  public static final int CURRENT_SCHEMA_VERSION = 3;
 
   public SaveData {
     if (schemaVersion < 1) {
@@ -69,5 +76,12 @@ public record SaveData(
     loadout = Map.copyOf(loadout);
     // v1 graceful migration: 欠落 (null) は空リストに正規化、Jackson が null を渡しても破綻しない
     defeatedEnemyKinds = defeatedEnemyKinds != null ? List.copyOf(defeatedEnemyKinds) : List.of();
+    // Wave 15 W15-α: ラン中通貨は負値ガード (graceful、Jackson が int default=0 で埋めるため null チェック不要)
+    if (currentRunGold < 0) {
+      currentRunGold = 0;
+    }
+    if (currentRunSoul < 0) {
+      currentRunSoul = 0;
+    }
   }
 }

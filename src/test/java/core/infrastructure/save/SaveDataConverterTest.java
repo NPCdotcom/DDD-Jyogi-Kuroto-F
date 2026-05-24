@@ -40,7 +40,10 @@ class SaveDataConverterTest {
         List.of(),
         Map.of("HAND", "tattered_dagger"),
         defeatedEnemyKinds,
-        tutorialSeen);
+        tutorialSeen,
+        // Wave 15 W15-α: currentRunGold + currentRunSoul
+        0,
+        0);
   }
 
   @Test

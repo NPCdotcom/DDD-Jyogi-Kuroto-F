@@ -212,8 +212,8 @@ class TurnEngineTest {
   }
 
   @Test
-  void startPlayerTurnDrawsOneCardFromDrawPile() {
-    // ADR-19: ターン頭で 1 枚ドロー
+  void startPlayerTurnDrawsToHandSizeFromDrawPile() {
+    // Wave 15 W15-α / #17: ターン頭で手札 5 枚まで補充 (drawN(1) → drawToHandSize(5) に変更)
     Player p =
         DomainFixtures.playerAt(new Position(1, 1))
             .withActionPoints(new ActionPoints(0, 5))
@@ -225,14 +225,15 @@ class TurnEngineTest {
 
     TurnEngine.StepResult result = TurnEngine.startPlayerTurn(s, new Random(42));
 
-    // 山札 3 → 2、手札 0 → 1
-    assertEquals(2, result.state().player().cardPileState().drawPile().size());
-    assertEquals(1, result.state().player().cardPileState().hand().size());
+    // 山札 3 → 0、手札 0 → 3 (山札を全て引く、手札 5 枚には足りないので「引けるだけ」、3 段防衛線の (b))
+    assertEquals(0, result.state().player().cardPileState().drawPile().size());
+    assertEquals(3, result.state().player().cardPileState().hand().size());
   }
 
   @Test
   void startPlayerTurnReshufflesDiscardWhenDrawPileEmpty() {
-    // ADR-19: 山札 0 + 捨て札 3 のとき、drawN(1) で捨て札を再シャッフル → 1 枚引く
+    // Wave 15 W15-α / #17: 山札 0 + 捨て札 3 のとき、drawToHandSize(5) で捨て札を再シャッフル
+    // → 引けるだけ引く (3 枚)。3 段防衛線 (b) で「総量 < target なら無限ループしない」を確認。
     Player p =
         DomainFixtures.playerAt(new Position(1, 1))
             .withActionPoints(new ActionPoints(0, 5))
@@ -244,10 +245,10 @@ class TurnEngineTest {
 
     TurnEngine.StepResult result = TurnEngine.startPlayerTurn(s, new Random(42));
 
-    // 捨て札 3 → 山札にシャッフル → 1 枚引く → 山札 2、捨て札 0、手札 1
-    assertEquals(2, result.state().player().cardPileState().drawPile().size());
+    // 捨て札 3 → 山札にシャッフル → 3 枚全て引く → 山札 0、捨て札 0、手札 3
+    assertEquals(0, result.state().player().cardPileState().drawPile().size());
     assertEquals(0, result.state().player().cardPileState().discardPile().size());
-    assertEquals(1, result.state().player().cardPileState().hand().size());
+    assertEquals(3, result.state().player().cardPileState().hand().size());
   }
 
   @Test

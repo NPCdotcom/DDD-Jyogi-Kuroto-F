@@ -122,7 +122,10 @@ public final class SaveDataConverter {
         obtainedCardIds,
         loadoutMap,
         defeatedEnemyKinds,
-        tutorialSeen);
+        tutorialSeen,
+        // Wave 15 W15-α / #11: ラン中通貨を永続化、ロード後の Gold/Soul 消失バグ修正
+        player.gold().amount(),
+        player.soul().amount());
   }
 
   // =========================================================================

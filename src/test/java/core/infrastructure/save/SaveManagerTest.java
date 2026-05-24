@@ -44,7 +44,10 @@ class SaveManagerTest {
         List.of("zangeki"),
         Map.of("HAND", "tattered_dagger"),
         List.of(),
-        false);
+        false,
+        // Wave 15 W15-α: currentRunGold + currentRunSoul
+        0,
+        0);
   }
 
   @Test
@@ -149,7 +152,10 @@ class SaveManagerTest {
             List.of("zangeki", "strong_strike"),
             Map.of("HAND", "tattered_dagger"),
             List.of(),
-            false);
+            false,
+            // Wave 15 W15-α: currentRunGold + currentRunSoul
+            0,
+            0);
     saveManager.save(second);
 
     Optional<SaveData> loaded = saveManager.load();

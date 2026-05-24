@@ -32,7 +32,10 @@ class SaveDataRoundTripTest {
         Map.of("HAND", "tattered_dagger"),
         // Wave 6 W6-β: defeatedEnemyKinds + tutorialSeen
         List.of("SLIME", "SWIFT_SLIME"),
-        true);
+        true,
+        // Wave 15 W15-α: currentRunGold + currentRunSoul
+        25,
+        7);
   }
 
   @Test
@@ -80,7 +83,9 @@ class SaveDataRoundTripTest {
             List.of(),
             Map.of(),
             List.of(),
-            false);
+            false,
+            0,
+            0);
     String json = mapper.writeValueAsString(original);
     SaveData restored = mapper.readValue(json, SaveData.class);
 
@@ -121,7 +126,9 @@ class SaveDataRoundTripTest {
                 List.of(),
                 Map.of(),
                 List.of(),
-                false));
+                false,
+                0,
+                0));
   }
 
   @Test
@@ -146,7 +153,9 @@ class SaveDataRoundTripTest {
                 List.of(),
                 Map.of(),
                 List.of(),
-                false));
+                false,
+                0,
+                0));
   }
 
   // Wave 6 W6-β: v1 graceful migration (旧 schema=1 の JSON を v2 構造で読込)

@@ -95,6 +95,40 @@ public record CardPileState(DrawPile drawPile, Hand hand, DiscardPile discardPil
   }
 
   /**
+   * 手札を {@code targetSize} 枚まで補充する (Wave 15 W15-α / #17、Slay the Spire 風)。
+   *
+   * <p>CTO チェックポイント #2: 3 段防衛線で無限ループ / 負ドロー / 手札溢れを全滅:
+   *
+   * <ol>
+   *   <li>手札溢れガード: 現手札 ≥ target なら no-op (blink_step / haste 等で手札 6 枚以上の状態の保護、負ドロー回避)
+   *   <li>総量ガード: 山札 + 捨て札の総和 < 必要ドロー数なら、引けるだけ引いて安全終了 (空シャッフル無限ループ回避)
+   *   <li>既存 {@link #drawN} ロジック (山札切れ時の捨て札シャッフル) にデリゲート
+   * </ol>
+   *
+   * <p>毎ターン頭の手札補充に使う。{@link MAX_HAND_SIZE} は drawN 側でガードされる。
+   */
+  public CardPileState drawToHandSize(int targetSize, Random rng) {
+    Objects.requireNonNull(rng, "rng");
+    if (targetSize < 0) {
+      throw new IllegalArgumentException(
+          "targetSize must be non-negative (got " + targetSize + ")");
+    }
+    // (a) 手札溢れガード: 現手札 >= target なら no-op
+    int needToDraw = Math.max(0, targetSize - hand.size());
+    if (needToDraw == 0) {
+      return this;
+    }
+    // (b) 総量ガード: 山札 + 捨て札の総和 < needToDraw なら、引けるだけ引いて安全終了
+    int available = drawPile.size() + discardPile.size();
+    int actualDraw = Math.min(needToDraw, available);
+    if (actualDraw == 0) {
+      return this;
+    }
+    // (c) 既存 drawN ロジック (山札切れ時の捨て札シャッフル) にデリゲート
+    return drawN(actualDraw, rng);
+  }
+
+  /**
    * 手札の {@code handIndex} 番目を使用済みとして捨て札に送り、 手札から取り除いた新状態を返す。
    *
    * <p>範囲外なら {@link IndexOutOfBoundsException}。

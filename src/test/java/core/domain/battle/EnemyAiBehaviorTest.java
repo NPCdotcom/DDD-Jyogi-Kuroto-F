@@ -158,14 +158,16 @@ class EnemyAiBehaviorTest {
   }
 
   @Test
-  void cautiousEnemyWaitsAtIdealDistance() {
-    // SWIFT_SLIME がプレイヤーから距離 2-3 で待機 (理想射程)
+  void cautiousEnemyFallbacksToAggressiveWhenLackingRangedSkill() {
+    // Wave 15 W15-α / #7: SWIFT_SLIME は遠距離スキル未保有 → 距離 2-3 でも AGGRESSIVE 相当で詰める
+    // (旧仕様: 距離 2-3 で Wait で「無害化バグ」が発生していた、Wave 14+ で敵側 range 実装後に kite 復活予定)
     Player p = DomainFixtures.playerAt(new Position(1, 2));
     Enemy e = enemyOfKind(EnemyKind.SWIFT_SLIME, new Position(3, 2)); // 距離 2
     DungeonState s = new DungeonState(openRoom(), p, List.of(e), TurnPhase.ENEMY_TURN);
 
     BattleAction action = EnemyAi.decide(e, s);
-    assertInstanceOf(BattleAction.Wait.class, action, "距離 2-3 で理想射程キープ = Wait");
+    // 攻撃手段なしで Wait してしまう旧バグを修正、AGGRESSIVE で BFS 移動 (or 隣接なら攻撃)
+    assertTrue(action instanceof BattleAction.Move, "距離 2 + 遠距離スキルなしならプレイヤー方向へ移動 (アグレッシブフォールバック)");
   }
 
   @Test
