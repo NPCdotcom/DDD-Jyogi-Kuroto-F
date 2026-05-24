@@ -79,18 +79,24 @@ public sealed interface LayerEndNode
   }
 
   /**
-   * 休憩ノード。現在 HP を最大 HP まで全回復する (§15-8)。Stats.healed(maxHp) で {@code min(maxHp, current + maxHp)} =
-   * maxHp。
+   * 休憩ノード (Wave 15 W15-γ / #2: 無償全回復ノードのバランス是正)。現在 HP を **最大 HP の 30% (切り上げ、最低 1)** 回復する。
    *
-   * <p>パラメータなしの marker record (Slay the Spire の Rest と同型、量は固定)。
+   * <p>旧仕様は `stats.healed(maxHp)` で確定的に全回復、ソウル/金貨消費ゼロのため「3 択に出れば無条件で勝つ最強選択肢」と 化していた。Wave 15
+   * で「割合回復に制限」により、ノード選択の意思決定 (回復 vs 強化 vs ショップ vs イベント) が成立する。
+   *
+   * <p>パラメータなしの marker record。割合は実装定数 {@code REST_HEAL_RATIO_DENOMINATOR=3} で固定 (= 30% 切り上げ)。
    */
   record Rest() implements LayerEndNode {
+
+    /** Wave 15 W15-γ: 30% 回復 = maxHp / 3 切り上げ。 */
+    private static final int REST_HEAL_RATIO_DENOMINATOR = 3;
 
     @Override
     public Player apply(Player player, NodeResolveContext context) {
       // context は未使用 (signature 追従のみ)
       Stats s = player.stats();
-      return player.withStats(s.healed(s.maxHp()));
+      int healAmount = Math.max(1, s.maxHp() / REST_HEAL_RATIO_DENOMINATOR);
+      return player.withStats(s.healed(healAmount));
     }
   }
 

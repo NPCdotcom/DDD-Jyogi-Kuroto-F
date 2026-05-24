@@ -149,18 +149,21 @@ class LayerEndNodeTest {
   // ---------------- Rest ----------------
 
   @Test
-  void restHealsCurrentHpToMax() {
-    // §15-8 休憩ノード: HP 全回復。Stats.healed(maxHp) で min(maxHp, current + maxHp) = maxHp
+  void restHealsCurrentHpByThirty() {
+    // Wave 15 W15-γ / #2: 休憩ノードは maxHp の 30% (= maxHp / 3 切り上げ) 回復に制限
+    // (旧仕様: 全回復 → ノード選択の意思決定崩壊、新仕様: 割合回復で 4 ノード択が成立)
     Player p = initialPlayer();
-    // current を半分まで削った状態を作る (originalCurrent / 2)
-    int half = p.stats().currentHp() / 2;
-    Stats damagedStats = p.stats().damaged(half);
+    int maxHp = p.stats().maxHp();
+    // current を 1 まで削った状態 (回復量の最大効果を観測しやすく)
+    Stats damagedStats = p.stats().damaged(p.stats().currentHp() - 1);
     Player damaged = p.withStats(damagedStats);
+    int expectedHeal = Math.max(1, maxHp / 3);
 
     Player rested = new LayerEndNode.Rest().apply(damaged, testContext());
 
-    assertEquals(damaged.stats().maxHp(), rested.stats().currentHp(), "current が max まで回復");
-    assertEquals(damaged.stats().maxHp(), rested.stats().maxHp(), "maxHp は変化しない");
+    assertEquals(
+        1 + expectedHeal, rested.stats().currentHp(), "current が maxHp / 3 増える (上限は maxHp)");
+    assertEquals(maxHp, rested.stats().maxHp(), "maxHp は変化しない");
   }
 
   @Test
