@@ -9,6 +9,7 @@ import core.domain.battle.TurnEngine.StepResult;
 import core.domain.card.Card;
 import core.domain.card.CardId;
 import core.domain.card.CardPileState;
+import core.domain.card.DrawPile;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
@@ -333,12 +334,41 @@ public final class DddGame extends Game {
     Player before = current.player();
     // Wave 3 Task A: Shop は CardId 保持なので cards / equipments resolver を context 経由で渡す
     Player upgraded = choice.apply(before, nodeResolveContext());
-    // Wave 3 Task B: ShopEquipment は apply 内で Gold 消費のみ行う純関数。Gold が減っていれば
-    // 購入成功 = ロードアウトに装着する (装着は次ラン反映、ADR-25 / ADR-26)。
+    // Wave 3 Task B + Wave 16 W16-γ / #9: ShopEquipment は apply 内で Gold 消費のみ。Gold が減っていれば
+    // 購入成功 = ロードアウトに永続装着 + ラン中の player.equipment + drawPile にも即時反映 (CTO #4)。
     if (choice instanceof LayerEndNode.ShopEquipment se
         && before.gold().amount() != upgraded.gold().amount()) {
       Equipment eq = equipmentCatalog().get(se.equipmentId());
-      equipInLoadout(eq);
+      equipInLoadout(eq); // 永続追加 (既存、ラン後に持ち越し)
+
+      // CTO #4: ラン中 player の装備マップ + デッキにも即時反映 (詐欺 UI 解消)。
+      java.util.Map<EquipmentSlot, Equipment> newEquipMap =
+          new java.util.HashMap<>(upgraded.statuses().equipment());
+      newEquipMap.put(eq.slot(), eq);
+      java.util.List<Card> newDrawCards =
+          new java.util.ArrayList<>(upgraded.cardPileState().drawPile().cards());
+      for (CardId cid : eq.grantedCards()) {
+        newDrawCards.add(InitialStateFactory.resolveCard(cid));
+      }
+      // Random でシャッフル: 山札末尾固定だと次ターン頭に偏って引かれるため自然分散
+      java.util.Collections.shuffle(newDrawCards, session.rng());
+      Player beforeMaxHpSync =
+          upgraded
+              .withStatuses(upgraded.statuses().withEquipment(newEquipMap))
+              .withCardPileState(
+                  new CardPileState(
+                      new DrawPile(newDrawCards),
+                      upgraded.cardPileState().hand(),
+                      upgraded.cardPileState().discardPile()));
+
+      // CTO #3: 装備で maxHp が増加した場合、currentHp も同じ差分だけ加算 (「最大 HP だけ伸びて
+      // 現在 HP の割合が減る = ショップで買ったのに傷ついて見える」UX 違和感を構造的に解消)。
+      int maxHpDelta = beforeMaxHpSync.effectiveStats().maxHp() - before.effectiveStats().maxHp();
+      if (maxHpDelta > 0) {
+        upgraded = beforeMaxHpSync.withStats(beforeMaxHpSync.stats().healed(maxHpDelta));
+      } else {
+        upgraded = beforeMaxHpSync;
+      }
     }
     DungeonState withUpgrade = current.withPlayer(upgraded);
     // GameContext.maxLayer を渡し、SoulTree.LayerExtendEffect で拡張済の最終層番号を反映
