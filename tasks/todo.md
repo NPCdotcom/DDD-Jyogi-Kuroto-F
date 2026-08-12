@@ -362,6 +362,52 @@ Android / 端末間同期の未実装表明を現行文書とコードから除�
 
 回帰ゼロ。次バッチは SAVE-01 (Profile / RunCheckpoint の保存器) から。
 
+### 第2バッチ実行ログ (保存系、直列)
+
+#### SAVE-01 ✅ 完了 (2026-08-12)
+
+`profile.json` と `run-checkpoint.json` へ分離。P0-1 の構造的原因を除去。
+
+- `ProfileData`: Soul、周回数、ツリー解放、所有装備、編成、保護指定、保護枠、図鑑、取得カード、チュートリアル状態、`activeRunId`、`lastSettledRunId`
+- `RunCheckpoint`: `runId`、次の層、能力値、デッキ、Gold、ラン中 Soul、持込・未確定・現在・保護装備、保護枠
+- 双方で保護枠 0〜2 と「保護 ID 数 ≦ 容量」を強制。`RunCheckpoint` は保護 ⊆ 持込、持込 ∩ 未確定 = ∅ も検証
+- `SaveManager.SaveResult` で成功・失敗を返す (従来は I/O 例外をログに落とすだけだった)
+- 一時ファイル → `ATOMIC_MOVE`。未対応環境は `.bak` へ退避し失敗時は復元
+- 未来 `schemaVersion` は読込拒否かつファイル不変更
+- `deleteCheckpoint` と `deleteProfile` を分離
+
+#### SAVE-02A ✅ 完了 (2026-08-12)
+
+`LegacySaveMapper` (純関数) で旧 `save.json` v1〜v3 を写像。
+
+- 旧 loadout → 所有装備 + 持込品 + 現在装備。初期短剣は常に所有
+- `slot_expand_*` を削除し 1 件 40 ソウル返金 (重複 ID は 1 回だけ)
+- v1 / v2 はラン中 Soul・Gold を持たないため 0 開始 + 復元不能を通知
+- v3 は `currentRunSoul` / `currentRunGold` を Checkpoint へ。`soulTotal` は Profile のみで二重計上なし
+- `activeRunId` と `runId` を一致させ、移行したランを再開・精算可能にする
+
+#### SAVE-02B ✅ 完了 (2026-08-12)
+
+`LegacyMigrationState` (journal) + `LegacySaveMigrator` で再入可能化。
+
+- 旧ファイルの SHA-256 を移行 ID にする
+- 値は毎回旧ファイルから決定的に再計算するため、**再実行しても返金が累積しない**
+- Profile / Checkpoint を読み直して一致を確認できた場合だけ完了マーカーを書く
+- 完了まで旧 `save.json` を削除しない
+- 3 つの書込地点それぞれに障害を注入する試験で、不足側だけが揃うことを確認
+
+#### 第2バッチ前半の実測
+
+| 指標 | 第1バッチ完了時 | 現在 |
+|---|---|---|
+| スイート | 77 | 80 |
+| テスト | 803 | **840** (+37) |
+| 失敗 / エラー | 0 / 0 | **0 / 0** |
+| `gradlew check` | 成功 | **成功** |
+
+残り: SAVE-03A (RunCheckpoint ↔ RunSession の相互変換)、SAVE-03B (タイトルの続行を新形式へ接続)。
+この 2 つを終えるとチェックポイント A の判定条件が揃う。
+
 ### レビュー
 
 - 独立レビューと敵対的レビューのP0/P1指摘を計画へ反映済み。
