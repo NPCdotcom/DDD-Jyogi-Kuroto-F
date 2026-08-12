@@ -49,13 +49,17 @@ MVP コア実装 + バージョン整備 + 日本語化までを 2026-05-12 に�
 
 ## これから (チーム議論のスタート地点)
 
-### Phase 6: 提出準備 (5/16 土 - 5/17 日)
+> **状態更新 (2026-08-12)**: 以下 Phase 6〜8 は 5 月時点の計画。日付は経過済みで、
+> Phase 8 の Phase A〜C の大半は E-1〜E-10 として実装済み。
+> 現時点で優先すべき残作業は本ファイル末尾の残課題表を参照すること。
 
-- [ ] mac/Linux でも動くか確認 (CI で代用可)
-- [ ] デモシナリオの試走 (3〜5 分)
+### Phase 6: 提出準備 (当初 5/16-5/17 予定、未完了のまま残存)
+
+- [ ] mac/Linux でも動くか確認 (CI で代用可) — レビュー: OS マトリクス CI は未整備
+- [ ] デモシナリオの試走 (3〜5 分) — レビュー: 実時間の計測記録なし
 - [ ] スクリーンショット撮影 → README 更新
-- [ ] LICENSE ファイル決定 + リポジトリに配置
-- [ ] 使用素材のクレジット ([LICENSES/INDEX.md](../LICENSES/INDEX.md) 経由) を CreditsScreen か README で表示
+- [ ] LICENSE ファイル決定 + リポジトリに配置 — レビュー: ルート LICENSE 不在を確認
+- [ ] 使用素材のクレジット ([LICENSES/INDEX.md](../LICENSES/INDEX.md) 経由) を CreditsScreen か README で表示 — レビュー: `CreditsScreen` は BGM/SE を「未投入」と表示するが ogg 20 件が同梱済
 
 ### Phase 7: チーム議論で決める論点 (MVP 完成後のキックオフ)
 
@@ -80,50 +84,35 @@ MVP コア実装 + バージョン整備 + 日本語化までを 2026-05-12 に�
 
 ---
 
-## Phase 9: M1.5 並列実装プラン (E-1〜E-10) — 2026-05-14 起算 約 10 日
+## Phase 9: M1.5 並列実装プラン (E-1〜E-10) — ✅ 実装完了
 
-[docs/GAME_DESIGN.md §15](../docs/GAME_DESIGN.md) の MVP 後仕様を、AI 駆動 + ファイル衝突回避のパッケージ分離で並列実装する。
+> **状態更新 (2026-08-12)**: 本セクションは 2026-05-14 起算の計画として書かれたが、E-1〜E-10 は全て実装済み。
+> 以下の「未起票」「P2 (捨てる候補)」等の表記は**計画当時の記録**であり現状ではない。
+> 現在の残作業は本ファイル末尾の「2026-08-12 総合・敵対的作品レビュー」節を参照すること。
 
-### 着手前提
+[docs/GAME_DESIGN.md §15](../docs/GAME_DESIGN.md) の MVP 後仕様を、AI 駆動 + ファイル衝突回避のパッケージ分離で並列実装した。
 
-- [x] MVP コードと §15 仕様 docs が develop に統合済 (commit `4a9382f`)
-- [ ] AI 駆動体制整備 (`.claude/agents/`, `.claude/skills/`, `.claude/settings.json`, ルート `CLAUDE.md`) — Issue #10 / PR 作成中
-- [ ] チームメイトへの共有メッセージ送信 (mvp ブランチ + PR #9 マージ済 + AI 体制 PR の 3 点セット)
+### 実装結果 (2026-08-12 実測)
 
-### スコープ (再ラベル: チームメイト視点レビューを反映)
+全 10 機能とも対応パッケージが実在する。E-7 は計画時「捨てる候補」だったが実装された。
 
-P0' = デモ必須、P1 = タイムボックス各 1〜2 日、P2 = 余力次第。
+| # | 機能 | パッケージ | 状態 |
+|---|---|---|---|
+| E-1 | カードシステム ([§15-3](../docs/GAME_DESIGN.md)) | `core.domain.card/` + `core.domain.meta/Gold.java` | ✅ カード 59 種 |
+| A 依存 | ActionPoints 使い切り型 (§15-3) | `core.domain.battle/` | ✅ |
+| B 依存 | Stats 6 ステ化 (§15-4) | `core.domain.entity/` | ✅ |
+| E-3 | 層構造 + ノード分岐 ([§15-6](../docs/GAME_DESIGN.md)) | `core.domain.layer/` | ✅ |
+| E-4 | 通貨二層 ([§15-2](../docs/GAME_DESIGN.md)) | `core.domain.meta/` | ✅ |
+| E-6 | ポップアップ UI 基盤 ([§15-1, §15-8](../docs/GAME_DESIGN.md)) | `core.presentation.window/` | ✅ 5 クラス |
+| E-2 | ソウルツリー ([§15-7](../docs/GAME_DESIGN.md)) | `core.domain.tree/` + `SoulTreeScreen` | ✅ 25 ノード |
+| E-5 | 装備システム ([§15-9](../docs/GAME_DESIGN.md)) | `core.domain.equipment/` | ✅ 装備 20 件 |
+| E-9 | セーブ最小 ([§15-11](../docs/GAME_DESIGN.md)) | `core.infrastructure.save/` | ✅ 8 クラス |
+| E-8 | シームレス戦闘演出 ([§15-5](../docs/GAME_DESIGN.md)) | `core.presentation.effect/` | ✅ `DamagePopup` / `LowHpWarning` |
+| E-10 | チュートリアル ([§15-10](../docs/GAME_DESIGN.md)) | `core.presentation.window/TutorialOverlay` | ✅ |
+| E-7 | Bestiary ([§15-5](../docs/GAME_DESIGN.md) 連動) | `core.domain.meta/Bestiary.java` | ✅ 計画変更して実装 |
 
-| # | 機能 | パッケージ | 優先度 | Issue / PR | 担当目安 |
-|---|---|---|---|---|---|
-| **E-1** | カードシステム ([§15-3](../docs/GAME_DESIGN.md)) | `core.domain.card/` + `core.domain.meta/Gold.java` | **P0'** | **#12 / PR #13 (Draft、ドメイン層のみ)** | domain-architect → libgdx-implementer |
-| **A 依存** | ActionPoints 使い切り型 (§15-3) | `core.domain.battle/` | **P0'** | **#14 OPEN** | domain-architect |
-| **B 依存** | Stats 6 ステ化 (§15-4) | `core.domain.entity/` | **P0'** | **#15 OPEN** | domain-architect |
-| **E-3** | 層構造 + ノード分岐 ([§15-6](../docs/GAME_DESIGN.md)) | `core.domain.layer/` | **P0'** | 未起票 | domain-architect |
-| **E-4** | 通貨二層 ([§15-2](../docs/GAME_DESIGN.md)) | `core.domain.meta/Gold.java` (E-1 と相乗り) | **P0'** | 未起票 | domain-architect |
-| **E-6** | ポップアップ UI 基盤 ([§15-1, §15-8](../docs/GAME_DESIGN.md)) | `core.presentation.window/` | **P0'** | 未起票 | libgdx-implementer |
-| **E-2** | ソウルツリー ([§15-7](../docs/GAME_DESIGN.md)) | `core.domain.tree/` + `core.presentation.screen/SoulTreeScreen` | **P0'** | 未起票 | domain-architect → libgdx-implementer |
-| E-5 | 装備システム ([§15-9](../docs/GAME_DESIGN.md)) — E-1 依存 E と統合予定 | `core.domain.equipment/` | P1 | 未起票 | domain-architect |
-| E-9 | セーブ最小 ([§15-11](../docs/GAME_DESIGN.md)) | `core.infrastructure.save/` | P1 | 未起票 | libgdx-implementer |
-| E-8 | シームレス戦闘演出 ([§15-5](../docs/GAME_DESIGN.md)) | `core.presentation.effect/` | P1 | 未起票 | libgdx-implementer |
-| E-10 | チュートリアル ([§15-10](../docs/GAME_DESIGN.md)) | `core.presentation.screen/TutorialPopup` | P1 | 未起票 | libgdx-implementer |
-| E-7 | Bestiary ([§15-5](../docs/GAME_DESIGN.md) 連動) | `core.domain.meta/Bestiary.java` | **P2 (捨てる候補)** | 未起票 | — |
-
-#### E-1 依存事項 (C / D は PR #13 マージ後に段階起票、E は E-5 に統合)
-
-- **C**: `Direction8` 新設 (罠 8 方向用、`Direction` は 4 方向のまま残置) — S 工数、破壊 0 件、未起票
-- **D**: `BattleAction.UseCard` 追加 + `TurnEngine` switch 全網羅修正 — L 工数、A+B+C すべて依存、未起票
-- **E**: `core.domain.equipment.Equipment` 新設 (装備固有カードを `List<CardId>` で持つ) — S 工数、E-5 と統合起票推奨
-
-### タイムライン
-
-| 日付 | 着手 | 並列の組み合わせ |
-|---|---|---|
-| **5/14-15** | E-1 / E-3 / E-4 / E-6 (基盤) | パッケージが分離されているため並列着手可。AP 使い切り化 / ステ 6 種化が `core.domain.battle` と `core.domain.entity` に影響するため、まずそこを domain-architect が更新 |
-| **5/16-18** | E-2 / E-5 / E-9 (派生) | E-1 (カード) と E-2 (ソウルツリーのカード解放) が依存。E-9 は最小実装 (1 セーブスロット、層単位) |
-| **5/19-21** | E-8 / E-10 / 余力で E-7 | E-1〜E-6 の動作が見えてから演出層を作る方が手戻り少 |
-| **5/22** | 統合テスト + デモ録画 | §15-12 のデモシナリオを実機で 1 本撮る |
-| **5/23-24** | ハッカソン本番 | 提出 + ライブデモ |
+> 実装済みであることと**正しく動くこと**は別問題。E-9 (セーブ) と E-5 (装備) には
+> レビューで P0 の欠陥が見つかっている (残課題表を参照)。
 
 ### 各 E-X の進め方 (`.claude/skills/m1-5-start/SKILL.md` 準拠)
 
@@ -136,7 +125,7 @@ P0' = デモ必須、P1 = タイムボックス各 1〜2 日、P2 = 余力次第
 7. `/japanese-pr-create draft` Skill で Draft PR 作成
 8. チームレビュー → マージ
 
-### MVP コードとの breaking change リスト (§15 実装で書き換え必須)
+### MVP コードとの breaking change リスト (§15 実装で書き換え必須) — ✅ 適用済 (履歴)
 
 - `core.domain.battle.ActionPoints`: 蓄積型 → 使い切り型 (毎ターン速度ぶん全リセット)
 - `core.domain.entity.Stats`: 3 ステ → 6 ステ (物攻/魔攻/物防/魔防 追加)
@@ -162,3 +151,155 @@ P0' = デモ必須、P1 = タイムボックス各 1〜2 日、P2 = 余力次第
 - 上の Phase 6/7/8 を実際に取り掛かるときに GitHub Issue を立てる
 - ブランチ命名は [BranchingStrategy.md §2](../docs/BranchingStrategy.md) の `feat/#<issue番号>` 形式
 - 完了したら本ファイルの該当行に `✅ #N` を付ける
+
+---
+
+## 2026-08-12 総合・敵対的作品レビュー
+
+- [x] 企画、実装、資産、テスト、配布構成を横断確認した。
+- [x] プロダクト、ビジュアル、敵対的検証、コンプライアンスの独立レビューを統合した。
+- [x] `gradlew check`と`fatJar`で基準線を検証した。
+- [x] 敵対的レビューの画像誤読を再検証し、不一致件数を43／59枚へ訂正した。
+- [x] 優先度、完了条件、依存関係、三つの改善方針を文書化した。
+
+### 残課題
+
+#### 意思決定（2026-08-12 採択済み）
+
+| 項目 | 完了条件 | 優先度 | 依存 |
+|---|---|---|---|
+| Desktop向け戦術ローグライトを現行版の主役にする | Androidと端末間同期を現行訴求から外し、Java 25、DDD、反復プレイへ説明を揃える | 採択済み | PLATFORM-01 |
+| 未保護の持込装備を死亡時に失い、深度上限内でSoul化する | 初期短剣、最大2保護枠、未確定品の死亡消失を保存と画面へ一致させる | 採択済み | EQUIP、SOUL、SETTLE |
+| NPCdotcom制作フレーム、art-only画像、動的テキストを合成する | 300×420の1枚スパイクを承認後、59枚を段階移行する | 採択済み | CARD、ART、人間ゲートG0〜G5 |
+
+#### Gate 0: 表示・保存の整合性 (実装タスク)
+
+| 項目 | 完了条件 | 優先度 | 依存 |
+|---|---|---|---|
+| Profile と RunCheckpoint を分離する | 新規開始 → 層末保存 → 死亡/クリア → 再起動の一連で進捗が残り、終了済みランが「つづき」に出ず、旧形式が移行できる | P0 | SAVE-01〜03 |
+| 装備所有モデルを追加する | 新規Profileは初期短剣のみ装着可、ラン中購入品はクリア後だけ所有化され、再起動後も保持 | P0 | EQUIP-01〜03 |
+| カード表示を `cards.json` から実行時描画する | 全59枚の描画値と実データが一致し、自動照合テストがドリフトを検知する | P0 | CARD-01〜05 |
+| 素材台帳とCreditsを完成する | 配布全資産の作者、URL、ライセンス、AI関与、加工、ハッシュが台帳化され、配布物から辿れる | P0 | ASSET、AUDIO、CREDIT |
+| 主要訴求を実装へ合わせる | README、ウィンドウ名、JAR名、設計文書、デモ脚本がDesktop版の実装と一致する | P0 | PLATFORM-01 |
+| SPACE の説明を 3 箇所直す | `Strings.java:175` / `:391` / `HudRenderer.java:168` が実装と一致し、入力契約テストが退行を検知する | P1 | なし (即着手可) |
+| 無効な SlotExpand ノード 5 件を処置する | 全購入ノードが見える効果を持つか、返金される | P1 | Profile 移行 |
+
+#### Gate 1: ゲーム性の計測と是正
+
+| 項目 | 完了条件 | 優先度 | 依存 |
+|---|---|---|---|
+| 報酬抽選を `application` 層へ移設し解放・レアリティを反映する | 固定シードで未解放カードが出ず、採択した重みが `src/test/java/core/application/` から LibGDX なしで検証できる | P1 | Profile 修正 |
+| 30 ラン + 初見 5 人の検証を実施する | 3〜5 分、非操作時間、階段ルート、初手選択の実測値がレビューへ追記される | P1 | 計測可能なビルド |
+| 重複カード 7 組を統合または差別化する | 各カードに少なくとも一つ、プレイ判断を変える固有差がある | P1 | カード動的表示 |
+
+#### Gate 2: 選んだ訴求の証明
+
+| 項目 | 完了条件 | 優先度 | 依存 |
+|---|---|---|---|
+| OS マトリクス CI を追加する | 掲載する全 Desktop OS で build / test / packaging が通る | P1 | 対応 OS の明記 |
+| clean clone からの再現性を確保する | フォント等の手動追加なしで build → test → package → launch が成功する | P1 | 素材台帳 |
+| Android構想を将来候補として分離する | 現行ロードマップと受入条件から外し、再採択時だけ独立ADRと実機計画を作る | 対象外 | 現スプリントでは実装しない |
+
+### レビュー
+
+- 成果物: [総合・敵対的作品レビュー](../docs/20260812_comprehensive_adversarial_review.md)
+- 機械検証: `gradlew clean check fatJar` 成功、73 スイート、761 テスト、失敗 0。
+- 実装変更: なし。
+
+### 検証パス (2026-08-12)
+
+レビュー成果物を一次情報として扱わず、主張を実コード・データ・ビルド成果物・画像へ独立照合した。詳細は成果物の §18。
+
+- [x] 機械的に検証可能な数値を全件照合した (テスト数、行数、資産数、画像寸法、重複カード数など) — **全件一致**。
+- [x] P0-1〜P0-5 / P1-1〜P1-6 / 7.1〜7.9 の根拠行を実ファイルで確認した — **全件実在**。
+- [x] カード画像 59 枚を独立に再目視した — 名称 7 / AP 36 / レアリティ 27 / 不一致 43 / 完全一致 16 が**全て再現**。
+- [x] レビューの弱点 3 点を訂正した (7.7 は意図的決定、P1-1 は 3 箇所の自己矛盾、7.4 の todo.md 論拠)。
+- [x] レビューが見落とした指摘 2 件を追加した (P1-7 層配置、`card_42`/`card_57` の画像内レアリティ矛盾)。
+- [x] 本ファイルの陳腐化 (Phase 6 の 5 月日程、Phase 9 の「未起票」表記) を解消した。
+
+**結論**: レビューの品質は高く、結論 (Request Changes、整合性スプリント優先) を変更する誤りは無かった。訂正は論拠の精度と重大度の位置付けに限られる。
+
+---
+
+## 2026-08-12 整合性スプリント開発計画
+
+詳細な規則、対象ファイル、検証コマンド、承認ゲートは[実装計画](../docs/20260812_development_task_plan.md)を正とする。
+
+### 採択済みの規則
+
+- 現行配布対象はJava 25のDesktop版とし、Androidと端末間セーブ同期は対象外と明記する。
+- ProfileとRunCheckpointを分離し、死亡またはクリア後の古いランを再開させない。
+- 新規Profileはぼろい短剣だけを所有し、未所有装備を装着させない。
+- ラン中購入品はクリア時に所有化し、死亡時はSoulへ変換せず失う。
+- 持込装備は死亡時に未保護品だけ失い、踏破深度の上限内でSoulへ変換する。
+- 装備保護枠は初期0、ソウルツリーで最大2とする。解放は「魂の刻印 I」30 Soul、「魂の刻印 II」60 Soul、ツリーリセット時も維持し90 Soulを返金しない。
+- 1ラン収入とノード価格を同時に調整する。敵由来Soulは基本3層全撃破で12、祠は+3、ツリー全解放は300 ± 30 Soulとする ([GAME_DESIGN.md](../docs/GAME_DESIGN.md) の「ノードコストと整合させる」条件)。
+- カードはNPCdotcom制作の固定フレーム、art-only画像、動的テキストを合成する。
+- OtoLogic由来15音源は証跡を整えて保持し、証明できない5音源は置換する。
+
+### 実装バックログ
+
+| ID | 項目 | 完了条件 | 優先度 | 依存 | 状態 |
+|---|---|---|---|---|---|
+| BASE-01 | 退行試験と基準線 | 保存、所有、カード資産の失敗試験と現行check結果を記録 | P0 | なし | 未着手 |
+| EQUIP-00 | 装備ドメイン契約 | 所有、持込、未確定、保護容量0〜2の不変条件を固定 | P0 | BASE-01 | 未着手 |
+| SAVE-01 | Profile／Checkpoint保存器 | 分離保存、原子的置換、失敗通知、未来schema拒否 | P0 | EQUIP-00 | 未着手 |
+| SAVE-02A | 旧save写像 | v1〜v3のSoulと装備を決定的に写像し、旧SlotExpandを返金 | P0 | SAVE-01 | 未着手 |
+| SAVE-02B | 移行journal | 各書込間の障害後に不足ファイルだけを復旧 | P0 | SAVE-02A | 未着手 |
+| SAVE-03A | Checkpoint変換 | RunSessionとCheckpointのrunId・一時所持品を往復 | P0 | SAVE-02B | 未着手 |
+| SAVE-03B | タイトル続行 | 有効checkpointだけを続行し、暗黙上書きを拒否 | P0 | SAVE-03A | 未着手 |
+| EQUIP-01 | 所有モデル | 初期短剣のみ所有、loadoutと保護指定が所有集合内 | P0 | SAVE-03B | 未着手 |
+| EQUIP-02 | 装備画面 | 所有装備だけ表示・装着、最大2枠の保護指定 | P0 | EQUIP-01, SOUL-03 | 未着手 |
+| EQUIP-03 | RunInventory | 持込、未確定、現在装備を分離し買替えで消失しない | P0 | EQUIP-02 | 未着手 |
+| SOUL-01 | Soul報酬是正 | 基本3層全撃破12 Soul、祠+3 | P1 | SAVE-03B | 未着手 |
+| SOUL-02 | 保護ノード | 旧5ノード廃止、新30／60 Soulノードを追加 | P1 | SAVE-02B, SOUL-01 | 未着手 |
+| SOUL-03 | 容量とツリーUI | 解放効果0〜2、リセット後も刻印維持 (非返金90)、刻印アイコンが実在パスを返す | P1 | SOUL-02 | 未着手 |
+| SOUL-04 | ノード価格再スケール | ツリー総額300±30 Soul、最安≦3、LayerExtend再設定 | **P0** | SOUL-02 | 未着手 |
+| SETTLE-01 | 純粋精算 | 死亡、クリア、再精算の規則を単体試験 | P0 | EQUIP-03, SOUL-03 | 未着手 |
+| SETTLE-02 | 終了時永続化 | Profile保存後だけcheckpoint削除、二重精算0 | P0 | SETTLE-01 | 未着手 |
+| REWARD-01 | カード報酬抽選 | application層で解放・レアリティ・固定seedを検証 | P1 | EQUIP-01, CARD-01 | 未着手 |
+| INPUT-01 | SPACE説明 | 日本語／英語の3表示と入力契約が一致 | P1 | BASE-01 | 未着手 |
+| CARD-01 | レアリティ正規化 | 59カードすべてに承認済みrarityを明示 | P0 | BASE-01, G3 | 待機 |
+| CARD-02 | 1枚表示スパイク | 300×420フレーム＋zangeki artを新経路で表示 | P0 | BASE-01, G0, G1 | 待機 |
+| CARD-03 | 動的手札表示 | AP、名称、rarity、要約を動的描画し全文を詳細表示 | P0 | CARD-01, CARD-02 | 未着手 |
+| CARD-04 | 他画面統合 | 図鑑とSoulTreeが同じ表示モデルを利用 | P1 | CARD-03, G2 | 未着手 |
+| ART-01〜15 | 58枚移行 | 各4枚以下、来歴・接触シート承認済み | P1 | CARD-04, ASSET-01, G4 | 待機 |
+| CARD-05 | 旧画像撤去 | art＝data＝provenance 59件、legacy参照0 | P1 | ART-01〜15, G5 | 待機 |
+| CARD-06 | 重複カード解消 | 重複7組が固有差を持つか統合され、一意性テストが通る | P1 | CARD-03 | 未着手 |
+| PLATFORM-01 | Desktop表明 | Android／同期の未実装表明を除去 | P0 | BASE-01 | 未着手 |
+| ASSET-01 | 来歴manifest | 全PNG／OGG／TTFに必須項目とhashがある | P0 | PLATFORM-01 | 未着手 |
+| DEPENDENCY-01 | 依存ライセンス | runtime全artifactの版・ライセンス・NOTICEを記録 | P0 | ASSET-01 | 未着手 |
+| AUDIO-01 | OtoLogic確定 | 15音源を公式名・URL・CC BY・改変と対応 | P0 | ASSET-01 | 未着手 |
+| AUDIO-02 | 5音源置換 | 旧hash消滅、代替の再配布条件と台帳を承認 | P0 | AUDIO-01, G6 | 待機 |
+| HISTORY-01 | 過去配布経路 | 履歴・タグ・Release・CI成果物の要判断対象を記録 | P0 | AUDIO-02, G8 | 待機 |
+| CREDIT-01 | Credits／通知 | ゲーム表示、README、JAR通知が台帳と一致 | P0 | DEPENDENCY-01, HISTORY-01, G7 | 待機 |
+| RELEASE-01 | releaseCheck／CI | Win・Ubuntu・macOSで配布契約を自動検証 | P1 | CREDIT-01 | 未着手 |
+| QA-01 | 自動総合検証 | clean releaseCheck成功、敵対シナリオ全通過 | P0 | 全実装 | 未着手 |
+| QA-02 | 実機・経済計測 | 30seed、Soul/分、死亡損失、2解像度可読性を記録 | P1 | QA-01 | 未着手 |
+
+### 最初の開発バッチ (直列実行)
+
+| 順 | 項目 | 完了条件 | 優先度 | 依存 |
+|---|---|---|---|---|
+| 1 | BASE-01 | `check`と`fatJar`が成功し基準線を記録。**失敗する試験を残さない** | P0 | なし |
+| 2 | EQUIP-00 | 保存schemaが参照する装備所有とRunInventoryの型を固定する | P0 | BASE-01 |
+| 3 | PLATFORM-01 | Android／端末間同期の未実装表明を除去する。**プロジェクト名とJAR名は変更しない** | P0 | BASE-01 |
+| 4 | INPUT-01 | キー割当を純粋な対応表へ抽出し、表示3箇所を実装へ揃える | P1 | BASE-01 |
+
+`SAVE-01`は保存schemaの中核で差分が大きいため第2バッチの先頭へ移した。
+
+PLATFORM-01とINPUT-01は`Strings.java`を共有するため並列にしない。
+
+### 第1バッチの実行契約
+
+- **BASE-01は緑の確認のみ**。回帰試験は各実装タスク内でred → greenとして書く。基準線タスクが恒常的な赤を残すと、以後「既知の赤」と「新しい退行」を区別できなくなる。
+- **ドメイン型は`java.*`のみに依存**し、Jacksonは保存層に限定する。現状`core/domain/`のJackson importは0件で、`SaveDataConverter`が変換を担う既存パターンがある。
+- **新名称が決まるまでプロジェクト名・JAR名は変更しない**。
+- **Soul価格は30／60で全文書統一**。リセット非返金は90。計画書・本ファイル・`docs/GAME_DESIGN.md`を同値に保つ。
+
+### レビュー
+
+- 独立レビューと敵対的レビューのP0/P1指摘を計画へ反映済み。
+- 計画に対する敵対的検証でA1〜A6を検出し、SOUL-04とCARD-06の新設、QA-02の基準追加、INPUT-01の再設計、BASE-01の再定義として反映済み。
+- 承認後、計画をコミットしたブランチから分離作業領域を作り、BASE-01から開始する。`main`へ直接コミットしない。
+- 実装はTDDで進め、2〜3タスクごとに構造レビューと敵対的レビューを行う。
