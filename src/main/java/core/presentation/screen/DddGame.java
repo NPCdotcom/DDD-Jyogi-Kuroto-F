@@ -25,6 +25,11 @@ import core.infrastructure.audio.SoundManager;
 import core.infrastructure.bootstrap.CardImageRegistry;
 import core.infrastructure.bootstrap.InitialStateFactory;
 import core.infrastructure.save.PersistenceServices;
+import core.infrastructure.save.ProfileData;
+import core.infrastructure.save.ProfileDataMapper;
+import core.infrastructure.save.RunCheckpoint;
+import core.infrastructure.save.RunCheckpointMapper;
+import core.infrastructure.save.RunLifecycle;
 import core.infrastructure.save.SaveData;
 import core.infrastructure.save.SaveDataConverter;
 import core.infrastructure.save.Settings;
@@ -51,6 +56,9 @@ import java.util.Set;
  * / {@link #fonts()} で都度取得する。
  */
 public final class DddGame extends Game {
+
+  private static final java.util.logging.Logger LOG =
+      java.util.logging.Logger.getLogger(DddGame.class.getName());
 
   /**
    * ラン単位の application 層状態の集約 (Wave 9 W9-α、{@link RunSession} record)。
@@ -265,6 +273,21 @@ public final class DddGame extends Game {
   public void onRunEnded() {
     preserveSoulFromRun();
     progress = progress.withRunCount(progress.runCount() + 1);
+
+    // SAVE-03B: ここで恒久進捗を保存し、Checkpoint を削除する。
+    // 従来はメモリ上の progress を更新するだけで保存も削除もしなかったため、
+    // 終了直後に閉じると獲得分が消え、逆に古い Checkpoint から再開できた (レビュー P0-1)。
+    runSession.ifPresent(
+        session -> {
+          RunLifecycle lifecycle = persistence.runLifecycle();
+          ProfileData settled =
+              ProfileDataMapper.toProfileData(progress, lifecycle.profileOrInitial())
+                  .withSettledRunId(session.runId().value());
+          if (!lifecycle.endRun(settled).isSuccess()) {
+            LOG.severe("ラン終了時の保存に失敗しました。Checkpoint は削除していません。");
+          }
+        });
+
     runSession = Optional.empty();
   }
 
@@ -475,18 +498,22 @@ public final class DddGame extends Game {
     DungeonState state = runSession.get().context().state();
     // ロード後に進入する層番号 = 現在の次層番号 (advanceFloor 済みなので state.layer() が次層)
     int nextLayerNumber = state.layer().number();
-    SaveData data =
-        SaveDataConverter.toSaveData(
+
+    // SAVE-03B: 旧 save.json ではなく Profile / RunCheckpoint へ書く。
+    // 書込側だけ旧形式のままにすると、タイトルの「つづき」判定 (新形式) と食い違い、
+    // 層境界で保存したはずの進捗が次回起動で無視される。
+    RunLifecycle lifecycle = persistence.runLifecycle();
+    RunCheckpoint checkpoint =
+        RunCheckpointMapper.toCheckpoint(
+            runSession.get().runId(),
             state.player(),
             nextLayerNumber,
-            progress.playerSoul().amount(),
-            progress.runCount(),
-            progress.soulTree(),
-            progress.obtainedCards(),
-            progress.loadout(),
-            progress.bestiary(),
-            progress.tutorialSeen());
-    persistence.saveManager().save(data);
+            ProfileDataMapper.toRunInventory(progress),
+            ProfileDataMapper.currentCapacity(progress));
+    ProfileData profile = ProfileDataMapper.toProfileData(progress, lifecycle.profileOrInitial());
+    if (!lifecycle.saveAtLayerBoundary(profile, checkpoint).isSuccess()) {
+      LOG.severe("層境界セーブに失敗しました。次の層境界で再試行します。");
+    }
   }
 
   /**
