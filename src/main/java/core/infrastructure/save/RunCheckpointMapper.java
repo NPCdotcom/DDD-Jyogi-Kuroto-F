@@ -47,6 +47,19 @@ public final class RunCheckpointMapper {
     Objects.requireNonNull(inventory, "inventory");
     Objects.requireNonNull(capacity, "capacity");
 
+    // RunInventory は保護枠を持たないため「保護数 ≦ 容量」を型で防げない。ここで前置検証しないと
+    // RunCheckpoint の compact constructor が層境界セーブの最中に IAE を投げ、オートセーブで落ちる。
+    if (!capacity.canHold(inventory.protectedIds().size())) {
+      throw new IllegalArgumentException(
+          "protectedIds size "
+              + inventory.protectedIds().size()
+              + " exceeds capacity "
+              + capacity.value()
+              + " (runId="
+              + runId.value()
+              + ")");
+    }
+
     Stats stats = player.stats();
     return new RunCheckpoint(
         RunCheckpoint.CURRENT_SCHEMA_VERSION,

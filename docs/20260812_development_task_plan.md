@@ -327,9 +327,17 @@ CARD-01とCARD-02は別の人間ゲートを持ち、CARD-03で合流する。
 
 - 新規ランへ一意なランIDを割り当てる。
 - RunSessionをRunCheckpointへ変換し、同じランID、次層、能力値、デッキ、通貨、RunInventory、保護スナップショットを保持する。
-- RunCheckpointから復元したRunSessionを再保存しても、ランIDと一時所持品を維持する。
-- ラン開始時にProfileの保有Soulを0へ移さず、ラン中獲得Soulは0から開始する。
-- Profileの保有Soulはソウルツリー購入だけに使い、敵とイベントのSoulは精算までRunCheckpoint側へ保持する。
+- `toCheckpoint`は保護ID数が保護枠を超える場合に呼出元へ分かる例外を投げる (`RunInventory`は容量を持たないため型では防げない)。
+
+**2026-08-12 移設**: 下記 2 条件は SAVE-03A では満たさない。敵対的検証で未実装と判明し、実装順序に依存関係があるため **SETTLE-01 へ移す**。
+
+- ~~ラン開始時にProfileの保有Soulを0へ移さず、ラン中獲得Soulは0から開始する。~~ → SETTLE-01
+- ~~Profileの保有Soulはソウルツリー購入だけに使い、敵とイベントのSoulは精算までRunCheckpoint側へ保持する。~~ → SETTLE-01
+- ~~RunCheckpointから復元したRunSessionを再保存しても、ランIDと一時所持品を維持する。~~ → SAVE-03B (RunSession を Checkpoint から復元する経路が SAVE-03B の担当のため)
+
+移設の理由: 現行 `DddGame.startNewRun()` は `progress.playerSoul()` を Player へ注入して `progress` 側を 0 にする。これを SAVE-03A の段階で外すと、精算 (SETTLE-01/02) が未実装なのでラン中獲得 Soul の行き先が無くなる。
+
+**実装順序の警告 (SETTLE-01 着手時に厳守)**: 先に `DddGame.preserveSoulFromRun()` を「上書き」から「Profile 保有はそのまま、ラン中 Soul のみ加算」へ変え、**その後で** `startNewRun()` の注入と 0 化を削る。逆順にするとラン終了時に Profile 保有分が `player.soul()` で上書きされ、ソウルツリー用の貯金が全損する。
 
 **検証**：
 

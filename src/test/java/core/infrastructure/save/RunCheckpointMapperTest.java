@@ -1,6 +1,7 @@
 package core.infrastructure.save;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import core.application.RunId;
@@ -143,17 +144,47 @@ class RunCheckpointMapperTest {
 
   @Test
   void deckKeepsEveryCardAcrossPiles() {
+    // 以前の版は山札だけに積んで手札・捨て札を空にしていたため、mapper の手札ループと
+    // 捨て札ループを丸ごと削除しても緑のままだった。層境界セーブは 1 枚ドロー直後に走るので
+    // 手札は必ず非空。3 つのパイルに別 ID を積み、順序込みで固定する。
+    Player player =
+        DomainFixtures.playerAt(new Position(1, 1))
+            .withCardPileState(
+                new CardPileState(
+                    new DrawPile(List.of(DomainFixtures.attackCard("draw-1"))),
+                    new Hand(List.of(DomainFixtures.attackCard("hand-1"))),
+                    new DiscardPile(List.of(DomainFixtures.attackCard("disc-1")))));
+
+    RunCheckpoint checkpoint =
+        RunCheckpointMapper.toCheckpoint(RUN_ID, player, 2, inventory(), RetentionCapacity.of(1));
+
+    assertEquals(List.of("draw-1", "hand-1", "disc-1"), checkpoint.deck());
+  }
+
+  // ---------------- 異常系 ----------------
+
+  @Test
+  void toCheckpointRejectsProtectionBeyondCapacity() {
+    // RunInventory は容量を持たないため型では防げない。層境界セーブ中に落ちる前に弾く。
+    RunInventory twoProtected =
+        new RunInventory(
+            Set.of(STARTER, BOOTS, BLADE), Set.of(), Set.of(BOOTS, BLADE), Optional.of(BOOTS));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            RunCheckpointMapper.toCheckpoint(
+                RUN_ID, playerWith(0, 0, List.of()), 2, twoProtected, RetentionCapacity.of(1)));
+  }
+
+  @Test
+  void toCheckpointAcceptsProtectionAtExactCapacity() {
+    RunInventory twoProtected =
+        new RunInventory(
+            Set.of(STARTER, BOOTS, BLADE), Set.of(), Set.of(BOOTS, BLADE), Optional.of(BOOTS));
     RunCheckpoint checkpoint =
         RunCheckpointMapper.toCheckpoint(
-            RUN_ID,
-            playerWith(0, 0, List.of("zangeki", "strong_strike", "fireball")),
-            2,
-            inventory(),
-            RetentionCapacity.of(1));
-    assertEquals(3, checkpoint.deck().size());
-    assertTrue(checkpoint.deck().contains("zangeki"));
-    assertTrue(checkpoint.deck().contains("strong_strike"));
-    assertTrue(checkpoint.deck().contains("fireball"));
+            RUN_ID, playerWith(0, 0, List.of()), 2, twoProtected, RetentionCapacity.of(2));
+    assertEquals(2, checkpoint.protectedEquipmentIds().size());
   }
 
   @Test
