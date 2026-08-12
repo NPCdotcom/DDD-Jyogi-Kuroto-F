@@ -1,5 +1,6 @@
 package core.infrastructure.save;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -19,13 +20,21 @@ public final class PersistenceServices {
 
   private final SaveManager saveManager;
   private final SettingsManager settingsManager;
+  private final RunLifecycle runLifecycle;
+  private final List<String> migrationWarnings;
   private Settings settings;
 
   private PersistenceServices(
-      SaveManager saveManager, SettingsManager settingsManager, Settings settings) {
+      SaveManager saveManager,
+      SettingsManager settingsManager,
+      Settings settings,
+      RunLifecycle runLifecycle,
+      List<String> migrationWarnings) {
     this.saveManager = saveManager;
     this.settingsManager = settingsManager;
     this.settings = settings;
+    this.runLifecycle = runLifecycle;
+    this.migrationWarnings = List.copyOf(migrationWarnings);
   }
 
   /**
@@ -41,11 +50,34 @@ public final class PersistenceServices {
     SaveManager saveManager = new SaveManager();
     SettingsManager settingsManager = new SettingsManager();
     Settings settings = settingsManager.load();
-    return new PersistenceServices(saveManager, settingsManager, settings);
+    // SAVE-02B: 旧 save.json があれば起動時に一度だけ Profile / RunCheckpoint へ移行する。
+    // 既存 profile.json がある場合は移行せず、旧ファイルも残す (恒久進捗の全損防止)。
+    LegacySaveMigrator.MigrationResult migration =
+        new LegacySaveMigrator(saveManager).migrateIfNeeded();
+    return new PersistenceServices(
+        saveManager,
+        settingsManager,
+        settings,
+        new RunLifecycle(saveManager),
+        migration.warnings());
   }
 
   public SaveManager saveManager() {
     return saveManager;
+  }
+
+  /** ランの開始・層境界セーブ・再開・放棄の判定 (SAVE-03B)。 */
+  public RunLifecycle runLifecycle() {
+    return runLifecycle;
+  }
+
+  /**
+   * 起動時の移行で出た通知 (復元不能な値、装着解除、移行の見送りなど)。
+   *
+   * <p>presentation 側がタイトル等で提示する。移行が不要だった場合は空。
+   */
+  public List<String> migrationWarnings() {
+    return migrationWarnings;
   }
 
   public SettingsManager settingsManager() {

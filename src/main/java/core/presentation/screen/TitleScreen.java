@@ -86,11 +86,11 @@ public final class TitleScreen extends ScreenAdapter {
         RenderLayout.START_HINT_X,
         RenderLayout.START_HINT_Y);
 
-    // §15-11: セーブデータが存在するときのみ「つづきから」を表示
-    // 旧: START_HINT_Y - LARGE_LINE_HEIGHT (Y=416) で TITLE_OPEN_TREE_HINT_Y と衝突
-    // → ENTER の 1 行上 (START_HINT_Y + LARGE_LINE_HEIGHT、Y=512) に配置して衝突回避
-    // (SUBTITLE Y=642 と ENTER Y=464 の間の空き領域)
-    if (game.persistence().saveManager().exists()) {
+    // §15-11 / SAVE-03B: 再開可能な進行中ランがあるときだけ「つづきから」を表示する。
+    // 旧実装は save.json の存在だけを見ていたため、終了済みランの古い層から再開できた (レビュー P0-1)。
+    // 現在は Profile の activeRunId と Checkpoint の runId が一致する場合に限る。
+    // 配置: ENTER の 1 行上 (START_HINT_Y + LARGE_LINE_HEIGHT、Y=512) で TITLE_OPEN_TREE_HINT_Y との衝突を回避
+    if (game.persistence().runLifecycle().canContinue()) {
       large.setColor(0.6f, 0.95f, 0.6f, 1f);
       large.draw(
           batch,
@@ -185,8 +185,9 @@ public final class TitleScreen extends ScreenAdapter {
       game.soundManager().playSe(SeKind.BUTTON_DECISION);
       game.startNewRun();
       game.changeScreen(new DungeonScreen(game));
-    } else if (Gdx.input.isKeyJustPressed(Keys.L) && game.persistence().saveManager().exists()) {
-      // §15-11: セーブデータが存在するときのみ「つづきから」でロード
+    } else if (Gdx.input.isKeyJustPressed(Keys.L)
+        && game.persistence().runLifecycle().canContinue()) {
+      // §15-11 / SAVE-03B: 再開可能な進行中ランがある場合のみ「つづきから」でロード
       boolean loaded = game.loadFromSave();
       if (loaded) {
         game.soundManager().playSe(SeKind.BUTTON_DECISION);
