@@ -297,9 +297,36 @@ PLATFORM-01とINPUT-01は`Strings.java`を共有するため並列にしない�
 - **新名称が決まるまでプロジェクト名・JAR名は変更しない**。
 - **Soul価格は30／60で全文書統一**。リセット非返金は90。計画書・本ファイル・`docs/GAME_DESIGN.md`を同値に保つ。
 
+### 第1バッチ実行ログ
+
+作業領域: `feat/consistency-sprint-batch1` (`docs/consistency-sprint-plan` の `cec61b4` から分岐)
+
+#### BASE-01 ✅ 完了 (2026-08-12)
+
+```
+gradlew --no-daemon check fatJar  →  BUILD SUCCESSFUL (exit 0)
+```
+
+| 指標 | 実測値 |
+|---|---|
+| テストスイート | 73 |
+| テスト件数 | 761 |
+| 失敗 / エラー / スキップ | 0 / 0 / 0 |
+| fat JAR | 33,459,735 bytes (31.91 MiB) |
+| 追跡バイナリ資産 | 99 件 |
+
+失敗する試験は残していない。以後の退行はこの基準線との差分で判定する。
+
+**基準線に関する注意 (P0-5 の実証)**: 本 worktree の fat JAR は 31.91 MiB で、メインリポジトリの作業コピーでビルドした JAR (33 MiB) より約 1.1 MiB 小さい。原因は `assets/fonts/DotGothic16-Regular.ttf` (2,069,236 bytes) の有無で、`.gitignore:130` が `assets/fonts/*.ttf` を除外するため clean checkout には含まれない。
+
+- レビュー P0-5 の「DotGothic16 はローカルに存在すると JAR へ入る一方、clean clone の成果物が再現しない」が実測で確認された。
+- **本バッチ以降の JAR 基準は 31.91 MiB (フォント無し)** とする。フォント同梱時と混同しない。
+- 日本語表示を伴う実機確認を行う場合は `assets/fonts/README.md` の手順でフォントを取得してから実施する。
+- 恒久対応は ASSET-01 と RELEASE-01 (clean clone からの再現性) の担当範囲であり、BASE-01 では記録に留める。
+
 ### レビュー
 
 - 独立レビューと敵対的レビューのP0/P1指摘を計画へ反映済み。
 - 計画に対する敵対的検証でA1〜A6を検出し、SOUL-04とCARD-06の新設、QA-02の基準追加、INPUT-01の再設計、BASE-01の再定義として反映済み。
-- 承認後、計画をコミットしたブランチから分離作業領域を作り、BASE-01から開始する。`main`へ直接コミットしない。
+- 計画は `docs/consistency-sprint-plan` ブランチの `cec61b4` へコミット済み。`main`へは直接コミットしていない。
 - 実装はTDDで進め、2〜3タスクごとに構造レビューと敵対的レビューを行う。
