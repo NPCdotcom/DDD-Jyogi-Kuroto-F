@@ -35,6 +35,9 @@ public final class SaveManager {
   /** 進行中ランの保存先ファイル名 (SAVE-01)。 */
   static final String CHECKPOINT_FILE_NAME = "run-checkpoint.json";
 
+  /** 旧セーブ移行の journal ファイル名 (SAVE-02B)。 */
+  static final String MIGRATION_STATE_FILE_NAME = "migration-state.json";
+
   private final File saveFile;
   private final ObjectMapper mapper;
 
@@ -200,6 +203,35 @@ public final class SaveManager {
   /** 進行中ランを削除する。死亡・クリアの精算後に呼ぶ。 */
   public void deleteCheckpoint() {
     deleteQuietly(checkpointFile());
+  }
+
+  /** 旧 {@code save.json} のパス。移行 (SAVE-02B) がハッシュ計算に使う。 */
+  File legacySaveFile() {
+    return saveFile;
+  }
+
+  /** 移行 journal を保存する (SAVE-02B)。 */
+  SaveResult saveMigrationState(LegacyMigrationState state) {
+    return writeAtomically(migrationStateFile(), state);
+  }
+
+  /** 移行 journal を読み込む (SAVE-02B)。 */
+  Optional<LegacyMigrationState> loadMigrationState() {
+    // journal は schemaVersion を持たないため版チェックは不要。
+    File file = migrationStateFile();
+    if (!file.isFile()) {
+      return Optional.empty();
+    }
+    try {
+      return Optional.of(mapper.readValue(file, LegacyMigrationState.class));
+    } catch (IOException | RuntimeException e) {
+      LOG.log(Level.WARNING, "Invalid migration journal (treating as absent)", e);
+      return Optional.empty();
+    }
+  }
+
+  File migrationStateFile() {
+    return new File(saveFile.getParentFile(), MIGRATION_STATE_FILE_NAME);
   }
 
   File profileFile() {
