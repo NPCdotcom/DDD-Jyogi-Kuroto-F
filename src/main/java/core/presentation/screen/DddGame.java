@@ -525,11 +525,16 @@ public final class DddGame extends Game {
    * @return ロードに成功した場合 true
    */
   public boolean loadFromSave() {
-    Optional<SaveData> optData = persistence.saveManager().load();
-    if (optData.isEmpty()) {
+    // SAVE-03B: 新形式 (Profile + RunCheckpoint) から復元する。旧 save.json はもう書かれないため、
+    // ここが旧形式を読んだままだと「つづき」を押しても何も起きない。
+    RunLifecycle lifecycle = persistence.runLifecycle();
+    Optional<RunCheckpoint> optCheckpoint = lifecycle.resumableCheckpoint();
+    if (optCheckpoint.isEmpty()) {
       return false;
     }
-    SaveData data = optData.get();
+    RunCheckpoint checkpoint = optCheckpoint.get();
+    SaveData data =
+        RunCheckpointMapper.toRestorableSaveData(lifecycle.profileOrInitial(), checkpoint);
 
     // メタ進捗を一括復元 (Wave 6 W6-γ: PlayerProgress 1 record で集約)
     // playerSoul はラン状態の Player にこの直後注入するため一旦 zero。SaveData の soulTotal は
@@ -565,10 +570,12 @@ public final class DddGame extends Game {
       newContext.extendMaxLayer(extendAmount);
     }
     TurnDirector newDirector = new TurnDirector(newContext, newRng);
-    // SAVE-03A: 旧 save.json 経由のロードにはランIDが無いため、暫定 ID を割り当てる。
-    // SAVE-03B で Checkpoint 由来の runId を引き継ぐ経路へ差し替える。
-    runSession = Optional.of(new RunSession(RunId.newRandom(), newContext, newDirector, newRng));
-    // セーブデータは引き継がず: ロードして再開したら次層進入時に上書きセーブされる
+    // SAVE-03B: Checkpoint 由来の runId を引き継ぐ。新規発番すると Profile.activeRunId と
+    // 食い違い、再開したランを以降保存できなくなる。
+    runSession =
+        Optional.of(
+            new RunSession(
+                RunCheckpointMapper.toRunId(checkpoint), newContext, newDirector, newRng));
     return true;
   }
 

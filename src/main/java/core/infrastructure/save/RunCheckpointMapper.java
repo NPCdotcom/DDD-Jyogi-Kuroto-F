@@ -82,6 +82,39 @@ public final class RunCheckpointMapper {
         capacity.value());
   }
 
+  /**
+   * Profile と Checkpoint を、既存の復元経路が受け取れる {@link SaveData} の形へ組み立てる (SAVE-03B の橋渡し)。
+   *
+   * <p>{@code InitialStateFactory.restoreLayer} が {@link SaveData} を引数に取るため、新形式から
+   * 復元するには一度この形を経由する必要がある。{@code restoreLayer} が {@link RunCheckpoint} を 直接受け取るようになったら本メソッドは削除する。
+   *
+   * <p>新形式にしか無い情報 (保護指定・未確定品・ランID) は落ちる。復元後にそれらが必要な処理は Checkpoint 本体から読むこと。
+   */
+  public static SaveData toRestorableSaveData(ProfileData profile, RunCheckpoint checkpoint) {
+    Objects.requireNonNull(profile, "profile");
+    Objects.requireNonNull(checkpoint, "checkpoint");
+    return new SaveData(
+        SaveData.CURRENT_SCHEMA_VERSION,
+        checkpoint.nextLayerNumber(),
+        checkpoint.currentHp(),
+        checkpoint.maxHp(),
+        checkpoint.speed(),
+        checkpoint.physicalAttack(),
+        checkpoint.magicalAttack(),
+        checkpoint.physicalDefense(),
+        checkpoint.magicalDefense(),
+        checkpoint.deck(),
+        profile.soulTotal(),
+        profile.runCount(),
+        profile.unlockedNodeIds(),
+        profile.obtainedCardIds(),
+        profile.loadout(),
+        profile.defeatedEnemyKinds(),
+        profile.tutorialSeen(),
+        checkpoint.currentRunGold(),
+        checkpoint.currentRunSoul());
+  }
+
   /** Checkpoint のラン ID を返す。 */
   public static RunId toRunId(RunCheckpoint checkpoint) {
     Objects.requireNonNull(checkpoint, "checkpoint");
