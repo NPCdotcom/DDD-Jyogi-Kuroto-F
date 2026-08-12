@@ -203,12 +203,11 @@ public final class PlayerInputs {
         return Optional.empty(); // 方向待ち (まだアクション未確定)
       }
     }
-    // 待機
-    if (Gdx.input.isKeyJustPressed(Keys.SPACE)) {
+    // 待機 / ターン終了。割当の正は InputAction で、表示文との対応は InputHelpTextTest が検証する (INPUT-01)。
+    if (Gdx.input.isKeyJustPressed(InputAction.WAIT.keyCode())) {
       return Optional.of(new BattleAction.Wait());
     }
-    // ターン終了
-    if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
+    if (Gdx.input.isKeyJustPressed(InputAction.END_TURN.keyCode())) {
       return Optional.of(new BattleAction.EndTurn());
     }
     return Optional.empty();

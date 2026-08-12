@@ -173,7 +173,9 @@ public final class Strings {
         【移動カード】 ダッシュ等は AP 消費で「移動権」を貯め、
                        その後 WASD / マップクリックで 1 マスずつ進む
 
-        【ターン終了】 ENTER / SPACE / 画面右下「ターン終了」ボタン
+        【待機】 SPACE でその場に留まる (AP 1 消費)
+
+        【ターン終了】 ENTER / 画面右下「ターン終了」ボタン
 
         階段 (黄色) に到達で次層へ。敵撃破でソウル + 金貨獲得。
         層末でステ強化 / ショップ / 休憩 / イベント を選択。""";
@@ -391,7 +393,9 @@ public final class Strings {
         [Movement Cards] Dash etc. spend AP to grant move tokens,
                           then WASD / map click moves 1 tile each
 
-        [End Turn] ENTER / SPACE / "End Turn" button (bottom right)
+        [Wait] SPACE to stay in place (costs 1 AP)
+
+        [End Turn] ENTER / "End Turn" button (bottom right)
 
         Reach the yellow stairs to descend.
         Defeat enemies to earn Soul + Gold.

@@ -324,6 +324,44 @@ gradlew --no-daemon check fatJar  →  BUILD SUCCESSFUL (exit 0)
 - 日本語表示を伴う実機確認を行う場合は `assets/fonts/README.md` の手順でフォントを取得してから実施する。
 - 恒久対応は ASSET-01 と RELEASE-01 (clean clone からの再現性) の担当範囲であり、BASE-01 では記録に留める。
 
+#### EQUIP-00 ✅ 完了 (2026-08-12)
+
+`core.domain.equipment` に 3 record を追加。`java.*` のみ依存、Jackson なし。
+
+- `RetentionCapacity`: 保護枠 0〜2 を compact constructor で強制
+- `EquipmentOwnership`: 恒久側。初期短剣を常に所有へ補い保護対象から除外。保護 ID ⊆ 所有 ID かつ容量以下
+- `RunInventory`: ラン側。持込品と未確定品を分離し重複取得を禁止。保護は持込品限定、現在装備 ∈ 持込 ∪ 未確定。`unprotectedCarriedIn()` が死亡時の喪失対象を返す
+
+未確定品を Soul へ変換しない規則を型の段階で表現し、金貨 → Soul の交換経路を塞いだ。テストは red → green。
+
+#### PLATFORM-01 ✅ 完了 (2026-08-12)
+
+Android / 端末間同期の未実装表明を現行文書とコードから除去。README・GAME_DESIGN (§1-2 / §1-3 / §2-1 / §15-12)・ProjectOverview・SystemSummary・FeatureCatalog、`DesktopLauncher` のウィンドウ名、`Strings` の日英 SUBTITLE と英語 TITLE。
+
+- **プロジェクト名 (`rootProject.name`) と JAR 名は据え置き** (新名称の決定待ち)。
+- `PlatformClaimTest` で再混入を検知する。履歴資料 (`docs/20260812_*`, `tasks/ai_log/`) と本テスト自身は走査対象外。
+- §15-12 のデモ脚本を Desktop 単画面へ差し替え、装備喪失の見せ場を追加。「1 ラン収入でノードを 1 つ解放」が成立する前提を SOUL-04 の受入条件 (最安 ≦ 3 Soul) と結び付けた。
+
+#### INPUT-01 ✅ 完了 (2026-08-12)
+
+`core.presentation.input.InputAction` (LibGDX 非依存の enum) を新設し、SPACE = 待機 / ENTER = ターン終了 の割当を単一ソース化。
+
+- 誤記 3 箇所を修正: `Strings.Ja.TUTORIAL_BODY`、`Strings.En.TUTORIAL_BODY`、`HudRenderer` のコメント。
+- 元から正しかった `CONTROLS_WAIT` / `CONTROLS_END` は壊していない (テストで固定)。
+- チュートリアルから SPACE を消すのではなく【待機】節を新設し、操作の説明自体は残した。
+- `PlayerInputs` は `InputAction.keyCode()` を参照する。`Gdx` 静的参照を持つため直接駆動せず、`InputHelpTextTest` が純粋クラスのみで表示文と割当を突き合わせる (A6 の設計)。
+
+#### 第1バッチ完了時の実測
+
+| 指標 | 基準線 | 完了時 |
+|---|---|---|
+| スイート | 73 | 77 |
+| テスト | 761 | **803** (+42) |
+| 失敗 / エラー | 0 / 0 | **0 / 0** |
+| `gradlew check` | 成功 | **成功** |
+
+回帰ゼロ。次バッチは SAVE-01 (Profile / RunCheckpoint の保存器) から。
+
 ### レビュー
 
 - 独立レビューと敵対的レビューのP0/P1指摘を計画へ反映済み。

@@ -165,7 +165,9 @@ public final class HudRenderer {
         RenderLayout.HAND_CARD_HEIGHT);
   }
 
-  // Wave 14 W14-β: ターン終了ボタン (画面右下に常時表示、SPACE / ENTER と同等)
+  // Wave 14 W14-β: ターン終了ボタン (画面右下に常時表示、ENTER と同等)。
+  // INPUT-01: SPACE は BattleAction.Wait (AP 1 消費) でありターン終了ではない。
+  // 割当の正は core.presentation.input.InputAction。
   private static final int END_TURN_BUTTON_X = 1750;
   private static final int END_TURN_BUTTON_Y = 30;
   private static final int END_TURN_BUTTON_WIDTH = 150;
