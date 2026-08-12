@@ -3,6 +3,7 @@ package core.presentation.screen;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Screen;
 import core.application.GameContext;
+import core.application.RunId;
 import core.application.RunSession;
 import core.application.TurnDirector;
 import core.domain.battle.TurnEngine.StepResult;
@@ -289,7 +290,9 @@ public final class DddGame extends Game {
       newContext.extendMaxLayer(extendAmount);
     }
     TurnDirector newDirector = new TurnDirector(newContext, newRng);
-    runSession = Optional.of(new RunSession(newContext, newDirector, newRng));
+    // SAVE-03A: 新規ランへ一意な ID を割り当てる。Profile.activeRunId と突き合わせることで
+    // 終了済みランの Checkpoint からの再開と二重精算を拒否できる (レビュー P0-1)。
+    runSession = Optional.of(new RunSession(RunId.newRandom(), newContext, newDirector, newRng));
     recordObtainedCards(); // §15-3: 初期デッキを図鑑に記録
   }
 
@@ -535,7 +538,9 @@ public final class DddGame extends Game {
       newContext.extendMaxLayer(extendAmount);
     }
     TurnDirector newDirector = new TurnDirector(newContext, newRng);
-    runSession = Optional.of(new RunSession(newContext, newDirector, newRng));
+    // SAVE-03A: 旧 save.json 経由のロードにはランIDが無いため、暫定 ID を割り当てる。
+    // SAVE-03B で Checkpoint 由来の runId を引き継ぐ経路へ差し替える。
+    runSession = Optional.of(new RunSession(RunId.newRandom(), newContext, newDirector, newRng));
     // セーブデータは引き継がず: ロードして再開したら次層進入時に上書きセーブされる
     return true;
   }

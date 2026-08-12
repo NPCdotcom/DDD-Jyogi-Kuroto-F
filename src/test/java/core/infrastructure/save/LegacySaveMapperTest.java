@@ -70,6 +70,77 @@ class LegacySaveMapperTest {
   }
 
   @Test
+  void equippedIsDeterministicForMultiSlotLoadout() {
+    // Map.copyOf 由来の immutable Map は反復順が JVM 実行ごとにランダム化される。
+    // 順序依存で equipped を選ぶと、同じセーブから移行するたびに装着装備が変わり、
+    // 装備固有カードで決まる初期デッキまで揺れる。EquipmentSlot の宣言順で固定する。
+    SaveData legacy =
+        new SaveData(
+            3,
+            2,
+            18,
+            20,
+            3,
+            4,
+            2,
+            1,
+            1,
+            List.of("zangeki"),
+            0,
+            0,
+            List.of("center"),
+            List.of(),
+            Map.of("HAND", "dark_blade", "FEET", "dash_boots", "BODY", "dragon_scale_armor"),
+            List.of(),
+            true,
+            0,
+            0);
+
+    String first = LegacySaveMapper.map(legacy).checkpoint().orElseThrow().equippedId();
+    for (int i = 0; i < 20; i++) {
+      assertEquals(
+          first,
+          LegacySaveMapper.map(legacy).checkpoint().orElseThrow().equippedId(),
+          "同じ入力からは常に同じ装着装備を選ぶ");
+    }
+    // EquipmentSlot の宣言順は FEET が HAND より先。
+    assertEquals("dash_boots", first);
+  }
+
+  @Test
+  void unequippedItemsAreKeptAndReported() {
+    SaveData legacy =
+        new SaveData(
+            3,
+            2,
+            18,
+            20,
+            3,
+            4,
+            2,
+            1,
+            1,
+            List.of("zangeki"),
+            0,
+            0,
+            List.of("center"),
+            List.of(),
+            Map.of("HAND", "dark_blade", "FEET", "dash_boots"),
+            List.of(),
+            true,
+            0,
+            0);
+    LegacySaveMapper.Result result = LegacySaveMapper.map(legacy);
+
+    // 装着から外れた装備も所有と持込には残す (失わせない)。
+    assertTrue(result.profile().ownedEquipmentIds().contains("dark_blade"));
+    assertTrue(result.checkpoint().orElseThrow().carriedInEquipmentIds().contains("dark_blade"));
+    assertTrue(
+        result.warnings().stream().anyMatch(w -> w.contains("装着解除")),
+        "装着から外したことを通知する: " + result.warnings());
+  }
+
+  @Test
   void unconfirmedAndProtectedStartEmpty() {
     LegacySaveMapper.Result result =
         LegacySaveMapper.map(legacySave(3, 100, 7, 45, List.of("center")));

@@ -1,6 +1,7 @@
 package core.infrastructure.save;
 
 import core.domain.equipment.EquipmentOwnership;
+import core.domain.equipment.EquipmentSlot;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -79,18 +80,32 @@ public final class LegacySaveMapper {
     }
 
     // 2. 旧 loadout の装備を所有・持込・現在装備へ写す。初期短剣は常に所有させる。
+    //
+    // 反復順は EquipmentSlot の宣言順に固定する。legacy.loadout() は Map.copyOf 由来の
+    // immutable Map で、その反復順は JVM 実行ごとにランダム化される。順序に依存して
+    // equipped を選ぶと、同じセーブから移行するたびに現在装備が変わり、装備固有カードで
+    // 決まる初期デッキまで揺れてしまう。
     Set<String> owned = new LinkedHashSet<>();
     owned.add(EquipmentOwnership.STARTER_EQUIPMENT_VALUE);
     Set<String> carriedIn = new LinkedHashSet<>();
     carriedIn.add(EquipmentOwnership.STARTER_EQUIPMENT_VALUE);
     String equipped = null;
-    for (String equipmentId : legacy.loadout().values()) {
+    List<String> unequipped = new ArrayList<>();
+    for (EquipmentSlot slot : EquipmentSlot.values()) {
+      String equipmentId = legacy.loadout().get(slot.name());
       if (equipmentId == null || equipmentId.isBlank()) {
         continue;
       }
       owned.add(equipmentId);
       carriedIn.add(equipmentId);
-      equipped = equipmentId; // 1 部位スタート (ADR-30) なので最後の 1 件が現在装備。
+      if (equipped == null) {
+        equipped = equipmentId; // 1 部位スタート (ADR-30): 宣言順で最初の 1 件を装着状態にする。
+      } else {
+        unequipped.add(equipmentId);
+      }
+    }
+    if (!unequipped.isEmpty()) {
+      warnings.add("現在装備は 1 部位のみのため、" + String.join(", ", unequipped) + " は所有したまま装着解除しました。");
     }
 
     // 3. ラン中通貨。v3 だけが値を持つ。

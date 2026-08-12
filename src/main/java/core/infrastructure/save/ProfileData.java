@@ -1,6 +1,7 @@
 package core.infrastructure.save;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import core.domain.equipment.EquipmentOwnership;
 import core.domain.equipment.RetentionCapacity;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +66,19 @@ public record ProfileData(
               + protectedEquipmentIds.size()
               + " exceeds retentionCapacity "
               + retentionCapacity);
+    }
+    // EquipmentOwnership が課す残りの不変条件もここで弾く。数だけ検査して読み込むと、
+    // ドメイン型へ変換する瞬間に例外が飛び、「つづき」で落ちる。読込時点で拒否する方が graceful。
+    if (protectedEquipmentIds.contains(EquipmentOwnership.STARTER_EQUIPMENT_VALUE)) {
+      throw new IllegalArgumentException(
+          "starter equipment must not be protected: " + EquipmentOwnership.STARTER_EQUIPMENT_VALUE);
+    }
+    if (!ownedEquipmentIds.containsAll(protectedEquipmentIds)) {
+      throw new IllegalArgumentException(
+          "protectedEquipmentIds must be a subset of ownedEquipmentIds");
+    }
+    if (!ownedEquipmentIds.containsAll(loadout.values())) {
+      throw new IllegalArgumentException("loadout must reference owned equipment only");
     }
   }
 

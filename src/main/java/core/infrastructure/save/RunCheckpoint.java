@@ -81,6 +81,14 @@ public record RunCheckpoint(
         throw new IllegalArgumentException("carriedIn and unconfirmed must be disjoint: " + id);
       }
     }
+    // RunInventory が課す不変条件。数だけ検査して読み込むと、ドメイン型へ変換する瞬間に
+    // 例外が飛んで「つづき」で落ちるため、読込時点で拒否する。
+    if (equippedId != null
+        && !carriedInEquipmentIds.contains(equippedId)
+        && !unconfirmedEquipmentIds.contains(equippedId)) {
+      throw new IllegalArgumentException(
+          "equippedId must be carried in or unconfirmed: " + equippedId);
+    }
   }
 
   private static List<String> copyOrEmpty(List<String> values) {

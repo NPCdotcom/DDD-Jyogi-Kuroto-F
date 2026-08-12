@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -256,12 +257,23 @@ public final class SaveManager {
       return SaveResult.failure(message);
     }
 
-    File temp = new File(dir, target.getName() + ".tmp");
+    // 期待するバイト列を先に作る。置換後に読み直して突き合わせる材料になる。
+    byte[] payload;
     try {
-      mapper.writeValue(temp, value);
+      payload = mapper.writeValueAsBytes(value);
     } catch (IOException e) {
-      LOG.log(Level.SEVERE, "Failed to write temp file: " + temp.getAbsolutePath(), e);
-      deleteQuietly(temp);
+      LOG.log(Level.SEVERE, "Failed to serialize: " + target.getAbsolutePath(), e);
+      return SaveResult.failure("serialize failed: " + e.getMessage());
+    }
+
+    // 一時ファイル名は一意にする。固定名だと 2 プロセスが同時に書いたとき互いの
+    // 中間状態を上書きし、壊れた JSON がそのまま正本になる。
+    File temp;
+    try {
+      temp = Files.createTempFile(dir.toPath(), target.getName(), ".tmp").toFile();
+      Files.write(temp.toPath(), payload);
+    } catch (IOException e) {
+      LOG.log(Level.SEVERE, "Failed to write temp file for: " + target.getAbsolutePath(), e);
       return SaveResult.failure("write failed: " + e.getMessage());
     }
 
@@ -274,7 +286,7 @@ public final class SaveManager {
       LOG.info("Saved to " + target.getAbsolutePath());
       return SaveResult.ok();
     } catch (AtomicMoveNotSupportedException e) {
-      return replaceWithBackup(temp, target);
+      return replaceWithBackup(temp, target, payload);
     } catch (IOException e) {
       LOG.log(Level.SEVERE, "Failed to replace: " + target.getAbsolutePath(), e);
       deleteQuietly(temp);
@@ -282,8 +294,13 @@ public final class SaveManager {
     }
   }
 
-  /** 原子的置換が使えない環境向けのフォールバック。旧世代を {@code .bak} で守る。 */
-  private SaveResult replaceWithBackup(File temp, File target) {
+  /**
+   * 原子的置換が使えない環境向けのフォールバック。旧世代を {@code .bak} で守る。
+   *
+   * <p>置換後に <b>実際に読み直して</b> 期待バイト列と一致することを確かめ、一致した場合だけ {@code .bak} を消す。{@code Files.move}
+   * の戻り値だけを根拠に旧世代を捨てると、非原子コピーが 途中で切れた場合に唯一の正本が壊れたファイルになる。
+   */
+  private SaveResult replaceWithBackup(File temp, File target, byte[] payload) {
     File backup = new File(target.getParentFile(), target.getName() + ".bak");
     boolean hadPrevious = target.isFile();
     if (hadPrevious && !target.renameTo(backup)) {
@@ -294,16 +311,28 @@ public final class SaveManager {
     }
     try {
       Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
-      LOG.info("Saved to " + target.getAbsolutePath() + " (non-atomic fallback)");
+      if (!Arrays.equals(Files.readAllBytes(target.toPath()), payload)) {
+        throw new IOException("verification failed: written bytes differ from payload");
+      }
+      LOG.info("Saved to " + target.getAbsolutePath() + " (non-atomic fallback, verified)");
       deleteQuietly(backup);
       return SaveResult.ok();
     } catch (IOException e) {
       LOG.log(Level.SEVERE, "Fallback replace failed: " + target.getAbsolutePath(), e);
       deleteQuietly(temp);
-      if (hadPrevious && backup.isFile() && !backup.renameTo(target)) {
-        LOG.severe("Failed to restore backup: " + backup.getAbsolutePath());
-      }
+      restoreBackup(backup, target, hadPrevious);
       return SaveResult.failure("fallback replace failed: " + e.getMessage());
+    }
+  }
+
+  /** 検証に失敗したときに旧世代を書き戻す。 */
+  private static void restoreBackup(File backup, File target, boolean hadPrevious) {
+    if (!hadPrevious || !backup.isFile()) {
+      return;
+    }
+    deleteQuietly(target); // 壊れた新世代を先に除く (renameTo は既存ファイルへ失敗しうる)
+    if (!backup.renameTo(target)) {
+      LOG.severe("Failed to restore backup: " + backup.getAbsolutePath());
     }
   }
 

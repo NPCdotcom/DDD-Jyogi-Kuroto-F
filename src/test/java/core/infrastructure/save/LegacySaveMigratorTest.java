@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -122,12 +123,47 @@ class LegacySaveMigratorTest {
   }
 
   @Test
-  void legacyFileSurvivesUntilCompletion() {
+  void legacyFileSurvivesWhenMigrationAborts() {
+    // 完了マーカーを書けない状況を作り、abort 後も旧ファイルが残ることを確かめる。
+    // 以前の版はこの試験が migrateIfNeeded() を呼んでおらず、delete() を無条件化しても緑のままだった。
     writeLegacy();
-    String id = LegacySaveMigrator.sha256(saveManager.legacySaveFile()).orElseThrow();
-    saveManager.saveMigrationState(LegacyMigrationState.started(id));
-    // 未完了の journal だけがある状態では旧ファイルは残っている。
-    assertTrue(saveManager.exists());
+    assertTrue(new File(tempDir.toFile(), "migration-state.json").mkdirs());
+
+    assertFalse(migrator.migrateIfNeeded().migrated());
+    assertTrue(saveManager.exists(), "移行が完了しなければ旧ファイルを消さない");
+  }
+
+  // ---------------- 既存 Profile の保護 ----------------
+
+  @Test
+  void migrationDoesNotClobberExistingProfile() {
+    // 旧 save.json はクラウド同期の復元や旧ビルドの起動で再出現しうる。
+    // そのとき既存の恒久進捗を旧セーブで上書きすると全損する。
+    migrator.migrateIfNeeded(); // まず通常移行はしない (旧ファイル無し)
+    ProfileData existing = ProfileData.initial().withActiveRunId("run-current");
+    saveManager.saveProfile(
+        new ProfileData(
+            ProfileData.CURRENT_SCHEMA_VERSION,
+            5000,
+            42,
+            List.of("center"),
+            existing.ownedEquipmentIds(),
+            Map.of(),
+            List.of(),
+            0,
+            List.of(),
+            List.of(),
+            true,
+            "run-current",
+            null));
+
+    writeLegacy();
+    assertFalse(migrator.migrateIfNeeded().migrated(), "既存 Profile があるなら移行しない");
+
+    ProfileData after = saveManager.loadProfile().orElseThrow();
+    assertEquals(5000, after.soulTotal(), "既存の恒久進捗を壊さない");
+    assertEquals(42, after.runCount());
+    assertTrue(saveManager.exists(), "判断材料として旧ファイルも残す");
   }
 
   // ---------------- 冪等性 ----------------
@@ -138,9 +174,10 @@ class LegacySaveMigratorTest {
     migrator.migrateIfNeeded();
     int soulAfterFirst = saveManager.loadProfile().orElseThrow().soulTotal();
 
-    // 旧ファイルを書き戻しても、同じ内容なら再処理しない。
+    // 旧ファイルを書き戻しても再処理しない。既存 Profile 保護と完了 journal の
+    // 両方が効くため、どちらの経路でも進捗は変わらない。
     writeLegacy();
-    assertFalse(migrator.migrateIfNeeded().migrated(), "同じ migrationId は再処理しない");
+    assertFalse(migrator.migrateIfNeeded().migrated());
     assertEquals(soulAfterFirst, saveManager.loadProfile().orElseThrow().soulTotal());
   }
 
@@ -148,6 +185,7 @@ class LegacySaveMigratorTest {
   void repeatedMigrationCallsDoNotAccumulateRefund() {
     writeLegacy();
     migrator.migrateIfNeeded();
+    // 2 回目以降は旧ファイルが消えているため即 return する。返金が二重に乗らないことの確認。
     migrator.migrateIfNeeded();
     migrator.migrateIfNeeded();
     assertEquals(180, saveManager.loadProfile().orElseThrow().soulTotal());
@@ -167,11 +205,14 @@ class LegacySaveMigratorTest {
   }
 
   @Test
-  void differentLegacyContentStartsANewMigration() {
+  void differentLegacyContentDoesNotOverwriteMigratedProfile() {
     writeLegacy();
     migrator.migrateIfNeeded();
+    int soulAfterFirst = saveManager.loadProfile().orElseThrow().soulTotal();
 
-    // 内容の異なる旧ファイルが現れたら別の移行として扱う。
+    // 内容の異なる旧ファイルが現れても、既に Profile がある以上は上書きしない。
+    // 以前の版はここで soulTotal が 7 へ置き換わることを正解として固定しており、
+    // 恒久進捗の全損を仕様にしてしまっていた。
     SaveData other =
         new SaveData(
             3,
@@ -195,7 +236,11 @@ class LegacySaveMigratorTest {
             0);
     saveManager.save(other);
 
-    assertTrue(migrator.migrateIfNeeded().migrated(), "別内容は新しい移行として処理する");
-    assertEquals(7, saveManager.loadProfile().orElseThrow().soulTotal());
+    assertFalse(migrator.migrateIfNeeded().migrated(), "既存 Profile があるなら移行しない");
+    assertEquals(
+        soulAfterFirst,
+        saveManager.loadProfile().orElseThrow().soulTotal(),
+        "移行済みの恒久進捗を旧セーブで上書きしない");
+    assertTrue(saveManager.exists(), "判断材料として旧ファイルを残す");
   }
 }

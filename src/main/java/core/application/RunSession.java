@@ -18,12 +18,16 @@ import java.util.Random;
  * <ul>
  *   <li>生成: {@code DddGame.startNewRun()} / {@code loadFromSave()} で `Optional.of(new
  *       RunSession(...))`
- *   <li>破棄: {@code DddGame.onRunEnded()} で `Optional.empty()` に切り替え (揮発メモリの即時クリア、Android メモリ圧迫回避)
+ *   <li>破棄: {@code DddGame.onRunEnded()} で `Optional.empty()` に切り替え (揮発メモリの即時クリア)
  * </ul>
+ *
+ * <p>{@link RunId} はラン 1 回を一意に識別する (SAVE-03A)。{@code ProfileData.activeRunId} と 突き合わせることで、終了済みランの
+ * Checkpoint からの再開と、同じランの二重精算を拒否できる (レビュー P0-1)。
  */
-public record RunSession(GameContext context, TurnDirector director, Random rng) {
+public record RunSession(RunId runId, GameContext context, TurnDirector director, Random rng) {
 
   public RunSession {
+    Objects.requireNonNull(runId, "runId");
     Objects.requireNonNull(context, "context");
     Objects.requireNonNull(director, "director");
     Objects.requireNonNull(rng, "rng");

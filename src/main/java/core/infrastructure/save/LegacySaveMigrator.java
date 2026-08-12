@@ -78,18 +78,39 @@ public final class LegacySaveMigrator {
       return MigrationResult.skipped();
     }
 
+    // 同じ旧ファイルの移行が中断している場合だけ、書きかけの Profile を上書きしてよい。
+    boolean resuming =
+        journal.isPresent() && journal.get().migrationId().equals(id) && !journal.get().completed();
+
+    // それ以外で既存 Profile がある状態の移行は恒久進捗の全損に直結するため実行しない。
+    // 旧 save.json はクラウド同期の復元や旧ビルドの 1 回起動で再出現しうる。
+    if (saveManager.profileExists() && !resuming) {
+      String message =
+          "旧 save.json が見つかりましたが、既に新形式の profile.json があるため移行しません。"
+              + "旧ファイルは削除せず残します: "
+              + legacyFile.getAbsolutePath();
+      LOG.warning(message);
+      return new MigrationResult(false, List.of(message));
+    }
+
     // 値は毎回ここで再計算する。中断後の再実行でも同じ結果になり、返金が累積しない。
     LegacySaveMapper.Result mapped = LegacySaveMapper.map(legacy.get());
 
     LegacyMigrationState state = LegacyMigrationState.started(id);
-    saveManager.saveMigrationState(state);
+    if (!saveManager.saveMigrationState(state).isSuccess()) {
+      LOG.severe("Migration aborted: failed to write journal");
+      return new MigrationResult(false, mapped.warnings());
+    }
 
     if (!saveManager.saveProfile(mapped.profile()).isSuccess()) {
       LOG.severe("Migration aborted: failed to write profile");
       return new MigrationResult(false, mapped.warnings());
     }
     state = state.withProfileWritten();
-    saveManager.saveMigrationState(state);
+    if (!saveManager.saveMigrationState(state).isSuccess()) {
+      LOG.severe("Migration aborted: failed to update journal after profile");
+      return new MigrationResult(false, mapped.warnings());
+    }
 
     if (mapped.checkpoint().isPresent()
         && !saveManager.saveCheckpoint(mapped.checkpoint().get()).isSuccess()) {
@@ -97,7 +118,10 @@ public final class LegacySaveMigrator {
       return new MigrationResult(false, mapped.warnings());
     }
     state = state.withCheckpointWritten();
-    saveManager.saveMigrationState(state);
+    if (!saveManager.saveMigrationState(state).isSuccess()) {
+      LOG.severe("Migration aborted: failed to update journal after checkpoint");
+      return new MigrationResult(false, mapped.warnings());
+    }
 
     // 読み直して一致を確認できた場合だけ完了とする。
     if (!verify(mapped)) {
@@ -105,8 +129,12 @@ public final class LegacySaveMigrator {
       return new MigrationResult(false, mapped.warnings());
     }
 
-    saveManager.saveMigrationState(state.withCompleted());
-    saveManager.delete(); // 完了後にのみ旧ファイルを消す
+    // 完了マーカーの書込に失敗したら旧ファイルを消さない。原本を残して次回やり直す。
+    if (!saveManager.saveMigrationState(state.withCompleted()).isSuccess()) {
+      LOG.severe("Migration incomplete: failed to write completion marker; keeping legacy save");
+      return new MigrationResult(false, mapped.warnings());
+    }
+    saveManager.delete(); // 完了マーカーを書けた後にのみ旧ファイルを消す
     LOG.info("Legacy save migrated: " + id);
     return new MigrationResult(true, mapped.warnings());
   }
