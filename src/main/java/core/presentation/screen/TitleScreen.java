@@ -32,11 +32,18 @@ public final class TitleScreen extends ScreenAdapter {
     this.game = game;
   }
 
+  /** 「つづき」を出せるか。show() で 1 回だけ評価する (毎フレームのファイル I/O を避ける)。 */
+  private boolean canContinue;
+
   @Override
   public void show() {
     camera = new OrthographicCamera();
     viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
     batch = new SpriteBatch();
+    // SAVE-03B: 「つづき」の可否は画面表示時に 1 回だけ判定する。render(delta) 内で毎フレーム
+    // 呼ぶと 60fps で profile.json と run-checkpoint.json を開いて JSON パースすることになる。
+    // タイトル表示中にセーブ状態が外部から変わることはないため 1 回で足りる。
+    canContinue = game.persistence().runLifecycle().canContinue();
     // §15-5: タイトル BGM を再生 (既に再生中なら no-op)
     game.soundManager().playBgm(BgmKind.TITLE);
     // §15-10 / E-10: 初回のみチュートリアル overlay を表示
@@ -90,7 +97,7 @@ public final class TitleScreen extends ScreenAdapter {
     // 旧実装は save.json の存在だけを見ていたため、終了済みランの古い層から再開できた (レビュー P0-1)。
     // 現在は Profile の activeRunId と Checkpoint の runId が一致する場合に限る。
     // 配置: ENTER の 1 行上 (START_HINT_Y + LARGE_LINE_HEIGHT、Y=512) で TITLE_OPEN_TREE_HINT_Y との衝突を回避
-    if (game.persistence().runLifecycle().canContinue()) {
+    if (canContinue) {
       large.setColor(0.6f, 0.95f, 0.6f, 1f);
       large.draw(
           batch,
@@ -185,8 +192,7 @@ public final class TitleScreen extends ScreenAdapter {
       game.soundManager().playSe(SeKind.BUTTON_DECISION);
       game.startNewRun();
       game.changeScreen(new DungeonScreen(game));
-    } else if (Gdx.input.isKeyJustPressed(Keys.L)
-        && game.persistence().runLifecycle().canContinue()) {
+    } else if (Gdx.input.isKeyJustPressed(Keys.L) && canContinue) {
       // §15-11 / SAVE-03B: 再開可能な進行中ランがある場合のみ「つづきから」でロード
       boolean loaded = game.loadFromSave();
       if (loaded) {

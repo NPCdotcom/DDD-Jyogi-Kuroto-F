@@ -34,10 +34,16 @@ public final class ProfileDataMapper {
   /**
    * ラン外進捗を恒久保存の形へ写す。
    *
+   * <p>{@code soulTotal} を呼出側に決めさせるのは、ラン中は {@code progress.playerSoul()} が 0 だからである。 ラン開始時に持越しソウルを
+   * Player へ注入して {@code progress} 側を 0 にするため、 層境界でそのまま書くと profile.json の保有ソウルが 0 で潰れ、精算前に終了したプレイヤーの
+   * 貯金が全損する。層境界では {@code previous.soulTotal()}、精算時のみ {@code progress.playerSoul()} を渡すこと。
+   *
    * @param progress ラン外で持続する進捗
    * @param previous 直前の Profile (ラン ID 群を引き継ぐため)。無い場合は {@link ProfileData#initial()}
+   * @param soulTotal 保存する恒久ソウル。層境界は {@code previous.soulTotal()}、精算時は精算後の値
    */
-  public static ProfileData toProfileData(PlayerProgress progress, ProfileData previous) {
+  public static ProfileData toProfileData(
+      PlayerProgress progress, ProfileData previous, int soulTotal) {
     Objects.requireNonNull(progress, "progress");
     Objects.requireNonNull(previous, "previous");
 
@@ -69,7 +75,7 @@ public final class ProfileDataMapper {
 
     return new ProfileData(
         ProfileData.CURRENT_SCHEMA_VERSION,
-        progress.playerSoul().amount(),
+        soulTotal,
         progress.runCount(),
         unlockedNodeIds,
         List.copyOf(owned),

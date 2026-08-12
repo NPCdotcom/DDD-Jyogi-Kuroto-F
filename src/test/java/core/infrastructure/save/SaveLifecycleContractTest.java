@@ -136,6 +136,25 @@ class SaveLifecycleContractTest {
     assertEquals(9, resumed.currentRunSoul());
   }
 
+  @Test
+  void layerBoundarySaveDoesNotWipeCarriedOverSoul() {
+    // ラン中は progress.playerSoul() が 0 (開始時に Player へ注入済) のため、その値を
+    // そのまま profile へ書くと持越しソウルが 0 で潰れる。層境界では据え置くこと。
+    RunId runId = RunId.of("run-1");
+    lifecycle.beginRun(profileWithSoul(500, 3), runId);
+
+    ProfileData previous = lifecycle.profileOrInitial();
+    assertEquals(500, previous.soulTotal());
+
+    // 層境界セーブは直前の soulTotal を引き継ぐ。
+    lifecycle.saveAtLayerBoundary(
+        profileWithSoul(previous.soulTotal(), 3), checkpointFor(runId, 2, 12));
+
+    RunLifecycle afterRestart =
+        new RunLifecycle(new SaveManager(tempDir.resolve("save.json").toFile()));
+    assertEquals(500, afterRestart.profileOrInitial().soulTotal(), "中断離脱でも持越しソウルを失わない");
+  }
+
   // ---------------- 終了済みランの再開拒否 ----------------
 
   @Test

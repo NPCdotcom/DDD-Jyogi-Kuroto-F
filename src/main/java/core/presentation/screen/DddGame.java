@@ -280,8 +280,11 @@ public final class DddGame extends Game {
     runSession.ifPresent(
         session -> {
           RunLifecycle lifecycle = persistence.runLifecycle();
+          // 精算時のみ progress.playerSoul() を書く。preserveSoulFromRun() が直前に
+          // Player の総ソウル (持越し + ラン中獲得) を progress へ戻している。
           ProfileData settled =
-              ProfileDataMapper.toProfileData(progress, lifecycle.profileOrInitial())
+              ProfileDataMapper.toProfileData(
+                      progress, lifecycle.profileOrInitial(), progress.playerSoul().amount())
                   .withSettledRunId(session.runId().value());
           if (!lifecycle.endRun(settled).isSuccess()) {
             LOG.severe("ラン終了時の保存に失敗しました。Checkpoint は削除していません。");
@@ -510,7 +513,10 @@ public final class DddGame extends Game {
             nextLayerNumber,
             ProfileDataMapper.toRunInventory(progress),
             ProfileDataMapper.currentCapacity(progress));
-    ProfileData profile = ProfileDataMapper.toProfileData(progress, lifecycle.profileOrInitial());
+    // 層境界では恒久ソウルを据え置く。ラン中は progress.playerSoul() が 0 (開始時に Player へ
+    // 注入済) なので、そのまま書くと精算前に終了したプレイヤーの貯金が全損する。
+    ProfileData previous = lifecycle.profileOrInitial();
+    ProfileData profile = ProfileDataMapper.toProfileData(progress, previous, previous.soulTotal());
     if (!lifecycle.saveAtLayerBoundary(profile, checkpoint).isSuccess()) {
       LOG.severe("層境界セーブに失敗しました。次の層境界で再試行します。");
     }
