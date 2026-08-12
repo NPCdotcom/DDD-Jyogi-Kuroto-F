@@ -16,7 +16,8 @@ public final class Strings {
     private Ja() {}
 
     public static final String TITLE = "Deep Dead Dungeons";
-    public static final String SUBTITLE = "- どこでも動くローグ -";
+    // PLATFORM-01: 「どこでも動く」は Android 未実装のため未実証の訴求だった。作品の中身を表す語へ差し替える。
+    public static final String SUBTITLE = "- 死を重ねて挑む戦術ローグライト -";
     public static final String START_HINT = "ENTER で出発する";
     public static final String CONTROLS_HEADER = "操作";
     public static final String CONTROLS_MOVE = "WASD / 矢印キー   1 マス移動 (AP 1)";
@@ -227,8 +228,10 @@ public final class Strings {
   public static final class En {
     private En() {}
 
-    public static final String TITLE = "DDD-Jyogi-Kuroto-F";
-    public static final String SUBTITLE = "- Doko-demo Rogue (MVP) -";
+    // PLATFORM-01: 日本語 UI が既に "Deep Dead Dungeons" を使っているため画面表示名を揃える。
+    // これは表示文字列の統一であり、プロジェクト名 (rootProject.name) と JAR 名は据え置く。
+    public static final String TITLE = "Deep Dead Dungeons";
+    public static final String SUBTITLE = "- A tactical roguelite forged by death -";
     public static final String START_HINT = "Press ENTER to descend";
     public static final String CONTROLS_HEADER = "Controls";
     public static final String CONTROLS_MOVE = "WASD / Arrows   Move (1 AP)";

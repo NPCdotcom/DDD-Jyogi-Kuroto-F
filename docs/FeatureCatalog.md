@@ -530,7 +530,7 @@ BGM (Music) / SE (Sound) 一元管理、graceful fallback (ファイル欠損時
 - **演出**: AOE LOS 精密化 / DEAL_DAMAGE SE 連打回避 / 装備色 tint バリエーション
 - **品質**: Wave 9 監査 Must 残 4 件 (DEFAULT_MAX_LAYER DRY / i18n 残 / BattleEvent.CardUsed / 行数表記)
 - **データ整理**: 壁床バリエーション機構 / 階段専用テクスチャ
-- **プラットフォーム**: Android 対応 (Phase D)
+- **プラットフォーム**: Android は**現行版の対象外** (2026-08-12 PLATFORM-01)。再採択する場合は backend 追加ではなく、共有 core の言語水準・モジュール分離・タッチ E2E・セーブ同期方式を含む独立計画とする
 - **#4 ソウルツリー描画 (既知 UI 不具合)**: 枝線/座標の不整合、優先度低でリリース後対応 (本セッションスコープ外、Wave 18+ で実機再現 → CTO チェックポイント「データと UI 分離原則」に則り修正)
 
 ---

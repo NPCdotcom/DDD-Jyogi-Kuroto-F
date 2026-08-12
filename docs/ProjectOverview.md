@@ -3,10 +3,12 @@
 > ゲーム仕様の詳細は [GAME_DESIGN.md](./GAME_DESIGN.md) を参照。本ドキュメントは **プロジェクトの位置付け（why / who / when）** に絞る。
 
 ## 1. コンセプト
-- スローガン: **「誰でも | どれでも | どんな | 場所でも」 動くゲーム**
-- 「D」の意味: **Doko-demo（どこでも動く）**
-- 動機: 部内ハッカソンの定番フォーマット（JS + Web）から外し、Java でマルチプラットフォーム対応に挑戦する
-- 差別化軸: 「Java単体で PC・スマホで動く」という技術的インパクトを審査員に訴求
+- スローガン: **死を重ねて潜る Desktop 向け戦術ローグライト**
+- 「D」の意味: **Deep Dead Dungeons**
+- 動機: 部内ハッカソンの定番フォーマット（JS + Web）から外し、Java で作る
+- 差別化軸: 戦闘規則を LibGDX 非依存の純粋なドメイン層へ閉じ込め、単体テストで検証できる設計を訴求
+
+> **2026-08-12 改定 (PLATFORM-01)**: 旧スローガンは「誰でも | どれでも | どんな | 場所でも 動くゲーム」= **Doko-demo（どこでも動く）** だったが、Android backend も端末間セーブ同期も未実装で訴求を裏付けられないため、現行版から外した。
 - ターゲット: 情報機器を持っているすべての人（第一）/ 部内ハッカソン審査員（第二）
 - 詳細: [GAME_DESIGN.md §1](./GAME_DESIGN.md)
 
@@ -40,7 +42,7 @@
 - フレームワーク: LibGDX
 - ビルド: Gradle (Wrapper 同梱)
 - IDE: IntelliJ IDEA Community 推奨
-- 配布形式: **Desktop (Win/Mac/Linux) + Android**（Web/iOS はスコープ外）
+- 配布形式: **Desktop のみ**（Windows は実行検証済み、macOS/Linux は CI 導入後にビルド検証済みと表記。Android / 端末間同期は対象外、Web/iOS はスコープ外）
 - 詳細: [GAME_DESIGN.md §3](./GAME_DESIGN.md) / [TechSelectionMemo.md](./TechSelectionMemo.md)
 
 ## 4. やらないこと（MVP段階のスコープ外）

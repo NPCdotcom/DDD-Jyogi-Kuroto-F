@@ -16,7 +16,9 @@ public final class DesktopLauncher {
 
   public static void main(String[] args) {
     Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
-    config.setTitle("DDD-Jyogi-Kuroto-F (Doko-demo Rogue) - MVP");
+    // PLATFORM-01: 旧タイトルの副題は Android / 端末間同期を含む未実装の訴求だったため外す。
+    // プロジェクト名 (rootProject.name) と JAR 名は新名称の決定まで据え置く。
+    config.setTitle("Deep Dead Dungeons");
     config.setWindowedMode(1920, 1080);
     config.setResizable(true);
     config.setForegroundFPS(60);
