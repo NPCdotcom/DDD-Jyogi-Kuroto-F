@@ -95,7 +95,7 @@ class LegacySaveMigratorTest {
     // Profile まで書けた状態を再現する。
     String id = LegacySaveMigrator.sha256(saveManager.legacySaveFile()).orElseThrow();
     saveManager.saveProfile(LegacySaveMapper.map(legacyWithTwoSlotExpands()).profile());
-    saveManager.saveMigrationState(LegacyMigrationState.started(id).withProfileWritten());
+    saveManager.saveMigrationState(LegacyMigrationState.started(id));
     assertFalse(saveManager.checkpointExists());
 
     assertTrue(migrator.migrateIfNeeded().migrated());
@@ -112,8 +112,7 @@ class LegacySaveMigratorTest {
     LegacySaveMapper.Result mapped = LegacySaveMapper.map(legacyWithTwoSlotExpands());
     saveManager.saveProfile(mapped.profile());
     saveManager.saveCheckpoint(mapped.checkpoint().orElseThrow());
-    saveManager.saveMigrationState(
-        LegacyMigrationState.started(id).withProfileWritten().withCheckpointWritten());
+    saveManager.saveMigrationState(LegacyMigrationState.started(id));
 
     assertTrue(migrator.migrateIfNeeded().migrated());
 

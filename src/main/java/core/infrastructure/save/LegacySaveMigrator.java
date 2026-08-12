@@ -14,11 +14,12 @@ import java.util.logging.Logger;
 /**
  * 旧 {@code save.json} を Profile / RunCheckpoint へ移行する (SAVE-02B)。
  *
- * <p>3 つの書込 (Profile → RunCheckpoint → 完了マーカー) の途中で停止しても、再起動後に不足側だけを 再生成できるよう {@link
- * LegacyMigrationState} を journal として使う。
+ * <p>書込の途中で停止しても、再起動して同じ旧ファイルを与えれば全体を <b>決定的に再生成する</b> ({@link LegacySaveMapper} は純関数)。途中まで書いた
+ * Profile に差分を足すのではなく常に上書き するため、何度中断・再実行しても返金が累積しない。
  *
- * <p>値は毎回 <b>旧ファイルから決定的に再計算する</b> ({@link LegacySaveMapper} は純関数)。 途中まで書いた Profile
- * に差分を足すのではなく常に上書きするため、再実行しても返金が累積しない。
+ * <p>{@link LegacyMigrationState} が持つのは「どの旧ファイルを」「完了したか」の 2 点だけ。 部分再開のための進捗フラグは持たない —
+ * 全体を作り直す方が、書込地点ごとの分岐を正しく 保つより壊れにくい。journal の役割は (a) 完了済みの再処理を防ぐ、(b) 中断中の再実行を 既存 Profile
+ * のクロバーと区別する、の 2 つに絞る。
  *
  * <p>完了マーカーを書くまで旧 {@code save.json} を削除しない。移行が中断しても原本が残る。
  */
@@ -96,6 +97,8 @@ public final class LegacySaveMigrator {
     // 値は毎回ここで再計算する。中断後の再実行でも同じ結果になり、返金が累積しない。
     LegacySaveMapper.Result mapped = LegacySaveMapper.map(legacy.get());
 
+    // 着手を記録してから書く。中断してもこの journal があるので、同じ旧ファイルの再実行を
+    // 「既存 Profile のクロバー」ではなく「再開」と判別できる。
     LegacyMigrationState state = LegacyMigrationState.started(id);
     if (!saveManager.saveMigrationState(state).isSuccess()) {
       LOG.severe("Migration aborted: failed to write journal");
@@ -106,20 +109,10 @@ public final class LegacySaveMigrator {
       LOG.severe("Migration aborted: failed to write profile");
       return new MigrationResult(false, mapped.warnings());
     }
-    state = state.withProfileWritten();
-    if (!saveManager.saveMigrationState(state).isSuccess()) {
-      LOG.severe("Migration aborted: failed to update journal after profile");
-      return new MigrationResult(false, mapped.warnings());
-    }
 
     if (mapped.checkpoint().isPresent()
         && !saveManager.saveCheckpoint(mapped.checkpoint().get()).isSuccess()) {
       LOG.severe("Migration aborted: failed to write checkpoint");
-      return new MigrationResult(false, mapped.warnings());
-    }
-    state = state.withCheckpointWritten();
-    if (!saveManager.saveMigrationState(state).isSuccess()) {
-      LOG.severe("Migration aborted: failed to update journal after checkpoint");
       return new MigrationResult(false, mapped.warnings());
     }
 
