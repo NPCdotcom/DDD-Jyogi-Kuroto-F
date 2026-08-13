@@ -76,8 +76,7 @@ public final class NodeChoicePopup implements Disposable {
 
     Viewport viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT);
     this.stage = new Stage(viewport);
-    this.skin = new Skin();
-    skin.add("default-font", font);
+    this.skin = new BorrowedFontSkin(font);
 
     Label.LabelStyle labelStyle = new Label.LabelStyle(font, Color.WHITE);
     skin.add("default", labelStyle);

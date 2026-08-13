@@ -76,8 +76,19 @@ public final class RunLifecycle {
   public SaveManager.SaveResult beginRun(ProfileData profile, RunId runId) {
     Objects.requireNonNull(profile, "profile");
     Objects.requireNonNull(runId, "runId");
+    if (saveManager.isProfileUnsafeToOverwrite() || saveManager.isCheckpointUnsafeToOverwrite()) {
+      String message =
+          "Refusing to begin run: profile or checkpoint file is unsafe to overwrite/delete";
+      LOG.severe(message);
+      return SaveManager.SaveResult.failure(message);
+    }
+    SaveManager.SaveResult saveResult =
+        saveManager.saveProfile(profile.withActiveRunId(runId.value()));
+    if (!saveResult.isSuccess()) {
+      return saveResult;
+    }
     saveManager.deleteCheckpoint();
-    return saveManager.saveProfile(profile.withActiveRunId(runId.value()));
+    return SaveManager.SaveResult.ok();
   }
 
   /**

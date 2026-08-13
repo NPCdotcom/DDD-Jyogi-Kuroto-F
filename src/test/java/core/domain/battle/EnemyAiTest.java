@@ -9,6 +9,7 @@ import core.domain.dungeon.DungeonMap;
 import core.domain.dungeon.DungeonState;
 import core.domain.entity.Enemy;
 import core.domain.entity.EnemyAiState;
+import core.domain.entity.EnemyKind;
 import core.domain.entity.Player;
 import core.domain.support.DomainFixtures;
 import java.util.List;
@@ -59,7 +60,9 @@ class EnemyAiTest {
   @Test
   void adjacentEnemyWithoutApWaits() {
     Player p = DomainFixtures.playerAt(new Position(1, 1));
-    Enemy e = DomainFixtures.slimeAt("low", new Position(2, 1), new ActionPoints(0, 3));
+    Enemy e =
+        DomainFixtures.slimeAt(
+            "low", new Position(2, 1), new core.domain.battle.ActionPoints(0, 3));
     DungeonState s =
         new DungeonState(DomainFixtures.squareRoom(), p, List.of(e), TurnPhase.ENEMY_TURN);
 
@@ -84,5 +87,26 @@ class EnemyAiTest {
     BattleAction action = EnemyAi.decide(e, s);
     assertTrue(action instanceof BattleAction.Move, "壁に阻まれても Wait せず迂回移動する");
     assertEquals(Direction.DOWN, ((BattleAction.Move) action).direction(), "迂回経路の 1 歩目は DOWN");
+  }
+
+  @Test
+  void swiftSlimeAttacksWhenAdjacent() {
+    Player p = DomainFixtures.playerAt(new Position(1, 1));
+    Enemy base = DomainFixtures.slimeAt(new Position(2, 1));
+    Enemy e =
+        new Enemy(
+            base.id(),
+            base.position(),
+            base.stats(),
+            base.actionPoints(),
+            base.skillSlot(),
+            EnemyKind.SWIFT_SLIME,
+            EnemyAiState.ALERT,
+            Optional.of(new Position(1, 1)));
+    DungeonState s =
+        new DungeonState(DomainFixtures.squareRoom(), p, List.of(e), TurnPhase.ENEMY_TURN);
+
+    BattleAction action = EnemyAi.decide(e, s);
+    assertTrue(action instanceof BattleAction.UseSkill, "SWIFT_SLIME も隣接時は逃げずに攻撃スキルを使用する");
   }
 }

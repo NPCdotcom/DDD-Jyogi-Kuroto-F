@@ -24,12 +24,17 @@ import java.util.Random;
  * <p>{@link RunId} はラン 1 回を一意に識別する (SAVE-03A)。{@code ProfileData.activeRunId} と 突き合わせることで、終了済みランの
  * Checkpoint からの再開と、同じランの二重精算を拒否できる (レビュー P0-1)。
  */
-public record RunSession(RunId runId, GameContext context, TurnDirector director, Random rng) {
+public record RunSession(
+    RunId runId, GameContext context, TurnDirector director, Random rng, int initialRunSoul) {
 
   public RunSession {
     Objects.requireNonNull(runId, "runId");
     Objects.requireNonNull(context, "context");
     Objects.requireNonNull(director, "director");
     Objects.requireNonNull(rng, "rng");
+  }
+
+  public RunSession(RunId runId, GameContext context, TurnDirector director, Random rng) {
+    this(runId, context, director, rng, 0);
   }
 }

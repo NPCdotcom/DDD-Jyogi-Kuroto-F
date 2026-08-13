@@ -85,6 +85,12 @@ public final class ProfileDataMapper {
       owned.add(equipment.id().value());
     }
 
+    int capacityValue = currentCapacity(progress).value();
+    List<String> protectedIds = new ArrayList<>(previous.protectedEquipmentIds());
+    if (protectedIds.size() > capacityValue) {
+      protectedIds = protectedIds.subList(0, capacityValue);
+    }
+
     return new ProfileData(
         ProfileData.CURRENT_SCHEMA_VERSION,
         soulTotal,
@@ -92,8 +98,8 @@ public final class ProfileDataMapper {
         unlockedNodeIds,
         List.copyOf(owned),
         loadoutMap,
-        List.of(), // 保護指定は EQUIP-02 で編成画面から設定する
-        0, // 保護枠は SOUL-03 でソウルツリーから導出する
+        List.copyOf(protectedIds),
+        capacityValue,
         defeatedEnemyKinds,
         obtainedCardIds,
         progress.tutorialSeen(),

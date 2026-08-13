@@ -24,19 +24,35 @@ public final class CardDescriber {
 
   /** カード効果の日本語説明 (例「物理ダメージ 5 (射程 3)」「3 マス移動」「物攻 +3 (3T)」「罠 物理 5 / 踏むまで」)。 */
   public static String describe(Card card) {
-    String elem = card.element() == CardElement.PHYSICAL ? "物理" : "魔法";
+    return describe(card, true);
+  }
+
+  /** カード効果を指定言語で説明する。 */
+  public static String describe(Card card, boolean japanese) {
+    String elem = elementLabel(card.element(), japanese);
     return switch (card.effect()) {
-      case CardEffect.Damage d -> elem + "ダメージ " + d.baseValue() + rangeAreaSuffix(d);
-      case CardEffect.Move m -> m.distance() + " マス移動";
+      case CardEffect.Damage d ->
+          japanese
+              ? elem + "ダメージ " + d.baseValue() + rangeAreaSuffix(d, true)
+              : elem + " damage " + d.baseValue() + rangeAreaSuffix(d, false);
+      case CardEffect.Move m ->
+          japanese
+              ? m.distance() + " マス移動"
+              : "Move " + m.distance() + (m.distance() == 1 ? " tile" : " tiles");
       case CardEffect.Buff b ->
-          BuffKindLabels.labelOf(b.kind(), true)
+          BuffKindLabels.labelOf(b.kind(), japanese)
               + " "
               + signed(b.amount())
               + " ("
               + b.durationTurns()
               + "T)";
       case CardEffect.Trap t ->
-          "罠 " + elem + " " + t.baseValue() + " / " + trapLifetimeLabel(t.lifetime());
+          (japanese ? "罠 " : "Trap ")
+              + elem
+              + " "
+              + t.baseValue()
+              + " / "
+              + trapLifetimeLabel(t.lifetime(), japanese);
     };
   }
 
@@ -47,7 +63,7 @@ public final class CardDescriber {
    * cards.json 由来データの破損・将来 Optional 化等で String.format が失敗してもフロントエンドをクラッシュさせず、 空文字にフォールバック (graceful
    * degradation)。
    */
-  private static String rangeAreaSuffix(CardEffect.Damage d) {
+  private static String rangeAreaSuffix(CardEffect.Damage d, boolean japanese) {
     int range = d.range();
     int areaRadius = d.areaRadius();
     if (range <= 1 && areaRadius <= 0) {
@@ -55,9 +71,11 @@ public final class CardDescriber {
     }
     try {
       if (areaRadius > 0) {
-        return String.format(" (射程 %d / 範囲 %d)", range, areaRadius);
+        return japanese
+            ? String.format(" (射程 %d / 範囲 %d)", range, areaRadius)
+            : String.format(" (Range %d / Area %d)", range, areaRadius);
       }
-      return String.format(" (射程 %d)", range);
+      return japanese ? String.format(" (射程 %d)", range) : String.format(" (Range %d)", range);
     } catch (RuntimeException e) {
       LOG.warning(
           "CardDescriber range/area format failed (range="
@@ -74,10 +92,18 @@ public final class CardDescriber {
     return amount >= 0 ? "+" + amount : String.valueOf(amount);
   }
 
-  private static String trapLifetimeLabel(TrapLifetime lifetime) {
+  private static String elementLabel(CardElement element, boolean japanese) {
+    return switch (element) {
+      case PHYSICAL -> japanese ? "物理" : Strings.En.CARD_ELEMENT_PHYSICAL;
+      case MAGICAL -> japanese ? "魔法" : Strings.En.CARD_ELEMENT_MAGICAL;
+    };
+  }
+
+  private static String trapLifetimeLabel(TrapLifetime lifetime, boolean japanese) {
     return switch (lifetime) {
-      case TrapLifetime.UntilStepped ignored -> "踏むまで";
-      case TrapLifetime.Turns turns -> turns.remaining() + "T 残";
+      case TrapLifetime.UntilStepped ignored -> japanese ? "踏むまで" : "Until stepped";
+      case TrapLifetime.Turns turns ->
+          japanese ? turns.remaining() + "T 残" : turns.remaining() + "T remaining";
     };
   }
 }

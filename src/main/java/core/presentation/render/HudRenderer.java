@@ -5,11 +5,11 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.utils.Align;
 import core.application.GameContext;
 import core.domain.battle.BattleEvent;
 import core.domain.battle.TurnPhase;
 import core.domain.card.Card;
-import core.domain.card.CardElement;
 import core.domain.entity.Player;
 import core.infrastructure.bootstrap.CardImageRegistry;
 import core.infrastructure.save.UiPreset;
@@ -114,11 +114,13 @@ public final class HudRenderer {
         context.state().phase(),
         preset);
     drawLog(batch, font, jp, context.latestEvents(RenderLayout.LOG_LINES_VISIBLE));
-    drawHand(batch, font, jp, p, pendingCardIndex, images);
+    drawHand(batch, fonts, jp, p, pendingCardIndex, images);
     // Wave 15 W15-β / #3 #6: SkillSlot 完全廃止 + HUD 重なり整理。
     // drawSkillSlots(...) を廃止 (Player.skillSlot は空 4 枠固定なので何も描かれていなかったが念のため削除、
     // 画面下部のスキル枠領域も廃止で HUD が整理される)
     drawEndTurnButton(batch, font, jp, t);
+    font.setColor(Color.WHITE);
+    batch.setColor(Color.WHITE);
   }
 
   /**
@@ -205,11 +207,12 @@ public final class HudRenderer {
   /** 手札を画面下部にカード画像 120×168 で描画する (§15-3 / UI 改善)。 */
   private static void drawHand(
       SpriteBatch batch,
-      BitmapFont font,
+      Fonts fonts,
       boolean jp,
       Player p,
       int pendingCardIndex,
       CardImageRegistry images) {
+    BitmapFont handFont = fonts.large();
     List<Card> cards = p.cardPileState().hand().cards();
     if (cards.isEmpty()) {
       return;
@@ -232,38 +235,30 @@ public final class HudRenderer {
         CardRenderer.drawCard(batch, cardImage, bounds.x, y, bounds.width, bounds.height, tint);
       } else {
         // CardImageRegistry 未注入 or テクスチャ欠落時はテキストフォールバック (テスト・後方互換)
-        font.setColor(selected ? Color.YELLOW : Color.WHITE);
-        font.draw(
+        handFont.setColor(selected ? Color.YELLOW : Color.WHITE);
+        handFont.draw(
             batch, "[%d]%s".formatted(i + 1, card.displayName()), bounds.x, y + bounds.height / 2f);
-        font.setColor(Color.WHITE);
-        font.draw(batch, "AP%d".formatted(card.apCost()), bounds.x + bounds.width - 60f, y + 28f);
+        handFont.setColor(Color.WHITE);
+        handFont.draw(
+            batch, "AP%d".formatted(card.apCost()), bounds.x + bounds.width - 60f, y + 28f);
       }
     }
 
     // §15-3: 選択中カードのみ詳細テキストを画像群の下 (HAND_DETAIL_TEXT_Y) に表示。
     if (pendingCardIndex >= 0 && pendingCardIndex < cards.size()) {
       Card sel = cards.get(pendingCardIndex);
-      font.setColor(Color.YELLOW);
-      String elemLabel = elementLabel(jp, sel.element());
-      String full =
-          "%s  AP:%d  %s  —  %s"
-              .formatted(sel.displayName(), sel.apCost(), elemLabel, CardDescriber.describe(sel));
-      // §UI 改善 (A9 攻撃 5 対応): HAND_X〜HUD_X 領域 (約 1024px) を超える長文は末尾「…」省略。
-      // GlyphLayout で実描画幅を計測し、HUD_X の手前 80px (右余白) を超える場合は文字列を縮める。
-      float maxWidth = RenderLayout.HUD_X - RenderLayout.HAND_FIRST_X - 80f;
-      com.badlogic.gdx.graphics.g2d.GlyphLayout layout =
-          new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, full);
-      String drawn = full;
-      if (layout.width > maxWidth) {
-        // 1 文字ずつ削って「…」を付け、収まるまで縮める (BitmapFont.draw に直接渡せる String)。
-        for (int len = full.length() - 1; len > 0; len--) {
-          drawn = full.substring(0, len) + "…";
-          layout.setText(font, drawn);
-          if (layout.width <= maxWidth) break;
-        }
-      }
-      font.draw(batch, drawn, RenderLayout.HAND_FIRST_X, RenderLayout.HAND_DETAIL_TEXT_Y);
-      font.setColor(Color.WHITE);
+      BitmapFont detailFont = fonts.hud();
+      detailFont.setColor(Color.YELLOW);
+      detailFont.draw(
+          batch,
+          CardPresentationText.format(sel, jp),
+          RenderLayout.HAND_DETAIL_TEXT_X,
+          RenderLayout.HAND_DETAIL_TEXT_Y,
+          RenderLayout.HAND_DETAIL_TEXT_WIDTH,
+          Align.left,
+          true);
+      detailFont.setColor(Color.WHITE);
+      batch.setColor(Color.WHITE);
     }
   }
 
@@ -272,13 +267,6 @@ public final class HudRenderer {
     return switch (reason) {
       case STUCK ->
           jp ? Strings.Ja.AUTO_TURN_END_REASON_STUCK : Strings.En.AUTO_TURN_END_REASON_STUCK;
-    };
-  }
-
-  private static String elementLabel(boolean jp, CardElement element) {
-    return switch (element) {
-      case PHYSICAL -> jp ? Strings.Ja.CARD_ELEMENT_PHYSICAL : Strings.En.CARD_ELEMENT_PHYSICAL;
-      case MAGICAL -> jp ? Strings.Ja.CARD_ELEMENT_MAGICAL : Strings.En.CARD_ELEMENT_MAGICAL;
     };
   }
 

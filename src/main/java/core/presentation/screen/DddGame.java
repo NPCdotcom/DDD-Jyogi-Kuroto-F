@@ -143,12 +143,33 @@ public final class DddGame extends Game {
     return UiThemeResolver.resolve(persistence.settings().themeMode());
   }
 
+  private void saveProgressProfile() {
+    if (persistence != null && persistence.saveManager() != null) {
+      ProfileData previous = persistence.runLifecycle().profileOrInitial();
+      // メタ保存では恒久ソウル (previous.soulTotal()) を据え置く。
+      // progress.playerSoul() はラン中 0 のため、forSoulUpdate で書くと持越しソウルが 0 で全損する。
+      ProfileData profile = ProfileDataMapper.forLayerBoundary(progress, previous);
+      persistence.saveManager().saveProfile(profile);
+    }
+  }
+
+  /** ラン外メタ進行 (ソウルツリー解放・リセット) で変更された playerSoul を Profile に即時永続化する。 */
+  private void saveProgressProfileWithSoul() {
+    if (persistence != null && persistence.saveManager() != null) {
+      ProfileData previous = persistence.runLifecycle().profileOrInitial();
+      ProfileData profile =
+          ProfileDataMapper.forSoulUpdate(progress, previous, progress.playerSoul().amount());
+      persistence.saveManager().saveProfile(profile);
+    }
+  }
+
   /** 装備をそのスロットに装着する (同スロットの既存装備は置き換え、§15-9、次ラン開始時に反映)。 */
   public void equipInLoadout(Equipment equipment) {
     Objects.requireNonNull(equipment, "equipment");
     Map<EquipmentSlot, Equipment> next = new HashMap<>(progress.loadout());
     next.put(equipment.slot(), equipment);
     progress = progress.withLoadout(next);
+    saveProgressProfile();
   }
 
   /**
@@ -164,6 +185,7 @@ public final class DddGame extends Game {
     Map<EquipmentSlot, Equipment> next = new HashMap<>(progress.loadout());
     next.remove(slot);
     progress = progress.withLoadout(next);
+    saveProgressProfile();
   }
 
   /**
@@ -173,6 +195,7 @@ public final class DddGame extends Game {
    */
   public void recordEnemyDefeated(EnemyKind kind) {
     progress = progress.withBestiary(progress.bestiary().withDefeated(kind));
+    saveProgressProfile();
   }
 
   /** 現在の Player が保持する全カード (山札 + 手札 + 捨て札) の ID を入手済として記録する。 */
@@ -236,12 +259,14 @@ public final class DddGame extends Game {
   /** §15-10 / E-10: チュートリアル overlay を閉じた時に呼び、次回以降の自動表示を抑制する。 */
   public void markTutorialSeen() {
     progress = progress.withTutorialSeen(true);
+    saveProgressProfile();
   }
 
   /** ラン外のソウルツリー画面でノード解放した結果を受け取る (§15-7)。 */
   public void unlockTreeNode(NodeId nodeId) {
     SoulTree.UnlockResult result = progress.soulTree().unlock(nodeId, progress.playerSoul());
     progress = progress.withSoulTree(result.newTree()).withPlayerSoul(result.newSoul());
+    saveProgressProfileWithSoul();
     // Wave 10 W10-β-2: ノード解放成功時に STATUS_UP SE (旧 LEVEL_UP からユーザー判断で変更、体感整合)
     if (resources != null) {
       resources.soundManager().playSe(core.infrastructure.audio.SeKind.STATUS_UP);
@@ -255,6 +280,7 @@ public final class DddGame extends Game {
         progress
             .withSoulTree(result.newTree())
             .withPlayerSoul(progress.playerSoul().add(result.refundedSoul()));
+    saveProgressProfileWithSoul();
   }
 
   /** ラン終了時 (GameOverScreen 表示時) に Player.soul をラン外保持に書き戻す (§15-7)。 */
@@ -275,22 +301,27 @@ public final class DddGame extends Game {
     progress = progress.withRunCount(progress.runCount() + 1);
 
     // SAVE-03B: ここで恒久進捗を保存し、Checkpoint を削除する。
-    // 従来はメモリ上の progress を更新するだけで保存も削除もしなかったため、
-    // 終了直後に閉じると獲得分が消え、逆に古い Checkpoint から再開できた (レビュー P0-1)。
-    runSession.ifPresent(
-        session -> {
-          RunLifecycle lifecycle = persistence.runLifecycle();
-          // 精算時のみ progress.playerSoul() を書く。preserveSoulFromRun() が直前に
-          // Player の総ソウル (持越し + ラン中獲得) を progress へ戻している。
-          ProfileData settled =
-              ProfileDataMapper.forSoulUpdate(
-                      progress, lifecycle.profileOrInitial(), progress.playerSoul().amount())
-                  .withSettledRunId(session.runId().value());
-          if (!lifecycle.endRun(settled).isSuccess()) {
-            LOG.severe("ラン終了時の保存に失敗しました。Checkpoint は削除していません。");
-          }
-        });
+    RunLifecycle lifecycle = persistence.runLifecycle();
+    ProfileData previous = lifecycle.profileOrInitial();
 
+    int finalSoul = progress.playerSoul().amount();
+    int initialSoul = runSession.map(RunSession::initialRunSoul).orElse(0);
+    int deltaSoul = finalSoul - initialSoul;
+    int settledSoulTotal = Math.max(0, previous.soulTotal() + deltaSoul);
+
+    progress = progress.withPlayerSoul(new Soul(settledSoulTotal));
+    ProfileData settled = ProfileDataMapper.forSoulUpdate(progress, previous, settledSoulTotal);
+
+    if (runSession.isPresent()) {
+      settled = settled.withSettledRunId(runSession.get().runId().value());
+      if (!lifecycle.endRun(settled).isSuccess()) {
+        LOG.severe("ラン終了時の保存に失敗しました。Checkpoint は削除していません。");
+      }
+    } else {
+      if (!persistence.saveManager().saveProfile(settled).isSuccess()) {
+        LOG.severe("ラン終了時 (セッション非存在) の Profile 保存に失敗しました。");
+      }
+    }
     runSession = Optional.empty();
   }
 
@@ -299,8 +330,6 @@ public final class DddGame extends Game {
    *
    * <p>放棄は死亡と同じ扱いにする。§15-9 は「敵撃破とイベントでラン中に得た Soul は、死亡・放棄・ クリアのいずれでも 100% を Profile
    * へ移す」と定めるため、Checkpoint に記録された総ソウルを 恒久側へ書き戻してから Checkpoint を削除する。
-   *
-   * <p>{@code currentRunSoul} は持越し分を含む総量なので、Profile へは<b>加算ではなく置換</b>する。 加算すると持越し分が二重計上される。
    *
    * <p>再開可能な Checkpoint が無い場合は何もしない。
    *
@@ -314,13 +343,17 @@ public final class DddGame extends Game {
     }
     RunCheckpoint checkpoint = optCheckpoint.get();
 
-    // メモリ上の進捗も揃える (ソウルツリー画面が正しい所持ソウルを出すため)。
-    progress = progress.withPlayerSoul(new Soul(checkpoint.currentRunSoul()));
+    ProfileData previous = lifecycle.profileOrInitial();
+    int finalSoul = checkpoint.currentRunSoul();
+    int initialSoul = checkpoint.initialRunSoul();
+    int deltaSoul = finalSoul - initialSoul;
+    int settledSoulTotal = Math.max(0, previous.soulTotal() + deltaSoul);
+
+    progress = progress.withPlayerSoul(new Soul(settledSoulTotal));
     progress = progress.withRunCount(progress.runCount() + 1);
 
     ProfileData settled =
-        ProfileDataMapper.forSoulUpdate(
-                progress, lifecycle.profileOrInitial(), checkpoint.currentRunSoul())
+        ProfileDataMapper.forSoulUpdate(progress, previous, settledSoulTotal)
             .withSettledRunId(checkpoint.runId());
     if (!lifecycle.endRun(settled).isSuccess()) {
       LOG.severe("ラン放棄の精算に失敗しました。Checkpoint は削除していません。");
@@ -358,7 +391,9 @@ public final class DddGame extends Game {
     // SAVE-03A: 新規ランへ一意な ID を割り当てる。Profile.activeRunId と突き合わせることで
     // 終了済みランの Checkpoint からの再開と二重精算を拒否できる (レビュー P0-1)。
     RunId runId = RunId.newRandom();
-    runSession = Optional.of(new RunSession(runId, newContext, newDirector, newRng));
+    runSession =
+        Optional.of(
+            new RunSession(runId, newContext, newDirector, newRng, carriedOverSoul.amount()));
     recordObtainedCards(); // §15-3: 初期デッキを図鑑に記録
 
     // SAVE-03B: Profile の activeRunId をこのランへ向け、古い Checkpoint を消す。
@@ -371,7 +406,8 @@ public final class DddGame extends Game {
     ProfileData started =
         ProfileDataMapper.forSoulUpdate(progress, previous, carriedOverSoul.amount());
     if (!lifecycle.beginRun(started, runId).isSuccess()) {
-      LOG.severe("ラン開始の記録に失敗しました。次の層境界セーブで復旧を試みます。");
+      LOG.severe("ラン開始の記録に失敗しました。所持ソウルを復元し、次の層境界セーブで再試行します。");
+      progress = progress.withPlayerSoul(carriedOverSoul);
     }
   }
 
@@ -559,13 +595,15 @@ public final class DddGame extends Game {
     // 書込側だけ旧形式のままにすると、タイトルの「つづき」判定 (新形式) と食い違い、
     // 層境界で保存したはずの進捗が次回起動で無視される。
     RunLifecycle lifecycle = persistence.runLifecycle();
+    int initialSoul = runSession.map(RunSession::initialRunSoul).orElse(0);
     RunCheckpoint checkpoint =
         RunCheckpointMapper.toCheckpoint(
             runSession.get().runId(),
             state.player(),
             nextLayerNumber,
             ProfileDataMapper.toRunInventory(progress),
-            ProfileDataMapper.currentCapacity(progress));
+            ProfileDataMapper.currentCapacity(progress),
+            initialSoul);
     // 層境界では恒久ソウルを据え置く。ラン中は progress.playerSoul() が 0 (開始時に Player へ
     // 注入済) なので、そのまま書くと精算前に終了したプレイヤーの貯金が全損する。
     ProfileData previous = lifecycle.profileOrInitial();
@@ -638,7 +676,11 @@ public final class DddGame extends Game {
     runSession =
         Optional.of(
             new RunSession(
-                RunCheckpointMapper.toRunId(checkpoint), newContext, newDirector, newRng));
+                RunCheckpointMapper.toRunId(checkpoint),
+                newContext,
+                newDirector,
+                newRng,
+                checkpoint.initialRunSoul()));
     return true;
   }
 

@@ -113,4 +113,64 @@ class CardDescriberTest {
         CardDescriber.describe(
             card(CardTag.ATTACK, CardElement.MAGICAL, new CardEffect.Damage(9, 4, 1))));
   }
+
+  @Test
+  void describesEnglishDamageWithRangeAndArea() {
+    assertEquals(
+        "Magical damage 9 (Range 4 / Area 1)",
+        CardDescriber.describe(
+            card(CardTag.ATTACK, CardElement.MAGICAL, new CardEffect.Damage(9, 4, 1)), false));
+  }
+
+  @Test
+  void describesEnglishMove() {
+    assertEquals(
+        "Move 3 tiles",
+        CardDescriber.describe(
+            card(CardTag.MOVEMENT, CardElement.PHYSICAL, new CardEffect.Move(3)), false));
+  }
+
+  @Test
+  void describesEnglishSingleTileMove() {
+    assertEquals(
+        "Move 1 tile",
+        CardDescriber.describe(
+            card(CardTag.MOVEMENT, CardElement.PHYSICAL, new CardEffect.Move(1)), false));
+  }
+
+  @Test
+  void describesEnglishBuff() {
+    assertEquals(
+        "PhyAtk +3 (2T)",
+        CardDescriber.describe(
+            card(
+                CardTag.BUFF,
+                CardElement.PHYSICAL,
+                new CardEffect.Buff(CardEffect.BuffKind.PHYSICAL_ATTACK_UP, 3, 2)),
+            false));
+  }
+
+  @Test
+  void describesEnglishTrapUntilStepped() {
+    assertEquals(
+        "Trap Physical 4 / Until stepped",
+        CardDescriber.describe(
+            card(
+                CardTag.TRAP,
+                CardElement.PHYSICAL,
+                new CardEffect.Trap(4, TrapLifetime.UntilStepped.INSTANCE)),
+            false));
+  }
+
+  @Test
+  void describesEnglishTrapTurns() {
+    assertEquals(
+        "Trap Magical 5 / 3T remaining",
+        CardDescriber.describe(
+            card(
+                CardTag.TRAP,
+                CardElement.MAGICAL,
+                new CardEffect.Trap(5, new TrapLifetime.Turns(3))),
+            false));
+  }
 }

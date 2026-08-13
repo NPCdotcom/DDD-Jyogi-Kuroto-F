@@ -2,7 +2,6 @@ package core.domain.battle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import core.domain.common.Position;
@@ -144,17 +143,14 @@ class EnemyAiBehaviorTest {
   // ----- CAUTIOUS (kite) 動作 -----
 
   @Test
-  void cautiousEnemyFleesWhenPlayerAdjacent() {
-    // SWIFT_SLIME (CAUTIOUS) は隣接されたら離れる方向に移動
+  void swiftSlimeAttacksWhenPlayerAdjacent() {
+    // SWIFT_SLIME は AGGRESSIVE。隣接プレイヤーに攻撃スキルを使用
     Player p = DomainFixtures.playerAt(new Position(2, 2));
     Enemy e = enemyOfKind(EnemyKind.SWIFT_SLIME, new Position(3, 2));
     DungeonState s = new DungeonState(openRoom(), p, List.of(e), TurnPhase.ENEMY_TURN);
 
     BattleAction action = EnemyAi.decide(e, s);
-    assertInstanceOf(BattleAction.Move.class, action, "隣接プレイヤーから離れる方向に Move");
-    // 離れる方向 = RIGHT (プレイヤーが左、敵が右なので右に逃げる)
-    BattleAction.Move move = (BattleAction.Move) action;
-    assertNotEquals(core.domain.common.Direction.LEFT, move.direction(), "プレイヤーに近づく方向は選ばない");
+    assertInstanceOf(BattleAction.UseSkill.class, action, "隣接プレイヤーに UseSkill を使用");
   }
 
   @Test

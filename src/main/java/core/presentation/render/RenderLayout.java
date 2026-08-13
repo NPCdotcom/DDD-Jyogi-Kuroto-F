@@ -147,7 +147,7 @@ public final class RenderLayout {
    * <p>画面中段右寄り、HUD パネル + 手札 + カード詳細テキストの上に配置。large (32px) で行間 LARGE_LINE_HEIGHT=48 を取り、 2 行表示する。
    *
    * <p>LOG_TOP_Y=520 → ログ占有範囲 Y∈[472, 520]。手札カード画像 (HAND_CARD_BOTTOM_Y=110 + HAND_CARD_HEIGHT=168 =
-   * Y∈[110, 278]) およびカード詳細テキスト (HAND_DETAIL_TEXT_Y=80、画像の下に配置) と衝突せず、 HUD_Y_HINT=350 /
+   * Y∈[110, 278]) およびカード詳細テキスト (HAND_DETAIL_TEXT_Y=88、画像の下に配置) と衝突せず、 HUD_Y_HINT=350 /
    * HUD_Y_MOVE_TOKEN=800 とも干渉しない安全領域。
    */
   public static final int LOG_X = 40;
@@ -175,16 +175,28 @@ public final class RenderLayout {
   /** 選択中カードを縦方向に持ち上げる量 (視覚強調)。 */
   public static final int HAND_CARD_SELECTED_LIFT = 20;
 
+  /** 選択中カード詳細はヘッダと効果の明示 2 行で構成する。 */
+  public static final int HAND_DETAIL_LINE_COUNT = 2;
+
+  /** 選択中カード詳細に使う {@link Fonts#hud()} のフォントサイズ。 */
+  public static final int HAND_DETAIL_FONT_SIZE = 16;
+
   /**
    * 選択中カードの詳細テキスト (displayName + AP + 効果説明) を描画する Y 座標。
    *
-   * <p>カード画像 (Y∈[110, 278]) と被らないよう、画像の**下** (画面下端側) に配置する。 large (32px) baseline Y=80 → 描画範囲
-   * Y∈[48, 80]、画面下端から 48px 余白、HAND_CARD_BOTTOM_Y=110 とも 30px 余白、HUD_Y_HINT=350 とも 270px 離れて干渉なし。
+   * <p>カード画像 (Y∈[110, 278]) と被らないよう、画像の**下** (画面下端側) に配置する。hud (16px) の明示 2 行を baseline Y=88
+   * から描画すると保守的な下端は Y=56、カード底辺とも 22px 離れて干渉しない。
    */
-  public static final int HAND_DETAIL_TEXT_Y = 80;
+  public static final int HAND_DETAIL_TEXT_Y = 88;
 
   /** 手札 1 枚目の左下 X 座標 (9 枚センター配置: (1920 - 9*120 - 8*16) / 2 = 356)。 */
   public static final int HAND_FIRST_X = 356;
+
+  /** 選択中カード詳細の左端。手札列と揃える。 */
+  public static final int HAND_DETAIL_TEXT_X = HAND_FIRST_X;
+
+  /** 選択中カード詳細の折返し幅。右 HUD の手前に 80px の余白を残す。 */
+  public static final int HAND_DETAIL_TEXT_WIDTH = HUD_X - HAND_DETAIL_TEXT_X - 80;
 
   /** 画面下の HUD パネル (手札背景) の高さ (px、§15-3 / §15-6 カメラオフセット計算で使う)。 */
   public static final int HUD_BOTTOM_PANEL_HEIGHT = 300;

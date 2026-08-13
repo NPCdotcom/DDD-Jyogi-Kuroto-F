@@ -152,13 +152,13 @@ public final class SoulTreeScreen extends ScreenAdapter {
     m.put(NodeId.of("slot_expand_3"), polar(190, 540));
     m.put(NodeId.of("slot_expand_4"), polar(240, 540));
     m.put(NodeId.of("slot_expand_5"), polar(300, 540));
-    // ステ軸 Lv2 (各スポークの最外周、§15-7 充実化)
+    // ステ軸 Lv2 (各スポークの最外周、貫通回避のため 15度オフセット: 105, 225, 315)
     m.put(NodeId.of("hp_up_2"), polar(0, 700));
     m.put(NodeId.of("speed_up_2"), polar(60, 700));
-    m.put(NodeId.of("phys_atk_up_2"), polar(120, 700));
+    m.put(NodeId.of("phys_atk_up_2"), polar(105, 700));
     m.put(NodeId.of("mag_atk_up_2"), polar(180, 700));
-    m.put(NodeId.of("phys_def_up_2"), polar(240, 700));
-    m.put(NodeId.of("mag_def_up_2"), polar(300, 700));
+    m.put(NodeId.of("phys_def_up_2"), polar(225, 700));
+    m.put(NodeId.of("mag_def_up_2"), polar(315, 700));
     // 層数拡張 (最外周のさらに外、ステ Lv2 の外側に配置、§15 拡張)
     m.put(NodeId.of("layer_extend_4"), polar(30, 860));
     m.put(NodeId.of("layer_extend_5"), polar(150, 860));

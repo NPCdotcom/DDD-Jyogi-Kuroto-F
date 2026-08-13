@@ -56,8 +56,19 @@ import java.util.Random;
  */
 public final class DungeonScreen extends ScreenAdapter {
 
-  /** 敵 1 アクションごとの表示間隔 (秒)。敵ターンをこの間隔で 1 体ずつ進め、行動を視認できるようにする (§15-5)。 */
-  private static final float ENEMY_STEP_INTERVAL = 0.10f;
+  /**
+   * 敵ターンの総表示時間を約 1.2 秒以下に収める可変ステップ間隔を算出する (Task 2 / 案 A)。
+   *
+   * @param totalAp 敵全体の現在 AP 合計
+   * @return ステップ間隔 (秒、0.03s <= interval <= 0.10s)
+   */
+  public static float calculateEnemyStepInterval(int totalAp) {
+    if (totalAp <= 0) {
+      return 0.05f;
+    }
+    float targetInterval = 1.2f / totalAp;
+    return Math.max(0.03f, Math.min(0.10f, targetInterval));
+  }
 
   private final DddGame game;
 
@@ -253,9 +264,14 @@ public final class DungeonScreen extends ScreenAdapter {
           playerInputs.poll(game.requireRunSession().context().state(), mouseDir);
       action.ifPresent(director::applyPlayerAction);
     } else if (phase == TurnPhase.ENEMY_TURN) {
-      // §15-5: 敵ターンを ENEMY_STEP_INTERVAL ごとに 1 アクションずつ進め、敵が 1 体ずつ動くのを見せる。
+      // §15-5 / 案 A: 敵ターンの総表示時間を約 1.2s 以下に収める可変ステップ間隔
+      int totalAp = 0;
+      for (core.domain.entity.Enemy enemy : game.requireRunSession().context().state().enemies()) {
+        totalAp += enemy.actionPoints().current();
+      }
+      float stepInterval = calculateEnemyStepInterval(totalAp);
       enemyStepTimer += delta;
-      if (enemyStepTimer >= ENEMY_STEP_INTERVAL) {
+      if (enemyStepTimer >= stepInterval) {
         enemyStepTimer = 0f;
         director.stepEnemyTurnOnce();
       }

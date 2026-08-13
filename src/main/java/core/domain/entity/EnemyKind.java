@@ -16,8 +16,8 @@ public enum EnemyKind {
   // Wave 13 W13-α: sightRange (チェビシェフ距離での視界半径) + aiProfile を追加。
   // SWIFT_SLIME のみ CAUTIOUS (kite 型)、他は AGGRESSIVE (BFS 追跡 + 隣接攻撃)。
   SLIME("スライム", 1, 5, 4, EnemyAiProfile.AGGRESSIVE),
-  /** 素早い個体 (§15-5 敵バリエーション、部分実装)。AP が高く手数で攻める雑魚。 報酬・能力値は暫定で、バランス確定はチームメイトの敵設計に委ねる。 */
-  SWIFT_SLIME("はやスライム", 1, 6, 6, EnemyAiProfile.CAUTIOUS),
+  /** 素早い個体 (§15-5 敵バリエーション)。AP が高く手数で攻める雑魚。 報酬・能力値は暫定で、バランス確定はチームメイトの敵設計に委ねる。 */
+  SWIFT_SLIME("はやスライム", 1, 6, 6, EnemyAiProfile.AGGRESSIVE),
   /** 頑強な個体 (§15-5 敵バリエーション、部分実装)。HP・物防が高く打たれ強い雑魚。 報酬・能力値は暫定で、バランス確定はチームメイトの敵設計に委ねる。 */
   TOUGH_SLIME("かたスライム", 2, 8, 3, EnemyAiProfile.AGGRESSIVE),
   /** 強化個体 (§15-3 / §15-6、5 層ごとに 1 体出現、撃破時にカード追加 UI を発火)。 */

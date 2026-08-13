@@ -14,37 +14,69 @@ class RenderLayoutConstraintTest {
   // --- フォント高さ前提 ---
   // large フォント (32px) のベースライン高さを仮定。描画範囲は Y∈[Y-32, Y] を占有する。
   private static final int LARGE_FONT_HEIGHT_PX = 32;
+  private static final int SCREEN_EDGE_MARGIN_PX = 8;
 
   // =========================================================================
   // 手札詳細テキスト vs カード画像 (重なり回避)
   // =========================================================================
 
   @Test
-  void handDetailTextYIsStrictlyBelowHandCardBottomY() {
-    // HAND_DETAIL_TEXT_Y=80 < HAND_CARD_BOTTOM_Y=110。
-    // BitmapFont は Y がベースライン (下端) を指すため、
-    // 詳細テキストのベースラインがカード底辺より下であれば画像と重ならない。
+  void twoLineHandDetailFitsBetweenScreenBottomAndHandCards() {
+    int detailBottomEdge =
+        RenderLayout.HAND_DETAIL_TEXT_Y
+            - (RenderLayout.HAND_DETAIL_LINE_COUNT - 1) * RenderLayout.HAND_DETAIL_FONT_SIZE
+            - RenderLayout.HAND_DETAIL_FONT_SIZE;
+
     assertTrue(
-        RenderLayout.HAND_DETAIL_TEXT_Y < RenderLayout.HAND_CARD_BOTTOM_Y,
-        "選択カード詳細テキスト (Y=%d) はカード底辺 (Y=%d) より下に来る"
-            .formatted(RenderLayout.HAND_DETAIL_TEXT_Y, RenderLayout.HAND_CARD_BOTTOM_Y));
+        detailBottomEdge >= SCREEN_EDGE_MARGIN_PX,
+        "2 行の選択カード詳細下端 (Y=%d) は画面下端から %dpx 以上空ける"
+            .formatted(detailBottomEdge, SCREEN_EDGE_MARGIN_PX));
+    assertTrue(
+        RenderLayout.HAND_DETAIL_TEXT_Y <= RenderLayout.HAND_CARD_BOTTOM_Y - SCREEN_EDGE_MARGIN_PX,
+        "選択カード詳細上端 (Y=%d) はカード底辺 (Y=%d) から %dpx 以上離す"
+            .formatted(
+                RenderLayout.HAND_DETAIL_TEXT_Y,
+                RenderLayout.HAND_CARD_BOTTOM_Y,
+                SCREEN_EDGE_MARGIN_PX));
+  }
+
+  @Test
+  void handDetailWrapRegionFitsWithinScreenWidth() {
+    assertTrue(RenderLayout.HAND_DETAIL_TEXT_X >= 0, "選択カード詳細の左端は画面内");
+    assertTrue(RenderLayout.HAND_DETAIL_TEXT_WIDTH > 0, "選択カード詳細の折返し幅は正");
+    assertTrue(
+        RenderLayout.HAND_DETAIL_TEXT_X + RenderLayout.HAND_DETAIL_TEXT_WIDTH
+            <= RenderLayout.SCREEN_WIDTH,
+        "選択カード詳細の右端 (X=%d) は画面幅 %d を超えない"
+            .formatted(
+                RenderLayout.HAND_DETAIL_TEXT_X + RenderLayout.HAND_DETAIL_TEXT_WIDTH,
+                RenderLayout.SCREEN_WIDTH));
   }
 
   // =========================================================================
-  // ログ vs 手札詳細テキスト (重なり回避)
+  // 手札・操作ヒント・ログ (重なり回避)
   // =========================================================================
 
   @Test
-  void logTopYIsStrictlyAboveHandDetailTextWithFontMargin() {
-    // LOG_TOP_Y=520、HAND_DETAIL_TEXT_Y=80。
-    // ログの最下端 = LOG_TOP_Y - LOG_LINE_HEIGHT*(LOG_LINES_VISIBLE-1) ≈ 472、
-    // 詳細テキスト描画範囲上端 = HAND_DETAIL_TEXT_Y - LARGE_FONT_HEIGHT_PX + 1 ≈ 49。
-    // 要するに LOG_TOP_Y が詳細テキスト上端 + フォント高さを大きく上回ることを確認。
-    int detailTopEdge = RenderLayout.HAND_DETAIL_TEXT_Y; // ベースライン ≒ 描画上端 (保守的)
+  void selectedHandCardsHintAndLogStayVerticallySeparated() {
+    int selectedHandTop =
+        RenderLayout.HAND_CARD_BOTTOM_Y
+            + RenderLayout.HAND_CARD_HEIGHT
+            + RenderLayout.HAND_CARD_SELECTED_LIFT;
+    int hintBottom = RenderLayout.HUD_Y_HINT - LARGE_FONT_HEIGHT_PX;
     assertTrue(
-        RenderLayout.LOG_TOP_Y > detailTopEdge + LARGE_FONT_HEIGHT_PX,
-        "ログ上端 (Y=%d) は詳細テキスト + フォント高 (Y=%d) より上にある (重ならない)"
-            .formatted(RenderLayout.LOG_TOP_Y, detailTopEdge + LARGE_FONT_HEIGHT_PX));
+        selectedHandTop + SCREEN_EDGE_MARGIN_PX <= hintBottom,
+        "選択中手札上端 (Y=%d) と操作ヒント下端 (Y=%d) は %dpx 以上離す"
+            .formatted(selectedHandTop, hintBottom, SCREEN_EDGE_MARGIN_PX));
+
+    int lowestLogBaseline =
+        RenderLayout.LOG_TOP_Y
+            - (RenderLayout.LOG_LINES_VISIBLE - 1) * RenderLayout.LOG_LINE_HEIGHT;
+    int logBottom = lowestLogBaseline - LARGE_FONT_HEIGHT_PX;
+    assertTrue(
+        RenderLayout.HUD_Y_HINT + SCREEN_EDGE_MARGIN_PX <= logBottom,
+        "操作ヒント上端 (Y=%d) とログ下端 (Y=%d) は %dpx 以上離す"
+            .formatted(RenderLayout.HUD_Y_HINT, logBottom, SCREEN_EDGE_MARGIN_PX));
   }
 
   // =========================================================================

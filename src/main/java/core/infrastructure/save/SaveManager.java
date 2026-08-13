@@ -170,12 +170,53 @@ public final class SaveManager {
 
   /** 恒久状態を保存する。メタ進行の変更時とラン終了時に呼ぶ。 */
   public SaveResult saveProfile(ProfileData profile) {
+    if (isProfileUnsafeToOverwrite()) {
+      String message =
+          "Refusing to overwrite file with future schemaVersion, corrupted content, or invalid data (unsafe to overwrite): "
+              + profileFile().getAbsolutePath();
+      LOG.severe(message);
+      return SaveResult.failure(message);
+    }
     return writeAtomically(profileFile(), profile);
   }
 
   /** 進行中ランを保存する。層と層の間だけで呼ぶ。 */
   public SaveResult saveCheckpoint(RunCheckpoint checkpoint) {
+    if (isCheckpointUnsafeToOverwrite()) {
+      String message =
+          "Refusing to overwrite file with future schemaVersion, corrupted content, or invalid data (unsafe to overwrite): "
+              + checkpointFile().getAbsolutePath();
+      LOG.severe(message);
+      return SaveResult.failure(message);
+    }
     return writeAtomically(checkpointFile(), checkpoint);
+  }
+
+  public boolean isProfileUnsafeToOverwrite() {
+    return isUnsafeToOverwrite(
+        profileFile(), ProfileData.class, ProfileData.CURRENT_SCHEMA_VERSION);
+  }
+
+  public boolean isCheckpointUnsafeToOverwrite() {
+    return isUnsafeToOverwrite(
+        checkpointFile(), RunCheckpoint.class, RunCheckpoint.CURRENT_SCHEMA_VERSION);
+  }
+
+  private boolean isUnsafeToOverwrite(File file, Class<?> type, int supportedVersion) {
+    if (!file.isFile()) {
+      return false;
+    }
+    try {
+      JsonNode node = mapper.readTree(file);
+      int version = node.path("schemaVersion").asInt(0);
+      if (version > supportedVersion) {
+        return true;
+      }
+      mapper.treeToValue(node, type);
+      return false;
+    } catch (IOException | RuntimeException e) {
+      return true;
+    }
   }
 
   /** 恒久状態を読み込む。欠損・破損・未来 schema は empty。 */
@@ -198,11 +239,23 @@ public final class SaveManager {
 
   /** 恒久状態を削除する。通常は移行と初期化以外で呼ばない。 */
   public void deleteProfile() {
+    if (isProfileUnsafeToOverwrite()) {
+      LOG.warning(
+          "Refusing to delete profile file with future schemaVersion, corrupted content, or invalid data: "
+              + profileFile().getAbsolutePath());
+      return;
+    }
     deleteQuietly(profileFile());
   }
 
   /** 進行中ランを削除する。死亡・クリアの精算後に呼ぶ。 */
   public void deleteCheckpoint() {
+    if (isCheckpointUnsafeToOverwrite()) {
+      LOG.warning(
+          "Refusing to delete checkpoint file with future schemaVersion, corrupted content, or invalid data: "
+              + checkpointFile().getAbsolutePath());
+      return;
+    }
     deleteQuietly(checkpointFile());
   }
 

@@ -75,9 +75,9 @@ class EnemyTest {
     // SLIME = AGGRESSIVE / sight 4
     assertEquals(4, EnemyKind.SLIME.sightRange());
     assertSame(EnemyAiProfile.AGGRESSIVE, EnemyKind.SLIME.aiProfile());
-    // SWIFT_SLIME = CAUTIOUS / sight 6 (kite 型、視界広め)
+    // SWIFT_SLIME = AGGRESSIVE / sight 6
     assertEquals(6, EnemyKind.SWIFT_SLIME.sightRange());
-    assertSame(EnemyAiProfile.CAUTIOUS, EnemyKind.SWIFT_SLIME.aiProfile());
+    assertSame(EnemyAiProfile.AGGRESSIVE, EnemyKind.SWIFT_SLIME.aiProfile());
     // BOSS = AGGRESSIVE / sight 8
     assertEquals(8, EnemyKind.BOSS.sightRange());
     assertSame(EnemyAiProfile.AGGRESSIVE, EnemyKind.BOSS.aiProfile());

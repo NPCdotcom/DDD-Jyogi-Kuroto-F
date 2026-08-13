@@ -42,6 +42,16 @@ public final class RunCheckpointMapper {
       int nextLayerNumber,
       RunInventory inventory,
       RetentionCapacity capacity) {
+    return toCheckpoint(runId, player, nextLayerNumber, inventory, capacity, 0);
+  }
+
+  public static RunCheckpoint toCheckpoint(
+      RunId runId,
+      Player player,
+      int nextLayerNumber,
+      RunInventory inventory,
+      RetentionCapacity capacity,
+      int initialRunSoul) {
     Objects.requireNonNull(runId, "runId");
     Objects.requireNonNull(player, "player");
     Objects.requireNonNull(inventory, "inventory");
@@ -79,7 +89,8 @@ public final class RunCheckpointMapper {
         toIdValues(inventory.unconfirmed()),
         inventory.equipped().map(EquipmentId::value).orElse(null),
         toIdValues(inventory.protectedIds()),
-        capacity.value());
+        capacity.value(),
+        initialRunSoul);
   }
 
   /**

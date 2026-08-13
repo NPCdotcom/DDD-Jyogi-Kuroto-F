@@ -30,6 +30,8 @@ class SaveLifecycleContractTest {
 
   @BeforeEach
   void setUp() {
+    core.domain.tree.SoulTree.setNodeProvider(
+        core.infrastructure.bootstrap.InitialStateFactory::soulTreeNodes);
     saveManager = new SaveManager(tempDir.resolve("save.json").toFile());
     lifecycle = new RunLifecycle(saveManager);
   }
@@ -264,5 +266,190 @@ class SaveLifecycleContractTest {
     ProfileData settled = profileWithSoul(112, 4).withSettledRunId(runId.value());
     assertFalse(lifecycle.endRun(settled).isSuccess());
     assertTrue(saveManager.checkpointExists(), "保存に失敗したら Checkpoint を消さない");
+  }
+
+  @Test
+  void refuseToSaveProfileIfFutureSchemaFileExists() throws Exception {
+    java.io.File profileFile = saveManager.profileFile();
+    java.nio.file.Files.writeString(
+        profileFile.toPath(), "{\"schemaVersion\": 99, \"soulTotal\": 9999}");
+
+    assertTrue(saveManager.profileExists());
+    assertTrue(saveManager.loadProfile().isEmpty());
+
+    SaveManager.SaveResult result = saveManager.saveProfile(ProfileData.initial());
+    assertFalse(result.isSuccess());
+    assertTrue(result.message().contains("unsafe to overwrite"));
+
+    String content = java.nio.file.Files.readString(profileFile.toPath());
+    assertTrue(content.contains("\"schemaVersion\": 99"));
+  }
+
+  @Test
+  void refuseToSaveProfileIfCorruptedFileExists() throws Exception {
+    java.io.File profileFile = saveManager.profileFile();
+    java.nio.file.Files.writeString(profileFile.toPath(), "{invalid_json_content...");
+
+    assertTrue(saveManager.profileExists());
+    assertTrue(saveManager.loadProfile().isEmpty());
+
+    SaveManager.SaveResult result = saveManager.saveProfile(ProfileData.initial());
+    assertFalse(result.isSuccess());
+    assertTrue(result.message().contains("unsafe to overwrite"));
+
+    String content = java.nio.file.Files.readString(profileFile.toPath());
+    assertTrue(content.contains("{invalid_json_content..."));
+  }
+
+  @Test
+  void refuseToDeleteFutureOrCorruptedCheckpointOnDelete() throws Exception {
+    java.io.File checkpointFile = saveManager.checkpointFile();
+    java.nio.file.Files.writeString(
+        checkpointFile.toPath(), "{\"schemaVersion\": 99, \"runId\": \"future-run\"}");
+
+    assertTrue(saveManager.checkpointExists());
+
+    saveManager.deleteCheckpoint();
+    assertTrue(saveManager.checkpointExists(), "future schema の Checkpoint は削除されないこと");
+
+    String content = java.nio.file.Files.readString(checkpointFile.toPath());
+    assertTrue(content.contains("\"future-run\""));
+  }
+
+  @Test
+  void layerBoundaryProfileSavePreservesExistingProfileSoul() {
+    ProfileData previous = profileWithSoul(500, 2);
+    saveManager.saveProfile(previous);
+
+    core.domain.meta.PlayerProgress progressWithZeroSoul =
+        ProfileDataMapper.toPlayerProgress(previous, Map.of())
+            .withPlayerSoul(core.domain.meta.Soul.zero());
+
+    ProfileData layerBoundary = ProfileDataMapper.forLayerBoundary(progressWithZeroSoul, previous);
+    saveManager.saveProfile(layerBoundary);
+
+    ProfileData loaded = saveManager.loadProfile().orElseThrow();
+    assertEquals(
+        500,
+        loaded.soulTotal(),
+        "ラン中 (progress.playerSoul=0) のレイヤー境界セーブで Profile Soul が 0 へ上書きされないこと");
+  }
+
+  @Test
+  void refuseToSaveProfileOrCheckpointIfSemanticallyInvalidInCurrentSchema() throws Exception {
+    java.io.File profileFile = saveManager.profileFile();
+    // schemaVersion 1 だが retentionCapacity 0 に対し protectedEquipmentIds に装備があるため
+    // ProfileData compact constructor のバリデーション (retentionCapacity 超過) に違反する
+    java.nio.file.Files.writeString(
+        profileFile.toPath(),
+        "{\"schemaVersion\": 1, \"soulTotal\": 100, \"runCount\": 0, \"unlockedNodeIds\": [], \"ownedEquipmentIds\": [\"iron_boots\"], \"loadout\": {}, \"protectedEquipmentIds\": [\"iron_boots\"], \"retentionCapacity\": 0, \"defeatedEnemyKinds\": [], \"obtainedCardIds\": [], \"tutorialSeen\": false}");
+
+    assertTrue(saveManager.profileExists());
+    assertTrue(saveManager.loadProfile().isEmpty(), "意味的に不正なデータは load で拒否されること");
+    assertTrue(
+        saveManager.isProfileUnsafeToOverwrite(),
+        "意味的に不正な現行 schema ファイルは isProfileUnsafeToOverwrite が true であること");
+
+    SaveManager.SaveResult result = saveManager.saveProfile(ProfileData.initial());
+    assertFalse(result.isSuccess(), "意味的に不正なファイルの上書き保存が拒否されること");
+  }
+
+  @Test
+  void beginRunAbortsWithoutDeletingCheckpointIfSaveIsUnsafe() throws Exception {
+    java.io.File profileFile = saveManager.profileFile();
+    java.nio.file.Files.writeString(
+        profileFile.toPath(), "{\"schemaVersion\": 99, \"soulTotal\": 9999}");
+    java.io.File checkpointFile = saveManager.checkpointFile();
+    java.nio.file.Files.writeString(
+        checkpointFile.toPath(),
+        "{\"schemaVersion\": 1, \"runId\": \"valid-run\", \"currentHp\": 10, \"maxHp\": 20, \"speed\": 3, \"physicalAttack\": 4, \"magicalAttack\": 2, \"physicalDefense\": 1, \"magicalDefense\": 1, \"layerNumber\": 2, \"deck\": [], \"currentRunGold\": 0, \"currentRunSoul\": 500, \"carriedInEquipmentIds\": [], \"unconfirmedEquipmentIds\": [], \"equippedEquipmentId\": null, \"protectedEquipmentIds\": [], \"protectedCapacity\": 0}");
+
+    assertTrue(saveManager.checkpointExists());
+
+    SaveManager.SaveResult result = lifecycle.beginRun(ProfileData.initial(), RunId.newRandom());
+    assertFalse(result.isSuccess());
+    assertTrue(saveManager.checkpointExists(), "Profile が unsafe の場合 Checkpoint が誤削除されないこと");
+  }
+
+  @Test
+  void soulConsumptionInRunIsReflectedOnSettlement() {
+    ProfileData previous = profileWithSoul(1000, 1);
+    saveManager.saveProfile(previous);
+
+    RunId runId = RunId.newRandom();
+    lifecycle.beginRun(previous, runId);
+
+    // 開始時 1000 ソウルから治療の泉等で 10 ソウル消費して 990 ソウルでセーブ
+    RunCheckpoint checkpoint = checkpointFor(runId, 2, 990);
+    // initialRunSoul を 1000 として記録
+    checkpoint =
+        new RunCheckpoint(
+            checkpoint.schemaVersion(),
+            checkpoint.runId(),
+            checkpoint.nextLayerNumber(),
+            checkpoint.currentHp(),
+            checkpoint.maxHp(),
+            checkpoint.speed(),
+            checkpoint.physicalAttack(),
+            checkpoint.magicalAttack(),
+            checkpoint.physicalDefense(),
+            checkpoint.magicalDefense(),
+            checkpoint.deck(),
+            checkpoint.currentRunGold(),
+            checkpoint.currentRunSoul(),
+            checkpoint.carriedInEquipmentIds(),
+            checkpoint.unconfirmedEquipmentIds(),
+            checkpoint.equippedId(),
+            checkpoint.protectedEquipmentIds(),
+            checkpoint.retentionCapacity(),
+            1000);
+    lifecycle.saveAtLayerBoundary(previous, checkpoint);
+
+    // 中断から放棄精算
+    int finalSoul = checkpoint.currentRunSoul();
+    int initialSoul = checkpoint.initialRunSoul();
+    int deltaSoul = finalSoul - initialSoul; // -10
+    int settledSoulTotal = Math.max(0, previous.soulTotal() + deltaSoul); // 990
+
+    core.domain.meta.PlayerProgress progress =
+        ProfileDataMapper.toPlayerProgress(previous, Map.of());
+    ProfileData settled = ProfileDataMapper.forSoulUpdate(progress, previous, settledSoulTotal);
+    lifecycle.endRun(settled);
+
+    ProfileData loaded = saveManager.loadProfile().orElseThrow();
+    assertEquals(990, loaded.soulTotal(), "ラン中に消費された 10 ソウルが精算時に正しく減額反映されること");
+  }
+
+  @Test
+  void treeResetClampsProtectedEquipmentIdsToNewCapacity() {
+    // 容量 1 の Profile に保護指定が 1 件存在
+    ProfileData previous =
+        new ProfileData(
+            1,
+            100,
+            0,
+            List.of("seal_of_soul_1"),
+            List.of("tattered_boots"),
+            Map.of(),
+            List.of("tattered_boots"),
+            1,
+            List.of(),
+            List.of(),
+            false,
+            null,
+            null);
+    saveManager.saveProfile(previous);
+
+    // リセット後 (capacity 0) の PlayerProgress
+    core.domain.meta.PlayerProgress resetProgress =
+        core.domain.meta.PlayerProgress.initial(Map.of());
+
+    // リセット後の書き込みで容量が 0 に切り詰まり、例外を出さずに保存できること
+    ProfileData updated = ProfileDataMapper.forSoulUpdate(resetProgress, previous, 100);
+    saveManager.saveProfile(updated);
+
+    ProfileData loaded = saveManager.loadProfile().orElseThrow();
+    assertEquals(0, loaded.retentionCapacity());
+    assertTrue(loaded.protectedEquipmentIds().isEmpty(), "容量オーバーの保護指定が切り詰められていること");
   }
 }

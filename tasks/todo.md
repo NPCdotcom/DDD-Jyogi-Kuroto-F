@@ -170,7 +170,7 @@ MVP コア実装 + バージョン整備 + 日本語化までを 2026-05-12 に�
 |---|---|---|---|
 | Desktop向け戦術ローグライトを現行版の主役にする | Androidと端末間同期を現行訴求から外し、Java 25、DDD、反復プレイへ説明を揃える | 採択済み | PLATFORM-01 |
 | 未保護の持込装備を死亡時に失い、深度上限内でSoul化する | 初期短剣、最大2保護枠、未確定品の死亡消失を保存と画面へ一致させる | 採択済み | EQUIP、SOUL、SETTLE |
-| NPCdotcom制作フレーム、art-only画像、動的テキストを合成する | 300×420の1枚スパイクを承認後、59枚を段階移行する | 採択済み | CARD、ART、人間ゲートG0〜G5 |
+| NPCdotcom制作フレーム、art-only画像、動的テキストを合成する | 240×336の1枚スパイクを承認後、59枚を段階移行する | 採択済み | CARD、ART、人間ゲートG0〜G5 |
 
 #### Gate 0: 表示・保存の整合性 (実装タスク)
 
@@ -260,7 +260,7 @@ MVP コア実装 + バージョン整備 + 日本語化までを 2026-05-12 に�
 | REWARD-01 | カード報酬抽選 | application層で解放・レアリティ・固定seedを検証 | P1 | EQUIP-01, CARD-01 | 未着手 |
 | INPUT-01 | SPACE説明 | 日本語／英語の3表示と入力契約が一致 | P1 | BASE-01 | 未着手 |
 | CARD-01 | レアリティ正規化 | 59カードすべてに承認済みrarityを明示 | P0 | BASE-01, G3 | 待機 |
-| CARD-02 | 1枚表示スパイク | 300×420フレーム＋zangeki artを新経路で表示 | P0 | BASE-01, G0, G1 | 待機 |
+| CARD-02 | 1枚表示スパイク | 240×336フレーム＋zangeki artを新経路で表示 | P0 | BASE-01, G0, G1 | 待機 |
 | CARD-03 | 動的手札表示 | AP、名称、rarity、要約を動的描画し全文を詳細表示 | P0 | CARD-01, CARD-02 | 未着手 |
 | CARD-04 | 他画面統合 | 図鑑とSoulTreeが同じ表示モデルを利用 | P1 | CARD-03, G2 | 未着手 |
 | ART-01〜15 | 58枚移行 | 各4枚以下、来歴・接触シート承認済み | P1 | CARD-04, ASSET-01, G4 | 待機 |
@@ -517,3 +517,36 @@ Android / 端末間同期の未実装表明を現行文書とコードから除�
 - 計画に対する敵対的検証でA1〜A6を検出し、SOUL-04とCARD-06の新設、QA-02の基準追加、INPUT-01の再設計、BASE-01の再定義として反映済み。
 - 計画は `docs/consistency-sprint-plan` ブランチの `cec61b4` へコミット済み。`main`へは直接コミットしていない。
 - 実装はTDDで進め、2〜3タスクごとに構造レビューと敵対的レビューを行う。
+
+#### 2026-08-14 カードUI・画像スパイク
+
+- 選択カード詳細から末尾省略を除去し、カード名・AP・属性・効果全文を幅指定で折り返す実装を追加した。
+- `CardPresentationTextTest` と `RenderLayoutConstraintTest` をREDから作り、文言と最大2行の配置制約を固定した。
+- 実画面確認で、初回チュートリアル終了時に共有 `fonts.hud()` が `Skin.dispose()` から破棄され、詳細だけ見えなくなる不具合を検出した。`BorrowedFontSkin` で借用フォントとSkin所有リソースを分離し、同型だったチュートリアル・層末選択・ステータスポップアップの3経路へ適用した。
+- 初回プリセット選択 → チュートリアル終了 → 新規ラン → カード選択を隔離セーブで通し、`build/review/game-card-detail-font-fix-final.png` で詳細2行の実表示を確認した。
+- `zangeki` のart-only画像を1枚生成し、透過RGBA・240×336へ正規化した。G0/G1未通過のため `build/review/generated/` の承認用ドラフトに隔離し、本番assets・manifestへは接続していない。
+- 正式寸法の残存不一致を300×420から240×336へ訂正した。
+- `gradlew check --rerun-tasks`: 901件成功、失敗0、エラー0。画像は240×336 RGBA、可視範囲x=21..218 / y=28..227、残留マゼンタ0を確認した。
+- 敵対的確認で、legacy再開後の恒久Soul消失、通常ラン中のProfile Soul 0上書き、future/不正Checkpointの新規開始時削除が未解消と判明した。カードUIとは独立だが、コード全体のリリース判定はNO-GOのまま。
+
+#### 2026-08-14 画像量産前の再検証
+
+コード修正後の再監査では、既存の自動テストが緑でも本番配線に未検証経路が残ることを確認した。画像制作とは分離して追跡し、「全修正済み」とは扱わない。
+
+| 項目 | 完了条件 | 優先度 | 依存 |
+|---|---|---|---|
+| 再開／放棄時の Soul 差分基準 | Profile 500・Checkpoint 530 の再開即死／再起動直後放棄がともに530で精算され、E2E試験が本番 `DddGame` 経路を通る | P0 | SAVE-03B, SETTLE-01 |
+| ラン外 SoulTree 保存 | ノード解放の消費とリセット返金が再起動後も一致し、ラン中メタ保存は恒久Soulを上書きしない | P0 | SAVE-03B, SOUL-03 |
+| 保護対象セーブの開始拒否 | future／破損／意味的不正なProfile・Checkpointを不在と区別し、削除・上書き・新規開始を一貫して拒否する | P0 | SAVE-01, SAVE-03B |
+| ARTレビュー用第1バッチ | `blaze_nova` / `meteor_drop` / `overhead_smash` / `teleport` を240×336 RGBA、文字・枠なしで生成し、完全プロンプト・hash・処理履歴を各来歴JSONへ残す | P1 | なし（レビュー用隔離のみ） |
+| ART本番昇格 | NPCdotcom制作フレームと矩形表（G0）、利用規約・公開Git再配布条件（G1）、4画面スパイク承認（G2）、全59枚rarity（G3）が揃う | P0 | G0〜G3 |
+
+第1バッチは明示済みrarityの4枚だけを使い、未確定55枚へ量産判断を波及させない。成果物は `build/review/generated/batch01/` に隔離し、G0〜G3通過前は `assets/` やmanifestへ接続しない。
+
+実行結果:
+
+- `blaze_nova` / `meteor_drop` / `teleport` は初回ドラフトを採用候補とした。
+- `overhead_smash` v1 は64px時に剣・記念碑へ誤読できるため敵対的レビューで差し戻し、槌頭と下降軌跡を強調したv2を再生成した。v2は64pxでも「振り下ろす槌」と判別できることを独立再レビューで確認した。
+- 採用候補4枚は240×336 RGBA、可視色24色、四隅透過、下部予約帯侵入0、残留マゼンタ0、source/final hash一致。`batch01_contact_sheet.png` と `batch01_validation.json` に機械検査結果を保存した。
+- 4枚とも `review-draft` / `promotionAllowed=false` / G0〜G3未承認。`build/` 配下に隔離し、本番assets・manifest・LICENSESへは接続していない。
+- `gradlew --no-daemon check --rerun-tasks`: 903件成功、失敗0、エラー0、スキップ0。`git diff --check`: 成功。
