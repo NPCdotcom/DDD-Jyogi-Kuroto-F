@@ -159,6 +159,12 @@ public final class Strings {
     // §15-11 セーブ / ロード
     public static final String CONTINUE_HINT = "[L] つづきから";
 
+    // SAVE-03B: 進行中ランがある状態で新規開始しようとしたときの確認。
+    public static final String ABANDON_RUN_TITLE = "進行中の冒険があります";
+    public static final String ABANDON_RUN_BODY =
+        "新しく始めると進行中の冒険を放棄します。放棄した冒険は死亡と同じ扱いになります。" + "続きから再開する場合は [L] を押してください。";
+    public static final String ABANDON_RUN_HINT = "[Y] 放棄して新規開始   [N] / [ESC] やめる";
+
     // §15-10 / E-10 チュートリアル
     public static final String TUTORIAL_TITLE = "操作説明";
     public static final String TUTORIAL_BODY =
@@ -378,6 +384,13 @@ public final class Strings {
 
     // §15-11 Save / Load
     public static final String CONTINUE_HINT = "[L] Continue";
+
+    // SAVE-03B: confirmation shown when starting a new run while one is in progress.
+    public static final String ABANDON_RUN_TITLE = "A run is still in progress";
+    public static final String ABANDON_RUN_BODY =
+        "Starting fresh abandons the run in progress. An abandoned run is settled as a death. "
+            + "Press [L] instead to resume it.";
+    public static final String ABANDON_RUN_HINT = "[Y] Abandon and start   [N] / [ESC] Cancel";
 
     // §15-10 / E-10 Tutorial
     public static final String TUTORIAL_TITLE = "How to Play";

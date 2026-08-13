@@ -308,7 +308,10 @@ public final class DddGame extends Game {
     // LayerExtendEffect は Player に副作用がないため、ループは no-op (副作用は GameContext.maxLayer 側で集約済)。
     Player applied = progress.soulTree().applyTo(state.player(), InitialStateFactory::resolveCard);
     // §15-2 / §15-7: ラン外のソウル保持を Player に注入 (前回ランからの持ち越し)
-    Player withSoul = applied.addSoul(progress.playerSoul());
+    // SAVE-03B: 注入前の値を控える。progress を 0 化した後に Profile を書くと、
+    // 保有ソウルが 0 で潰れて中断離脱時に全損する。
+    Soul carriedOverSoul = progress.playerSoul();
+    Player withSoul = applied.addSoul(carriedOverSoul);
     // 注入後は外部保持を 0 に (重複加算防止、preserveSoulFromRun でラン終了時に書き戻る)
     progress = progress.withPlayerSoul(Soul.zero());
     GameContext newContext = GameContext.startNewRun(state.withPlayer(withSoul));
@@ -318,8 +321,22 @@ public final class DddGame extends Game {
     TurnDirector newDirector = new TurnDirector(newContext, newRng);
     // SAVE-03A: 新規ランへ一意な ID を割り当てる。Profile.activeRunId と突き合わせることで
     // 終了済みランの Checkpoint からの再開と二重精算を拒否できる (レビュー P0-1)。
-    runSession = Optional.of(new RunSession(RunId.newRandom(), newContext, newDirector, newRng));
+    RunId runId = RunId.newRandom();
+    runSession = Optional.of(new RunSession(runId, newContext, newDirector, newRng));
     recordObtainedCards(); // §15-3: 初期デッキを図鑑に記録
+
+    // SAVE-03B: Profile の activeRunId をこのランへ向け、古い Checkpoint を消す。
+    // これを飛ばすと activeRunId が前ランを指したままになり、次回起動で放棄したはずの
+    // ランが「つづき」として提示される。
+    // 注入前の持越しソウルを書くのは、progress 側が既に 0 化されているため
+    // (層境界セーブと同じ理由。詳細は ProfileDataMapper の javadoc)。
+    RunLifecycle lifecycle = persistence.runLifecycle();
+    ProfileData previous = lifecycle.profileOrInitial();
+    ProfileData started =
+        ProfileDataMapper.toProfileData(progress, previous, carriedOverSoul.amount());
+    if (!lifecycle.beginRun(started, runId).isSuccess()) {
+      LOG.severe("ラン開始の記録に失敗しました。次の層境界セーブで復旧を試みます。");
+    }
   }
 
   /**

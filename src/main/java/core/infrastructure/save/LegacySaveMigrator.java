@@ -27,6 +27,15 @@ public final class LegacySaveMigrator {
 
   private static final Logger LOG = Logger.getLogger(LegacySaveMigrator.class.getName());
 
+  /** 移行後に原本を退避する先のファイル名。削除しないのは撤回時の復旧手段を残すため。 */
+  static final String LEGACY_BACKUP_FILE_NAME = "save.json.legacy-backup";
+
+  private static void deleteQuietly(File file) {
+    if (file.exists() && !file.delete()) {
+      LOG.warning("Failed to delete: " + file.getAbsolutePath());
+    }
+  }
+
   private final SaveManager saveManager;
 
   public LegacySaveMigrator(SaveManager saveManager) {
@@ -127,8 +136,18 @@ public final class LegacySaveMigrator {
       LOG.severe("Migration incomplete: failed to write completion marker; keeping legacy save");
       return new MigrationResult(false, mapped.warnings());
     }
-    saveManager.delete(); // 完了マーカーを書けた後にのみ旧ファイルを消す
-    LOG.info("Legacy save migrated: " + id);
+    // 完了マーカーを書けた後に原本を退避する。削除ではなくリネームにするのは、移行後に
+    // 不具合が見つかってこの版を撤回したくなったとき、プレイヤーの手元に旧ビルドが読める
+    // ファイルを 1 つも残さない状態を避けるため。次のマイナー版で削除に切り替える。
+    File backup = new File(legacyFile.getParentFile(), LEGACY_BACKUP_FILE_NAME);
+    deleteQuietly(backup);
+    if (legacyFile.renameTo(backup)) {
+      LOG.info("Legacy save migrated and archived as " + LEGACY_BACKUP_FILE_NAME + ": " + id);
+    } else {
+      // 退避できなくても移行自体は成立している。原本を残したままにすると次回起動で
+      // 「既に profile.json がある」として移行を拒否するので、実害はない。
+      LOG.warning("Migrated but failed to archive legacy save: " + legacyFile.getAbsolutePath());
+    }
     return new MigrationResult(true, mapped.warnings());
   }
 

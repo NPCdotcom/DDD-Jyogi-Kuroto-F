@@ -12,9 +12,11 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import core.infrastructure.audio.BgmKind;
 import core.infrastructure.audio.SeKind;
+import core.infrastructure.save.RunLifecycle;
 import core.presentation.render.Fonts;
 import core.presentation.render.RenderLayout;
 import core.presentation.render.Strings;
+import core.presentation.window.ConfirmationDialog;
 import core.presentation.window.TutorialOverlay;
 
 /** タイトル画面。ENTER でダンジョンに入る。 */
@@ -34,6 +36,20 @@ public final class TitleScreen extends ScreenAdapter {
 
   /** 「つづき」を出せるか。show() で 1 回だけ評価する (毎フレームのファイル I/O を避ける)。 */
   private boolean canContinue;
+
+  /** SAVE-03B: 進行中ランがある状態で新規開始しようとしたときの放棄確認 (無ければ null)。 */
+  private ConfirmationDialog abandonConfirm;
+
+  /**
+   * 新しいランを開始してダンジョンへ遷移する (SAVE-03B)。
+   *
+   * <p>{@code RunLifecycle.beginRun} で Profile の activeRunId を新しいランへ向け、古い Checkpoint を
+   * 消してから始める。これを飛ばすと activeRunId が前ランを指したままになり、次回起動で 放棄したはずのランが「つづき」として提示される。
+   */
+  private void beginNewRun() {
+    game.startNewRun();
+    game.changeScreen(new DungeonScreen(game));
+  }
 
   @Override
   public void show() {
@@ -185,13 +201,40 @@ public final class TitleScreen extends ScreenAdapter {
       return;
     }
 
+    // SAVE-03B: 放棄確認ダイアログ表示中は他の入力を受けない。
+    if (abandonConfirm != null) {
+      abandonConfirm.render(delta);
+      abandonConfirm
+          .consume()
+          .ifPresent(
+              confirmed -> {
+                abandonConfirm.dispose();
+                abandonConfirm = null;
+                if (confirmed) {
+                  game.soundManager().playSe(SeKind.BUTTON_DECISION);
+                  beginNewRun();
+                }
+              });
+      return;
+    }
+
     // Wave 14 W14-β: タイトル画面の左クリック = ENTER (Start) と等価。サブメニュー (L/T/C/E/S/K/B) はキー継続。
     if (Gdx.input.isKeyJustPressed(Keys.ENTER) || Gdx.input.justTouched()) {
-      // §15-7 / E-2: ラン開始の瞬間にここで startNewRun() を呼ぶ (ソウル消失バグの根治)。
-      // ラン外で貯めた playerSoul はこの時点で Player に注入される。
+      // SAVE-03B: 進行中ランがある状態での新規開始は確認を挟む。無条件に始めると
+      // 誤クリック 1 回で進行中の冒険が黙って破棄される。
+      if (game.persistence().runLifecycle().decideNewRun()
+          == RunLifecycle.StartDecision.REQUIRES_RESOLUTION) {
+        abandonConfirm =
+            new ConfirmationDialog(
+                fonts.large(),
+                fonts.large(),
+                jp ? Strings.Ja.ABANDON_RUN_TITLE : Strings.En.ABANDON_RUN_TITLE,
+                jp ? Strings.Ja.ABANDON_RUN_BODY : Strings.En.ABANDON_RUN_BODY,
+                jp ? Strings.Ja.ABANDON_RUN_HINT : Strings.En.ABANDON_RUN_HINT);
+        return;
+      }
       game.soundManager().playSe(SeKind.BUTTON_DECISION);
-      game.startNewRun();
-      game.changeScreen(new DungeonScreen(game));
+      beginNewRun();
     } else if (Gdx.input.isKeyJustPressed(Keys.L) && canContinue) {
       // §15-11 / SAVE-03B: 再開可能な進行中ランがある場合のみ「つづきから」でロード
       boolean loaded = game.loadFromSave();
@@ -233,6 +276,9 @@ public final class TitleScreen extends ScreenAdapter {
     if (tutorial != null) {
       tutorial.resize(width, height);
     }
+    if (abandonConfirm != null) {
+      abandonConfirm.resize(width, height);
+    }
   }
 
   @Override
@@ -243,6 +289,11 @@ public final class TitleScreen extends ScreenAdapter {
     if (tutorial != null) {
       tutorial.dispose();
       tutorial = null;
+    }
+    // SAVE-03B: 確認ダイアログも SpriteBatch / ShapeRenderer を持つので必ず解放する。
+    if (abandonConfirm != null) {
+      abandonConfirm.dispose();
+      abandonConfirm = null;
     }
   }
 }
