@@ -294,6 +294,42 @@ public final class DddGame extends Game {
     runSession = Optional.empty();
   }
 
+  /**
+   * 進行中ランを放棄して精算する (SAVE-03B / §15-9)。
+   *
+   * <p>放棄は死亡と同じ扱いにする。§15-9 は「敵撃破とイベントでラン中に得た Soul は、死亡・放棄・ クリアのいずれでも 100% を Profile
+   * へ移す」と定めるため、Checkpoint に記録された総ソウルを 恒久側へ書き戻してから Checkpoint を削除する。
+   *
+   * <p>{@code currentRunSoul} は持越し分を含む総量なので、Profile へは<b>加算ではなく置換</b>する。 加算すると持越し分が二重計上される。
+   *
+   * <p>再開可能な Checkpoint が無い場合は何もしない。
+   *
+   * @return 放棄して精算した場合 true
+   */
+  public boolean abandonActiveRun() {
+    RunLifecycle lifecycle = persistence.runLifecycle();
+    Optional<RunCheckpoint> optCheckpoint = lifecycle.resumableCheckpoint();
+    if (optCheckpoint.isEmpty()) {
+      return false;
+    }
+    RunCheckpoint checkpoint = optCheckpoint.get();
+
+    // メモリ上の進捗も揃える (ソウルツリー画面が正しい所持ソウルを出すため)。
+    progress = progress.withPlayerSoul(new Soul(checkpoint.currentRunSoul()));
+    progress = progress.withRunCount(progress.runCount() + 1);
+
+    ProfileData settled =
+        ProfileDataMapper.toProfileData(
+                progress, lifecycle.profileOrInitial(), checkpoint.currentRunSoul())
+            .withSettledRunId(checkpoint.runId());
+    if (!lifecycle.endRun(settled).isSuccess()) {
+      LOG.severe("ラン放棄の精算に失敗しました。Checkpoint は削除していません。");
+      return false;
+    }
+    runSession = Optional.empty();
+    return true;
+  }
+
   /** 新しいラン (= ダンジョン挑戦) を開始する。RunSession を作り直す。 */
   public void startNewRun() {
     // ADR-19: Random は引数注入で再現性を呼出元に委ねる (初期手札シャッフル + 毎ターンドロー)。

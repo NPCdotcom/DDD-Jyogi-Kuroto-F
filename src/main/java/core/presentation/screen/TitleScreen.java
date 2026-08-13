@@ -212,6 +212,10 @@ public final class TitleScreen extends ScreenAdapter {
                 abandonConfirm = null;
                 if (confirmed) {
                   game.soundManager().playSe(SeKind.BUTTON_DECISION);
+                  // §15-9: 放棄は死亡と同じ扱い。獲得ソウルを Profile へ移してから新規開始する。
+                  // これを飛ばすと、ダイアログ本文の「死亡と同じ扱い」が嘘になる。
+                  game.abandonActiveRun();
+                  canContinue = false;
                   beginNewRun();
                 }
               });

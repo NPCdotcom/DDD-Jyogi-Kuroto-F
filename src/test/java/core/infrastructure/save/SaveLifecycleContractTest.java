@@ -199,6 +199,27 @@ class SaveLifecycleContractTest {
     assertFalse(lifecycle.canContinue(), "新規ランはまだ層境界を越えていないので再開対象なし");
   }
 
+  @Test
+  void abandonedRunKeepsItsEarnedSoul() {
+    // §15-9: 死亡・放棄・クリアのいずれでも、ラン中に得た Soul は 100% を Profile へ移す。
+    // 放棄で Checkpoint を消すだけにすると、確認ダイアログの「死亡と同じ扱い」が嘘になる。
+    RunId runId = RunId.of("run-1");
+    lifecycle.beginRun(profileWithSoul(500, 3), runId);
+    // 持越し 500 + ラン中獲得 30 = 530 が Checkpoint の総ソウル。
+    lifecycle.saveAtLayerBoundary(profileWithSoul(500, 3), checkpointFor(runId, 2, 530));
+
+    // 放棄の精算: 総量で置換する (加算すると持越し分が二重計上される)。
+    RunCheckpoint abandoned = lifecycle.resumableCheckpoint().orElseThrow();
+    ProfileData settled =
+        profileWithSoul(abandoned.currentRunSoul(), 4).withSettledRunId(abandoned.runId());
+    assertTrue(lifecycle.endRun(settled).isSuccess());
+
+    RunLifecycle afterRestart =
+        new RunLifecycle(new SaveManager(tempDir.resolve("save.json").toFile()));
+    assertEquals(530, afterRestart.profileOrInitial().soulTotal(), "獲得分を失わない");
+    assertFalse(afterRestart.canContinue(), "放棄したランは再開できない");
+  }
+
   // ---------------- 失敗時の安全側 ----------------
 
   @Test
