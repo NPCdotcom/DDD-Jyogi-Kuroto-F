@@ -596,8 +596,7 @@ public final class DddGame extends Game {
         RunCheckpointMapper.toRestorableSaveData(lifecycle.profileOrInitial(), checkpoint);
 
     // メタ進捗を一括復元 (Wave 6 W6-γ: PlayerProgress 1 record で集約)
-    // playerSoul はラン状態の Player にこの直後注入するため一旦 zero。SaveData の soulTotal は
-    // savedSoul として下方の Player.addSoul で注入される。
+    // playerSoul は Player 側が Checkpoint の総量を持つため zero にする (下記の二重計上防止を参照)。
     progress =
         new PlayerProgress(
             Soul.zero(),
@@ -618,9 +617,14 @@ public final class DddGame extends Game {
     // §15-7 CRITICAL FIX: ロード時にソウルツリー効果を再適用しない (SaveData は補正済 Stats/Deck/SkillSlot を
     // 保存しているため、再適用すると HP / カード / スキル枠が二重加算される)。
     Player withTree = baseState.player();
-    // ランに保持するソウルは SaveData.soulTotal から復元 (playerSoul → Player に注入)
-    Soul savedSoul = new Soul(data.soulTotal());
-    Player withSoul = withTree.addSoul(savedSoul);
+    // SAVE-03B: ここで soulTotal を加算しない。restoreLayer が既に Checkpoint の
+    // currentRunSoul (= 持越し + ラン中獲得の総量) を Player へ入れているため、
+    // profile.soulTotal を足すと持越し分が二重計上される。
+    //
+    // 旧実装が加算していたのは、層境界セーブが profile.soulTotal を 0 で潰していて
+    // addSoul(0) が無害だったからである。層境界で恒久ソウルを据え置くようにした結果、
+    // この加算が「再開のたびにソウルが増える」バグへ変わった。
+    Player withSoul = withTree;
     // playerSoul はもう Soul.zero() (前段の new PlayerProgress で初期化済)、注入後の保持は維持
 
     DungeonState restoredState = baseState.withPlayer(withSoul);

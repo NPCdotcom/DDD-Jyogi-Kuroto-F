@@ -220,6 +220,26 @@ class SaveLifecycleContractTest {
     assertFalse(afterRestart.canContinue(), "放棄したランは再開できない");
   }
 
+  @Test
+  void restorableSaveDataCarriesTotalSoulWithoutAddingProfileSoul() {
+    // Checkpoint の currentRunSoul は持越し + ラン中獲得の総量。復元経路が
+    // profile.soulTotal をさらに加算すると、再開のたびにソウルが増殖する。
+    // 復元用 SaveData の 2 つのソウル欄が「総量」と「恒久側」で別物であることを固定する。
+    RunId runId = RunId.of("run-1");
+    lifecycle.beginRun(profileWithSoul(500, 3), runId);
+    lifecycle.saveAtLayerBoundary(profileWithSoul(500, 3), checkpointFor(runId, 2, 530));
+
+    ProfileData profile = lifecycle.profileOrInitial();
+    RunCheckpoint checkpoint = lifecycle.resumableCheckpoint().orElseThrow();
+    SaveData restorable = RunCheckpointMapper.toRestorableSaveData(profile, checkpoint);
+
+    assertEquals(530, restorable.currentRunSoul(), "ラン側は総量を持つ");
+    assertEquals(500, restorable.soulTotal(), "恒久側は持越しのまま据え置かれている");
+    // 復元時に使ってよいのは currentRunSoul だけ。両者を足すと 1030 になる。
+    assertEquals(
+        530, restorable.currentRunSoul(), "復元後のプレイヤーソウルは currentRunSoul と一致し、soulTotal を足さない");
+  }
+
   // ---------------- 失敗時の安全側 ----------------
 
   @Test
