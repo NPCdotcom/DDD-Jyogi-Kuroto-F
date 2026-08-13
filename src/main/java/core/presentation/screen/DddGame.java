@@ -659,6 +659,13 @@ public final class DddGame extends Game {
     SoulTree.setNodeProvider(core.infrastructure.bootstrap.InitialStateFactory::soulTreeNodes);
     // Wave 9 W9-β: 永続化サービスを一括初期化 (SaveManager + SettingsManager + Settings、resources より前)
     this.persistence = PersistenceServices.load();
+    // SAVE-03B: 恒久進捗を profile.json から復元する。これを飛ばすと progress が空のまま
+    // 走り出し、次のラン開始で beginRun が空の値で profile.json を全上書きして
+    // ソウル・ツリー解放・図鑑・周回数を消す (toProfileData は previous からラン ID しか
+    // 引き継がず、他はすべて progress から再構築するため)。
+    this.progress =
+        ProfileDataMapper.toPlayerProgress(
+            persistence.runLifecycle().profileOrInitial(), defaultLoadout());
     // Wave 8 W8-β: LibGDX リソース 3 件 (Fonts / SoundManager / CardImageRegistry) を GameResources
     // で一括初期化
     this.resources =

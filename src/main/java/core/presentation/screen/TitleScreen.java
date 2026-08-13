@@ -214,7 +214,13 @@ public final class TitleScreen extends ScreenAdapter {
                   game.soundManager().playSe(SeKind.BUTTON_DECISION);
                   // §15-9: 放棄は死亡と同じ扱い。獲得ソウルを Profile へ移してから新規開始する。
                   // これを飛ばすと、ダイアログ本文の「死亡と同じ扱い」が嘘になる。
-                  game.abandonActiveRun();
+                  //
+                  // 精算に失敗したら新規開始しない。abandonActiveRun は失敗時に Checkpoint を
+                  // 残すが、そのまま beginNewRun へ進むと beginRun が無条件で Checkpoint を
+                  // 消すため、進行中ランと獲得ソウルが両方消える。
+                  if (!game.abandonActiveRun()) {
+                    return;
+                  }
                   canContinue = false;
                   beginNewRun();
                 }

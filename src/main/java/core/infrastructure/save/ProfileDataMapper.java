@@ -8,6 +8,7 @@ import core.domain.equipment.EquipmentSlot;
 import core.domain.equipment.RetentionCapacity;
 import core.domain.equipment.RunInventory;
 import core.domain.meta.PlayerProgress;
+import core.domain.meta.Soul;
 import core.domain.tree.NodeId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -111,6 +112,59 @@ public final class ProfileDataMapper {
       }
     }
     return new RunInventory(carriedIn, Set.of(), Set.of(), Optional.ofNullable(equipped));
+  }
+
+  /**
+   * 恒久保存の形からラン外進捗を復元する (SAVE-03B)。
+   *
+   * <p>起動時にこれを呼ばないと {@code progress} が空のまま走り出し、次のラン開始で {@link #toProfileData} が空の値で profile.json
+   * を全上書きして恒久進捗を消す。 {@code toProfileData} が {@code previous} から引き継ぐのはラン ID 群だけで、他は すべて {@code
+   * progress} から再構築するためである。
+   *
+   * @param profile 読み込んだ恒久状態
+   * @param fallbackLoadout profile に編成が無い場合に使う初期編成 (新規プレイヤー用)。 空の編成で開始すると空デッキになり詰むため必須
+   */
+  public static PlayerProgress toPlayerProgress(
+      ProfileData profile, Map<EquipmentSlot, Equipment> fallbackLoadout) {
+    Objects.requireNonNull(profile, "profile");
+    Objects.requireNonNull(fallbackLoadout, "fallbackLoadout");
+
+    // 既存の SaveDataConverter を再利用するため、Profile だけから SaveData 形を組む。
+    // ラン側のフィールドは復元に使わないのでゼロ値で埋める。
+    SaveData shaped =
+        new SaveData(
+            SaveData.CURRENT_SCHEMA_VERSION,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            List.of(),
+            profile.soulTotal(),
+            profile.runCount(),
+            profile.unlockedNodeIds(),
+            profile.obtainedCardIds(),
+            profile.loadout(),
+            profile.defeatedEnemyKinds(),
+            profile.tutorialSeen(),
+            0,
+            0);
+
+    Map<EquipmentSlot, Equipment> loadout = SaveDataConverter.toLoadout(shaped);
+    if (loadout.isEmpty()) {
+      loadout = fallbackLoadout;
+    }
+    return new PlayerProgress(
+        new Soul(profile.soulTotal()),
+        profile.runCount(),
+        profile.tutorialSeen(),
+        SaveDataConverter.toObtainedCards(shaped),
+        SaveDataConverter.toBestiary(shaped),
+        loadout,
+        SaveDataConverter.toSoulTree(shaped));
   }
 
   /** 現在の保護枠 (SOUL-03 でソウルツリーから導出するまでは常に 0)。 */
