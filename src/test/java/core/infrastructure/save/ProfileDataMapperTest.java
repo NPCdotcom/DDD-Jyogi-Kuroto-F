@@ -17,9 +17,9 @@ import org.junit.jupiter.api.Test;
 /**
  * {@link ProfileDataMapper} の往復を検証する (SAVE-03B)。
  *
- * <p>敵対的検証で見つかった P0 の回帰防止。起動時に {@code progress} を profile.json から復元しないまま ラン開始で {@link
- * ProfileDataMapper#toProfileData} を通すと、空の値で profile.json が全上書きされ、 ソウル・ツリー解放・図鑑・周回数が消える。{@code
- * toProfileData} が {@code previous} から引き継ぐのは ラン ID 群だけで、他はすべて {@code progress} から再構築するためである。
+ * <p>敵対的検証で見つかった P0 の回帰防止。起動時に {@code progress} を profile.json から復元しないまま ラン開始で書込系を通すと、空の値で
+ * profile.json が全上書きされ、 ソウル・ツリー解放・図鑑・周回数が消える。書込系が {@code previous} から引き継ぐのはラン ID 群だけで、 他はすべて {@code
+ * progress} から再構築するためである。
  */
 class ProfileDataMapperTest {
 
@@ -57,7 +57,7 @@ class ProfileDataMapperTest {
   void emptyProgressWouldWipePersistedFieldsWhenWrittenDirectly() {
     // これが P0 の再現。復元を挟まず初期 progress を書くと恒久進捗が空になる。
     ProfileData written =
-        ProfileDataMapper.toProfileData(PlayerProgress.initial(defaultLoadout()), richProfile(), 0);
+        ProfileDataMapper.forSoulUpdate(PlayerProgress.initial(defaultLoadout()), richProfile(), 0);
 
     assertEquals(0, written.runCount(), "空 progress からは周回数が復元されない");
     assertFalse(written.unlockedNodeIds().contains("hp_up_1"), "解放したノードが失われる");
@@ -69,7 +69,7 @@ class ProfileDataMapperTest {
     // 起動時に復元してから書けば、恒久進捗は保たれる。
     PlayerProgress restored = ProfileDataMapper.toPlayerProgress(richProfile(), defaultLoadout());
     ProfileData written =
-        ProfileDataMapper.toProfileData(restored, richProfile(), richProfile().soulTotal());
+        ProfileDataMapper.forSoulUpdate(restored, richProfile(), richProfile().soulTotal());
 
     assertEquals(200, written.soulTotal());
     assertEquals(3, written.runCount());
@@ -112,7 +112,7 @@ class ProfileDataMapperTest {
   void runIdsAreCarriedFromPreviousNotFromProgress() {
     ProfileData previous = richProfile().withActiveRunId("run-active");
     ProfileData written =
-        ProfileDataMapper.toProfileData(
+        ProfileDataMapper.forSoulUpdate(
             ProfileDataMapper.toPlayerProgress(previous, defaultLoadout()), previous, 200);
     assertEquals("run-active", written.activeRunId(), "ラン ID は previous から引き継ぐ");
   }

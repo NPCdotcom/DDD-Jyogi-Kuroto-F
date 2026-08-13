@@ -283,7 +283,7 @@ public final class DddGame extends Game {
           // 精算時のみ progress.playerSoul() を書く。preserveSoulFromRun() が直前に
           // Player の総ソウル (持越し + ラン中獲得) を progress へ戻している。
           ProfileData settled =
-              ProfileDataMapper.toProfileData(
+              ProfileDataMapper.forSoulUpdate(
                       progress, lifecycle.profileOrInitial(), progress.playerSoul().amount())
                   .withSettledRunId(session.runId().value());
           if (!lifecycle.endRun(settled).isSuccess()) {
@@ -319,7 +319,7 @@ public final class DddGame extends Game {
     progress = progress.withRunCount(progress.runCount() + 1);
 
     ProfileData settled =
-        ProfileDataMapper.toProfileData(
+        ProfileDataMapper.forSoulUpdate(
                 progress, lifecycle.profileOrInitial(), checkpoint.currentRunSoul())
             .withSettledRunId(checkpoint.runId());
     if (!lifecycle.endRun(settled).isSuccess()) {
@@ -369,7 +369,7 @@ public final class DddGame extends Game {
     RunLifecycle lifecycle = persistence.runLifecycle();
     ProfileData previous = lifecycle.profileOrInitial();
     ProfileData started =
-        ProfileDataMapper.toProfileData(progress, previous, carriedOverSoul.amount());
+        ProfileDataMapper.forSoulUpdate(progress, previous, carriedOverSoul.amount());
     if (!lifecycle.beginRun(started, runId).isSuccess()) {
       LOG.severe("ラン開始の記録に失敗しました。次の層境界セーブで復旧を試みます。");
     }
@@ -569,7 +569,7 @@ public final class DddGame extends Game {
     // 層境界では恒久ソウルを据え置く。ラン中は progress.playerSoul() が 0 (開始時に Player へ
     // 注入済) なので、そのまま書くと精算前に終了したプレイヤーの貯金が全損する。
     ProfileData previous = lifecycle.profileOrInitial();
-    ProfileData profile = ProfileDataMapper.toProfileData(progress, previous, previous.soulTotal());
+    ProfileData profile = ProfileDataMapper.forLayerBoundary(progress, previous);
     if (!lifecycle.saveAtLayerBoundary(profile, checkpoint).isSuccess()) {
       LOG.severe("層境界セーブに失敗しました。次の層境界で再試行します。");
     }
@@ -661,7 +661,7 @@ public final class DddGame extends Game {
     this.persistence = PersistenceServices.load();
     // SAVE-03B: 恒久進捗を profile.json から復元する。これを飛ばすと progress が空のまま
     // 走り出し、次のラン開始で beginRun が空の値で profile.json を全上書きして
-    // ソウル・ツリー解放・図鑑・周回数を消す (toProfileData は previous からラン ID しか
+    // ソウル・ツリー解放・図鑑・周回数を消す (書込系は previous からラン ID しか
     // 引き継がず、他はすべて progress から再構築するため)。
     this.progress =
         ProfileDataMapper.toPlayerProgress(

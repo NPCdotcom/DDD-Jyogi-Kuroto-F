@@ -156,6 +156,18 @@ public final class TitleScreen extends ScreenAdapter {
         RenderLayout.START_HINT_X,
         RenderLayout.TITLE_OPEN_TREE_HINT_Y - RenderLayout.LARGE_LINE_HEIGHT * 2);
 
+    // SAVE-02B: 起動時の移行で出た通知を提示する。ログにしか出さないと、旧セーブの
+    // ラン中通貨が復元できなかったことや装備を装着解除したことがプレイヤーへ届かない。
+    java.util.List<String> warnings = game.persistence().migrationWarnings();
+    for (int i = 0; i < warnings.size(); i++) {
+      large.setColor(0.95f, 0.8f, 0.4f, 1f);
+      large.draw(
+          batch,
+          warnings.get(i),
+          RenderLayout.START_HINT_X,
+          RenderLayout.SUBTITLE_Y - RenderLayout.LARGE_LINE_HEIGHT * (i + 1));
+    }
+
     large.setColor(Color.GRAY);
     large.draw(
         batch,
