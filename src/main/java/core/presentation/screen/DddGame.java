@@ -651,6 +651,11 @@ public final class DddGame extends Game {
 
     // メタ進捗を一括復元 (Wave 6 W6-γ: PlayerProgress 1 record で集約)
     // playerSoul は Player 側が Checkpoint の総量を持つため zero にする (下記の二重計上防止を参照)。
+    //
+    // 所有装備は Profile を正とする。7 引数コンストラクタは loadout から所有を再生成するため、
+    // ここで使うと「所有しているが装着していない装備」が再開のたびに消え、次の保存で永久に失われる。
+    Map<EquipmentSlot, Equipment> restoredLoadout = SaveDataConverter.toLoadout(data);
+    SoulTree restoredTree = SaveDataConverter.toSoulTree(data);
     progress =
         new PlayerProgress(
             Soul.zero(),
@@ -658,8 +663,10 @@ public final class DddGame extends Game {
             data.tutorialSeen(),
             SaveDataConverter.toObtainedCards(data),
             SaveDataConverter.toBestiary(data),
-            SaveDataConverter.toLoadout(data),
-            SaveDataConverter.toSoulTree(data));
+            restoredLoadout,
+            restoredTree,
+            ProfileDataMapper.mergeOwnershipForResume(
+                lifecycle.profileOrInitial(), restoredLoadout, restoredTree));
 
     // ラン状態を復元: 指定層からの新規マップ生成 + プレイヤーステ / デッキ注入
     Random newRng = new Random();

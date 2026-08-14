@@ -31,6 +31,9 @@ import java.util.Set;
  */
 public final class ProfileDataMapper {
 
+  private static final java.util.logging.Logger LOG =
+      java.util.logging.Logger.getLogger(ProfileDataMapper.class.getName());
+
   private ProfileDataMapper() {}
 
   /**
@@ -215,6 +218,52 @@ public final class ProfileDataMapper {
         loadout,
         tree,
         ownership);
+  }
+
+  /**
+   * 「つづき」で復元する所有装備を組み立てる。
+   *
+   * <p>所有の正は常に Profile 側にある。Checkpoint は「ラン中に装着しているもの」しか持たないため、 loadout
+   * から所有集合を再生成すると<b>所有しているが装着していない装備が消え</b>、次の保存で永久に失われる。
+   *
+   * <p>Checkpoint の装着品を所有へ合流させるのは、ラン中に購入して Profile へ未反映の装備があっても {@link PlayerProgress} の不変条件
+   * (loadout ⊆ owned) を壊さないため。
+   *
+   * @param profile 恒久側 (所有と保護指定の正)
+   * @param checkpointLoadout 再開するランで装着している装備
+   * @param tree 保護枠を導出するソウルツリー
+   */
+  public static EquipmentOwnership mergeOwnershipForResume(
+      ProfileData profile, Map<EquipmentSlot, Equipment> checkpointLoadout, SoulTree tree) {
+    Objects.requireNonNull(profile, "profile");
+    Objects.requireNonNull(checkpointLoadout, "checkpointLoadout");
+    Objects.requireNonNull(tree, "tree");
+
+    Set<core.domain.equipment.EquipmentId> owned = new LinkedHashSet<>();
+    owned.add(EquipmentOwnership.STARTER_EQUIPMENT_ID);
+    for (String id : profile.ownedEquipmentIds()) {
+      owned.add(core.domain.equipment.EquipmentId.of(id));
+    }
+    for (Equipment eq : checkpointLoadout.values()) {
+      owned.add(eq.id());
+    }
+
+    // 保護指定は現在の保護枠を超えうる (ツリーをリセットして枠が減った Profile など)。
+    // 超過分を切り捨てずに渡すと EquipmentOwnership が例外を投げ、「つづき」自体が落ちる。
+    RetentionCapacity capacity = tree.retentionCapacity();
+    Set<core.domain.equipment.EquipmentId> protectedIds = new LinkedHashSet<>();
+    for (String id : profile.protectedEquipmentIds()) {
+      core.domain.equipment.EquipmentId eqId = core.domain.equipment.EquipmentId.of(id);
+      if (!owned.contains(eqId) || eqId.equals(EquipmentOwnership.STARTER_EQUIPMENT_ID)) {
+        continue;
+      }
+      if (!capacity.canHold(protectedIds.size() + 1)) {
+        LOG.warning("保護枠 " + capacity.value() + " を超えるため保護指定を落としました: " + id);
+        continue;
+      }
+      protectedIds.add(eqId);
+    }
+    return new EquipmentOwnership(owned, protectedIds, capacity);
   }
 
   /** 現在の保護枠 (SOUL-03: ソウルツリーの解放状態から導出)。 */
