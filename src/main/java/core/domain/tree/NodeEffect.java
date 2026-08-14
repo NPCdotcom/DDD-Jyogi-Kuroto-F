@@ -115,4 +115,18 @@ public sealed interface NodeEffect {
       return player; // Player に副作用なし、GameContext 側で別扱い (ADR-25 整合)
     }
   }
+
+  /** 装備保護枠拡張効果 (持ち越し可能な装備保護枠数を増やす)。 Player に副作用なし (ProfileData 側で導出)。 */
+  record RetentionCapacityUpEffect(int amount) implements NodeEffect {
+    public RetentionCapacityUpEffect {
+      if (amount < 1) {
+        throw new IllegalArgumentException("amount must be >= 1: " + amount);
+      }
+    }
+
+    @Override
+    public Player apply(Player player, Function<CardId, Card> cardResolver) {
+      return player;
+    }
+  }
 }

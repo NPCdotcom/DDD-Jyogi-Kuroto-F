@@ -42,47 +42,6 @@ public record RunCheckpoint(
   /** 現在のスキーマバージョン。Checkpoint 分離の初版なので 1 から始める。 */
   public static final int CURRENT_SCHEMA_VERSION = 1;
 
-  public RunCheckpoint(
-      int schemaVersion,
-      String runId,
-      int nextLayerNumber,
-      int currentHp,
-      int maxHp,
-      int speed,
-      int physicalAttack,
-      int magicalAttack,
-      int physicalDefense,
-      int magicalDefense,
-      List<String> deck,
-      int currentRunGold,
-      int currentRunSoul,
-      List<String> carriedInEquipmentIds,
-      List<String> unconfirmedEquipmentIds,
-      String equippedId,
-      List<String> protectedEquipmentIds,
-      int retentionCapacity) {
-    this(
-        schemaVersion,
-        runId,
-        nextLayerNumber,
-        currentHp,
-        maxHp,
-        speed,
-        physicalAttack,
-        magicalAttack,
-        physicalDefense,
-        magicalDefense,
-        deck,
-        currentRunGold,
-        currentRunSoul,
-        carriedInEquipmentIds,
-        unconfirmedEquipmentIds,
-        equippedId,
-        protectedEquipmentIds,
-        retentionCapacity,
-        0);
-  }
-
   public RunCheckpoint {
     if (schemaVersion < 1) {
       throw new IllegalArgumentException("schemaVersion must be >= 1: " + schemaVersion);

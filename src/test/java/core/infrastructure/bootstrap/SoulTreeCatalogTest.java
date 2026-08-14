@@ -28,9 +28,9 @@ class SoulTreeCatalogTest {
   }
 
   @Test
-  void loadsExactly25Nodes() {
-    // §15-7 仕様: root + ステ軸 Lv1 (6) + カード獲得 (5) + 枠拡張 (5) + ステ軸 Lv2 (6) + 層数拡張 (2) = 25 ノード
-    assertEquals(25, CATALOG.allNodes().size(), "tree.json は 25 ノード定義を含む");
+  void loadsExactly22Nodes() {
+    // 仕様: root + ステ軸 Lv1 (6) + カード獲得 (5) + 魂の刻印 (2) + ステ軸 Lv2 (6) + 層数拡張 (2) = 22 ノード
+    assertEquals(22, CATALOG.allNodes().size(), "tree.json は 22 ノード定義を含む");
   }
 
   @Test
@@ -52,9 +52,9 @@ class SoulTreeCatalogTest {
             .count();
     long card =
         all.values().stream().filter(n -> n.effect() instanceof NodeEffect.CardGrantEffect).count();
-    long slot =
+    long retention =
         all.values().stream()
-            .filter(n -> n.effect() instanceof NodeEffect.SlotExpandEffect)
+            .filter(n -> n.effect() instanceof NodeEffect.RetentionCapacityUpEffect)
             .count();
     long layerExtend =
         all.values().stream()
@@ -64,7 +64,7 @@ class SoulTreeCatalogTest {
     assertEquals(1, none, "None 効果は root の 1 件");
     assertEquals(12, stats, "StatsBonus 効果は 6 ステ軸 × 2 Lv = 12 件");
     assertEquals(5, card, "CardGrant 効果は 5 件");
-    assertEquals(5, slot, "SlotExpand 効果は 5 件");
+    assertEquals(2, retention, "RetentionCapacityUp 効果は 2 件");
     assertEquals(2, layerExtend, "LayerExtend 効果は 2 件");
   }
 

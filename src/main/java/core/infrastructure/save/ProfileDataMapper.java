@@ -10,6 +10,7 @@ import core.domain.equipment.RunInventory;
 import core.domain.meta.PlayerProgress;
 import core.domain.meta.Soul;
 import core.domain.tree.NodeId;
+import core.domain.tree.SoulTree;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -75,6 +76,9 @@ public final class ProfileDataMapper {
     Map<String, String> loadoutMap = new LinkedHashMap<>();
     Set<String> owned = new LinkedHashSet<>();
     owned.add(EquipmentOwnership.STARTER_EQUIPMENT_VALUE);
+    for (core.domain.equipment.EquipmentId id : progress.equipmentOwnership().ownedIds()) {
+      owned.add(id.value());
+    }
     // 反復順は EquipmentSlot の宣言順に固定する (Map の反復順は JVM 実行ごとに変わりうる)。
     for (EquipmentSlot slot : EquipmentSlot.values()) {
       Equipment equipment = progress.loadout().get(slot);
@@ -86,7 +90,17 @@ public final class ProfileDataMapper {
     }
 
     int capacityValue = currentCapacity(progress).value();
-    List<String> protectedIds = new ArrayList<>(previous.protectedEquipmentIds());
+    List<String> protectedIds = new ArrayList<>();
+    for (core.domain.equipment.EquipmentId id : progress.equipmentOwnership().protectedIds()) {
+      protectedIds.add(id.value());
+    }
+    if (protectedIds.isEmpty() && !previous.protectedEquipmentIds().isEmpty()) {
+      for (String id : previous.protectedEquipmentIds()) {
+        if (owned.contains(id) && !id.equals(EquipmentOwnership.STARTER_EQUIPMENT_VALUE)) {
+          protectedIds.add(id);
+        }
+      }
+    }
     if (protectedIds.size() > capacityValue) {
       protectedIds = protectedIds.subList(0, capacityValue);
     }
@@ -173,6 +187,25 @@ public final class ProfileDataMapper {
     if (loadout.isEmpty()) {
       loadout = fallbackLoadout;
     }
+    SoulTree tree = SaveDataConverter.toSoulTree(shaped);
+    Set<core.domain.equipment.EquipmentId> owned = new LinkedHashSet<>();
+    owned.add(EquipmentOwnership.STARTER_EQUIPMENT_ID);
+    for (String id : profile.ownedEquipmentIds()) {
+      owned.add(core.domain.equipment.EquipmentId.of(id));
+    }
+    for (Equipment eq : loadout.values()) {
+      owned.add(eq.id());
+    }
+    Set<core.domain.equipment.EquipmentId> protectedIds = new LinkedHashSet<>();
+    for (String id : profile.protectedEquipmentIds()) {
+      core.domain.equipment.EquipmentId eqId = core.domain.equipment.EquipmentId.of(id);
+      if (owned.contains(eqId) && !eqId.equals(EquipmentOwnership.STARTER_EQUIPMENT_ID)) {
+        protectedIds.add(eqId);
+      }
+    }
+    EquipmentOwnership ownership =
+        new EquipmentOwnership(owned, protectedIds, tree.retentionCapacity());
+
     return new PlayerProgress(
         new Soul(profile.soulTotal()),
         profile.runCount(),
@@ -180,12 +213,13 @@ public final class ProfileDataMapper {
         SaveDataConverter.toObtainedCards(shaped),
         SaveDataConverter.toBestiary(shaped),
         loadout,
-        SaveDataConverter.toSoulTree(shaped));
+        tree,
+        ownership);
   }
 
-  /** 現在の保護枠 (SOUL-03 でソウルツリーから導出するまでは常に 0)。 */
+  /** 現在の保護枠 (SOUL-03: ソウルツリーの解放状態から導出)。 */
   public static RetentionCapacity currentCapacity(PlayerProgress progress) {
     Objects.requireNonNull(progress, "progress");
-    return RetentionCapacity.none();
+    return progress.soulTree().retentionCapacity();
   }
 }

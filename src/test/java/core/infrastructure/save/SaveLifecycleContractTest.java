@@ -37,6 +37,11 @@ class SaveLifecycleContractTest {
   }
 
   private static RunCheckpoint checkpointFor(RunId runId, int nextLayer, int runSoul) {
+    return checkpointFor(runId, nextLayer, runSoul, 0);
+  }
+
+  private static RunCheckpoint checkpointFor(
+      RunId runId, int nextLayer, int runSoul, int initialRunSoul) {
     return new RunCheckpoint(
         RunCheckpoint.CURRENT_SCHEMA_VERSION,
         runId.value(),
@@ -55,7 +60,8 @@ class SaveLifecycleContractTest {
         List.of(),
         "tattered_dagger",
         List.of(),
-        0);
+        0,
+        initialRunSoul);
   }
 
   private static ProfileData profileWithSoul(int soul, int runCount) {

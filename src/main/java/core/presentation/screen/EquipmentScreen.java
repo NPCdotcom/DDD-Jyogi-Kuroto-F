@@ -68,15 +68,21 @@ public final class EquipmentScreen extends ScreenAdapter {
     this.allEquipment = core.infrastructure.bootstrap.InitialStateFactory.equipmentCatalog().all();
   }
 
+  private List<Equipment> availableEquipment() {
+    java.util.Set<String> ownedIds = game.progress().ownedEquipmentIds();
+    return allEquipment.stream().filter(eq -> ownedIds.contains(eq.id().value())).toList();
+  }
+
   @Override
   public void show() {
     camera = new OrthographicCamera();
     viewport = new FitViewport(RenderLayout.SCREEN_WIDTH, RenderLayout.SCREEN_HEIGHT, camera);
     batch = new SpriteBatch();
-    maxScroll = Math.max(0f, allEquipment.size() * ROW_HEIGHT - (LIST_TOP_Y - LIST_BOTTOM_Y));
-    // Wave 10 W10-γ: iconPath を持つ装備全件を 1 度だけ Texture 化してキャッシュ。
+    List<Equipment> available = availableEquipment();
+    maxScroll = Math.max(0f, available.size() * ROW_HEIGHT - (LIST_TOP_Y - LIST_BOTTOM_Y));
+    // Wave 10 W10-γ: iconPath を持つ所有装備全件を 1 度だけ Texture 化してキャッシュ。
     equipmentIcons = new java.util.HashMap<>();
-    for (Equipment eq : allEquipment) {
+    for (Equipment eq : available) {
       eq.iconPath()
           .ifPresent(
               path -> {
@@ -133,11 +139,12 @@ public final class EquipmentScreen extends ScreenAdapter {
     if (w.y < LIST_BOTTOM_Y || w.y > LIST_TOP_Y + 20f) {
       return;
     }
+    List<Equipment> available = availableEquipment();
     int i = Math.round((LIST_TOP_Y + scrollOffset - w.y) / ROW_HEIGHT);
-    if (i < 0 || i >= allEquipment.size()) {
+    if (i < 0 || i >= available.size()) {
       return;
     }
-    Equipment eq = allEquipment.get(i);
+    Equipment eq = available.get(i);
     if (eq.equals(game.progress().loadout().get(eq.slot()))) {
       game.unequipSlot(eq.slot()); // 既に装着中 → 解除
     } else {
@@ -152,12 +159,13 @@ public final class EquipmentScreen extends ScreenAdapter {
     boolean jp = game.fonts().isJapaneseAvailable();
     BitmapFont font = game.fonts().large();
     Map<EquipmentSlot, Equipment> loadout = game.progress().loadout();
-    for (int i = 0; i < allEquipment.size(); i++) {
+    List<Equipment> available = availableEquipment();
+    for (int i = 0; i < available.size(); i++) {
       float y = LIST_TOP_Y - i * ROW_HEIGHT + scrollOffset;
       if (y < LIST_BOTTOM_Y || y > LIST_TOP_Y + ROW_HEIGHT) {
         continue;
       }
-      Equipment eq = allEquipment.get(i);
+      Equipment eq = available.get(i);
       boolean equipped = eq.equals(loadout.get(eq.slot()));
       // Wave 10 W10-γ: 行頭にアイコン描画 (iconPath ありの装備のみ、欠落は描画スキップ)
       com.badlogic.gdx.graphics.Texture icon = equipmentIcons.get(eq.id());

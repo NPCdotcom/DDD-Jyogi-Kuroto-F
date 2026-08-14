@@ -35,6 +35,7 @@ public final class NodeIconPathResolver {
       case NodeEffect.StatsBonusEffect s ->
           STATS_DIR + statFilename(s.bonus().dominantStat()) + ".png";
       case NodeEffect.SlotExpandEffect ignored -> FRAME_PATH;
+      case NodeEffect.RetentionCapacityUpEffect ignored -> FRAME_PATH;
       case NodeEffect.None ignored -> CENTER_PATH;
       // LayerExtend は専用素材を持たないため center.png にフォールバック (タスク指定)。
       case NodeEffect.LayerExtendEffect ignored -> CENTER_PATH;

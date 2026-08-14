@@ -132,7 +132,6 @@ public final class SoulTreeScreen extends ScreenAdapter {
   }
 
   private static Map<NodeId, Vector2> positions() {
-    // §15-7 UI 改善: LinkedHashMap で挿入順を保持し、tryUnlockAt のイテレーションを決定的にする
     // (HashMap だとシルエットノードが先にヒットして可視ノードを無視するバグの温床)。
     Map<NodeId, Vector2> m = new LinkedHashMap<>();
     m.put(SoulTree.ROOT, new Vector2(CENTER_X, CENTER_Y));

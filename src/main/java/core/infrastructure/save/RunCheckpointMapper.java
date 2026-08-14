@@ -41,15 +41,6 @@ public final class RunCheckpointMapper {
       Player player,
       int nextLayerNumber,
       RunInventory inventory,
-      RetentionCapacity capacity) {
-    return toCheckpoint(runId, player, nextLayerNumber, inventory, capacity, 0);
-  }
-
-  public static RunCheckpoint toCheckpoint(
-      RunId runId,
-      Player player,
-      int nextLayerNumber,
-      RunInventory inventory,
       RetentionCapacity capacity,
       int initialRunSoul) {
     Objects.requireNonNull(runId, "runId");

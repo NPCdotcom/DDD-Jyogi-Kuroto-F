@@ -19,6 +19,7 @@ import core.domain.equipment.EquipmentSlot;
 import core.domain.layer.LayerEndNode;
 import core.domain.meta.PlayerProgress;
 import core.domain.meta.Soul;
+import core.domain.save.SoulSettlement;
 import core.domain.tree.NodeId;
 import core.domain.tree.SoulTree;
 import core.infrastructure.audio.SoundManager;
@@ -42,6 +43,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Random;
 import java.util.Set;
 
@@ -166,6 +168,9 @@ public final class DddGame extends Game {
   /** 装備をそのスロットに装着する (同スロットの既存装備は置き換え、§15-9、次ラン開始時に反映)。 */
   public void equipInLoadout(Equipment equipment) {
     Objects.requireNonNull(equipment, "equipment");
+    if (!progress.equipmentOwnership().ownedIds().contains(equipment.id())) {
+      return; // 未所有装備は装着不可 (EQUIP-02)
+    }
     Map<EquipmentSlot, Equipment> next = new HashMap<>(progress.loadout());
     next.put(equipment.slot(), equipment);
     progress = progress.withLoadout(next);
@@ -306,8 +311,14 @@ public final class DddGame extends Game {
 
     int finalSoul = progress.playerSoul().amount();
     int initialSoul = runSession.map(RunSession::initialRunSoul).orElse(0);
-    int deltaSoul = finalSoul - initialSoul;
-    int settledSoulTotal = Math.max(0, previous.soulTotal() + deltaSoul);
+    OptionalInt optSettledTotal =
+        SoulSettlement.settle(previous.soulTotal(), finalSoul, initialSoul);
+    if (optSettledTotal.isEmpty()) {
+      LOG.severe("ラン終了時: 異常な Checkpoint / Soul 状態のため精算を中止し、Profile / Checkpoint を保護しました。");
+      runSession = Optional.empty();
+      return;
+    }
+    int settledSoulTotal = optSettledTotal.getAsInt();
 
     progress = progress.withPlayerSoul(new Soul(settledSoulTotal));
     ProfileData settled = ProfileDataMapper.forSoulUpdate(progress, previous, settledSoulTotal);
@@ -346,8 +357,13 @@ public final class DddGame extends Game {
     ProfileData previous = lifecycle.profileOrInitial();
     int finalSoul = checkpoint.currentRunSoul();
     int initialSoul = checkpoint.initialRunSoul();
-    int deltaSoul = finalSoul - initialSoul;
-    int settledSoulTotal = Math.max(0, previous.soulTotal() + deltaSoul);
+    OptionalInt optSettledTotal =
+        SoulSettlement.settle(previous.soulTotal(), finalSoul, initialSoul);
+    if (optSettledTotal.isEmpty()) {
+      LOG.severe("ラン放棄時: 異常な Checkpoint のため精算を中止し、データを保護しました。");
+      return false;
+    }
+    int settledSoulTotal = optSettledTotal.getAsInt();
 
     progress = progress.withPlayerSoul(new Soul(settledSoulTotal));
     progress = progress.withRunCount(progress.runCount() + 1);

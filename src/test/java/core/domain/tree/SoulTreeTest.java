@@ -75,8 +75,8 @@ class SoulTreeTest {
 
   @Test
   void allNodesContainsRequiredCount() {
-    // §15-7: 中央 1 + ステ軸 Lv1 (6) + 派生軸 1 カード (5) + 派生軸 2 枠拡張 (5) + ステ軸 Lv2 (6) + 層数拡張 (2) = 25
-    assertEquals(25, SoulTree.allNodes().size());
+    // 中央 1 + ステ軸 Lv1 (6) + 派生軸 1 カード (5) + 魂の刻印 (2) + ステ軸 Lv2 (6) + 層数拡張 (2) = 22
+    assertEquals(22, SoulTree.allNodes().size());
     assertTrue(SoulTree.allNodes().containsKey(SoulTree.ROOT));
   }
 
@@ -213,18 +213,15 @@ class SoulTreeTest {
   }
 
   @Test
-  void applyToWithSlotExpandNodeIncreasesSkillSlotMax() {
-    Player base = DomainFixtures.playerAt(new Position(1, 1));
-    int beforeMax = base.skillSlot().maxSize();
-
+  void unlockSealOfSoulIncreasesRetentionCapacity() {
     SoulTree tree = SoulTree.empty();
-    tree = tree.unlock(NodeId.of("phys_atk_up_1"), new Soul(100)).newTree();
-    tree = tree.unlock(NodeId.of("card_grant_strong_strike"), new Soul(100)).newTree();
-    tree = tree.unlock(NodeId.of("slot_expand_1"), new Soul(100)).newTree();
+    assertEquals(0, tree.retentionCapacity().value(), "初期は保護枠 0");
 
-    Player applied = tree.applyTo(base, DUMMY_RESOLVER);
+    tree = tree.unlock(NodeId.of("seal_of_soul_1"), new Soul(100)).newTree();
+    assertEquals(1, tree.retentionCapacity().value(), "魂の刻印 I で保護枠 1");
 
-    assertEquals(beforeMax + 1, applied.skillSlot().maxSize(), "スキル枠 +1");
+    tree = tree.unlock(NodeId.of("seal_of_soul_2"), new Soul(100)).newTree();
+    assertEquals(2, tree.retentionCapacity().value(), "魂の刻印 II で保護枠 2");
   }
 
   @Test

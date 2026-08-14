@@ -189,6 +189,22 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
     return current;
   }
 
+  /**
+   * 解放済みノードから保護枠容量を導出する (SOUL-03)。
+   *
+   * <p>seal_of_soul_1 で +1、seal_of_soul_2 で +1 (最大 2)。
+   */
+  public core.domain.equipment.RetentionCapacity retentionCapacity() {
+    int cap = 0;
+    if (unlockedNodes.contains(NodeId.of("seal_of_soul_1"))) {
+      cap++;
+    }
+    if (unlockedNodes.contains(NodeId.of("seal_of_soul_2"))) {
+      cap++;
+    }
+    return core.domain.equipment.RetentionCapacity.of(cap);
+  }
+
   /** {@link #unlock} の戻り値 (新ツリー + 残ソウル)。 */
   public record UnlockResult(SoulTree newTree, Soul newSoul) {
     public UnlockResult {

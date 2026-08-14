@@ -70,7 +70,8 @@ class ProfileCheckpointRoundTripTest {
         List.of("dark_blade"),
         "dash_boots",
         List.of("dash_boots"),
-        1);
+        1,
+        0);
   }
 
   // ---------------- 往復 ----------------

@@ -108,18 +108,24 @@ public final class LegacySaveMapper {
       warnings.add("現在装備は 1 部位のみのため、" + String.join(", ", unequipped) + " は所有したまま装着解除しました。");
     }
 
-    // 3. ラン中通貨。v3 だけが値を持つ。
+    // 3. 通貨および持越しソウルの復元。
+    // S = legacy.soulTotal, C = currentRunSoul (v3のみ), R = refund
+    int S = legacy.soulTotal();
+    int R = refund;
     boolean hasRunCurrency = legacy.schemaVersion() >= 3;
-    int runSoul = hasRunCurrency ? legacy.currentRunSoul() : 0;
+    int C = hasRunCurrency ? legacy.currentRunSoul() : 0;
     int runGold = hasRunCurrency ? legacy.currentRunGold() : 0;
     if (!hasRunCurrency) {
-      warnings.add("v" + legacy.schemaVersion() + " のセーブはラン中のソウルと金貨を記録していないため復元できません。0 から再開します。");
+      warnings.add("v" + legacy.schemaVersion() + " のセーブはラン中のソウルと金貨を記録していないため、ソウルは現在の所持合計を引き継ぎます。");
     }
+
+    int initialRunSoul = S + R;
+    int currentRunSoul = S + C + R;
 
     ProfileData profile =
         new ProfileData(
             ProfileData.CURRENT_SCHEMA_VERSION,
-            legacy.soulTotal() + refund,
+            initialRunSoul,
             legacy.runCount(),
             List.copyOf(remainingNodes),
             List.copyOf(owned),
@@ -146,12 +152,13 @@ public final class LegacySaveMapper {
             legacy.magicalDefense(),
             legacy.deck(),
             runGold,
-            runSoul,
+            currentRunSoul,
             List.copyOf(carriedIn),
             List.of(), // 未確定品は移行時点では空
             equipped,
             List.of(), // 保護品も空
-            0);
+            0,
+            initialRunSoul);
 
     return new Result(profile, Optional.of(checkpoint), warnings);
   }

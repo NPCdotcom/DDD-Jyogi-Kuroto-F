@@ -58,7 +58,12 @@ class RunCheckpointMapperTest {
   void checkpointKeepsRunId() {
     RunCheckpoint checkpoint =
         RunCheckpointMapper.toCheckpoint(
-            RUN_ID, playerWith(7, 45, List.of("zangeki")), 2, inventory(), RetentionCapacity.of(1));
+            RUN_ID,
+            playerWith(7, 45, List.of("zangeki")),
+            2,
+            inventory(),
+            RetentionCapacity.of(1),
+            0);
     assertEquals("run-test-1", checkpoint.runId());
     assertEquals(RUN_ID, RunCheckpointMapper.toRunId(checkpoint));
   }
@@ -68,10 +73,11 @@ class RunCheckpointMapperTest {
     // 層境界セーブを繰り返してもランIDが変わらない (Profile.activeRunId との突合が壊れない)。
     Player player = playerWith(7, 45, List.of("zangeki"));
     RunCheckpoint first =
-        RunCheckpointMapper.toCheckpoint(RUN_ID, player, 2, inventory(), RetentionCapacity.of(1));
+        RunCheckpointMapper.toCheckpoint(
+            RUN_ID, player, 2, inventory(), RetentionCapacity.of(1), 0);
     RunCheckpoint second =
         RunCheckpointMapper.toCheckpoint(
-            RunCheckpointMapper.toRunId(first), player, 3, inventory(), RetentionCapacity.of(1));
+            RunCheckpointMapper.toRunId(first), player, 3, inventory(), RetentionCapacity.of(1), 0);
     assertEquals(first.runId(), second.runId());
   }
 
@@ -81,7 +87,12 @@ class RunCheckpointMapperTest {
   void inventoryRoundTripsWithoutLoss() {
     RunCheckpoint checkpoint =
         RunCheckpointMapper.toCheckpoint(
-            RUN_ID, playerWith(7, 45, List.of("zangeki")), 2, inventory(), RetentionCapacity.of(1));
+            RUN_ID,
+            playerWith(7, 45, List.of("zangeki")),
+            2,
+            inventory(),
+            RetentionCapacity.of(1),
+            0);
     RunInventory restored = RunCheckpointMapper.toRunInventory(checkpoint);
 
     assertEquals(Set.of(STARTER, BOOTS), restored.carriedIn());
@@ -95,7 +106,7 @@ class RunCheckpointMapperTest {
     RunInventory noEquip = new RunInventory(Set.of(STARTER), Set.of(), Set.of(), Optional.empty());
     RunCheckpoint checkpoint =
         RunCheckpointMapper.toCheckpoint(
-            RUN_ID, playerWith(0, 0, List.of()), 1, noEquip, RetentionCapacity.none());
+            RUN_ID, playerWith(0, 0, List.of()), 1, noEquip, RetentionCapacity.none(), 0);
     assertTrue(RunCheckpointMapper.toRunInventory(checkpoint).equipped().isEmpty());
   }
 
@@ -103,7 +114,7 @@ class RunCheckpointMapperTest {
   void retentionCapacityRoundTrips() {
     RunCheckpoint checkpoint =
         RunCheckpointMapper.toCheckpoint(
-            RUN_ID, playerWith(0, 0, List.of()), 1, inventory(), RetentionCapacity.of(2));
+            RUN_ID, playerWith(0, 0, List.of()), 1, inventory(), RetentionCapacity.of(2), 0);
     assertEquals(2, RunCheckpointMapper.toRetentionCapacity(checkpoint).value());
   }
 
@@ -114,7 +125,12 @@ class RunCheckpointMapperTest {
     // ラン中 Soul は精算まで Checkpoint 側に留まる。Profile へ移すのは SETTLE-01/02。
     RunCheckpoint checkpoint =
         RunCheckpointMapper.toCheckpoint(
-            RUN_ID, playerWith(7, 45, List.of("zangeki")), 2, inventory(), RetentionCapacity.of(1));
+            RUN_ID,
+            playerWith(7, 45, List.of("zangeki")),
+            2,
+            inventory(),
+            RetentionCapacity.of(1),
+            0);
     assertEquals(7, checkpoint.currentRunSoul());
     assertEquals(45, checkpoint.currentRunGold());
   }
@@ -124,9 +140,11 @@ class RunCheckpointMapperTest {
     // 同じ Player から 2 回作っても Soul が足し込まれない (層境界セーブの繰り返し)。
     Player player = playerWith(7, 45, List.of("zangeki"));
     RunCheckpoint first =
-        RunCheckpointMapper.toCheckpoint(RUN_ID, player, 2, inventory(), RetentionCapacity.of(1));
+        RunCheckpointMapper.toCheckpoint(
+            RUN_ID, player, 2, inventory(), RetentionCapacity.of(1), 0);
     RunCheckpoint second =
-        RunCheckpointMapper.toCheckpoint(RUN_ID, player, 3, inventory(), RetentionCapacity.of(1));
+        RunCheckpointMapper.toCheckpoint(
+            RUN_ID, player, 3, inventory(), RetentionCapacity.of(1), 0);
     assertEquals(first.currentRunSoul(), second.currentRunSoul());
     assertEquals(7, second.currentRunSoul());
   }
@@ -138,7 +156,8 @@ class RunCheckpointMapperTest {
     // Stats の 7 フィールドを取り違えていないか (currentHp/maxHp/speed/物攻/魔攻/物防/魔防)。
     Player player = playerWith(0, 0, List.of()).withStats(new Stats(11, 22, 3, 4, 5, 6, 7));
     RunCheckpoint checkpoint =
-        RunCheckpointMapper.toCheckpoint(RUN_ID, player, 2, inventory(), RetentionCapacity.of(1));
+        RunCheckpointMapper.toCheckpoint(
+            RUN_ID, player, 2, inventory(), RetentionCapacity.of(1), 0);
     assertEquals(new Stats(11, 22, 3, 4, 5, 6, 7), RunCheckpointMapper.toStats(checkpoint));
   }
 
@@ -156,7 +175,8 @@ class RunCheckpointMapperTest {
                     new DiscardPile(List.of(DomainFixtures.attackCard("disc-1")))));
 
     RunCheckpoint checkpoint =
-        RunCheckpointMapper.toCheckpoint(RUN_ID, player, 2, inventory(), RetentionCapacity.of(1));
+        RunCheckpointMapper.toCheckpoint(
+            RUN_ID, player, 2, inventory(), RetentionCapacity.of(1), 0);
 
     assertEquals(List.of("draw-1", "hand-1", "disc-1"), checkpoint.deck());
   }
@@ -173,7 +193,7 @@ class RunCheckpointMapperTest {
         IllegalArgumentException.class,
         () ->
             RunCheckpointMapper.toCheckpoint(
-                RUN_ID, playerWith(0, 0, List.of()), 2, twoProtected, RetentionCapacity.of(1)));
+                RUN_ID, playerWith(0, 0, List.of()), 2, twoProtected, RetentionCapacity.of(1), 0));
   }
 
   @Test
@@ -183,7 +203,7 @@ class RunCheckpointMapperTest {
             Set.of(STARTER, BOOTS, BLADE), Set.of(), Set.of(BOOTS, BLADE), Optional.of(BOOTS));
     RunCheckpoint checkpoint =
         RunCheckpointMapper.toCheckpoint(
-            RUN_ID, playerWith(0, 0, List.of()), 2, twoProtected, RetentionCapacity.of(2));
+            RUN_ID, playerWith(0, 0, List.of()), 2, twoProtected, RetentionCapacity.of(2), 0);
     assertEquals(2, checkpoint.protectedEquipmentIds().size());
   }
 
@@ -191,7 +211,7 @@ class RunCheckpointMapperTest {
   void nextLayerNumberIsPreserved() {
     RunCheckpoint checkpoint =
         RunCheckpointMapper.toCheckpoint(
-            RUN_ID, playerWith(0, 0, List.of()), 3, inventory(), RetentionCapacity.of(1));
+            RUN_ID, playerWith(0, 0, List.of()), 3, inventory(), RetentionCapacity.of(1), 0);
     assertEquals(3, checkpoint.nextLayerNumber());
   }
 }

@@ -240,11 +240,15 @@ public final class DungeonScreen extends ScreenAdapter {
     }
   }
 
+  /** 敵ターンの進入時行動予算 (Phase 2-2: 可変表示時間 1.2s 計算の基準値)。 */
+  private int initialEnemyActionBudget = -1;
+
   private void updateState(float delta) {
     TurnDirector director = game.requireRunSession().director();
     TurnPhase phase = game.requireRunSession().context().state().phase();
     if (phase == TurnPhase.PLAYER_TURN) {
       enemyStepTimer = 0f;
+      initialEnemyActionBudget = -1;
       // §15-3 UI 改善: マウスクリックでカード選択 (キーボード入力に先んじて処理)
       boolean cardConsumed = handleHandMouseClick();
       // Wave 14 W14-β: ターン終了ボタンクリック判定 (画面右下、カード未消費 + ポップアップ非表示時のみ)
@@ -264,16 +268,38 @@ public final class DungeonScreen extends ScreenAdapter {
           playerInputs.poll(game.requireRunSession().context().state(), mouseDir);
       action.ifPresent(director::applyPlayerAction);
     } else if (phase == TurnPhase.ENEMY_TURN) {
-      // §15-5 / 案 A: 敵ターンの総表示時間を約 1.2s 以下に収める可変ステップ間隔
-      int totalAp = 0;
-      for (core.domain.entity.Enemy enemy : game.requireRunSession().context().state().enemies()) {
-        totalAp += enemy.actionPoints().current();
+      // Phase 2-2: 敵ターンの表示時間を約 1.2s 以下に収める可変ステップ間隔
+      if (initialEnemyActionBudget < 0) {
+        int totalAp = 0;
+        for (core.domain.entity.Enemy enemy :
+            game.requireRunSession().context().state().enemies()) {
+          totalAp += enemy.actionPoints().current();
+        }
+        initialEnemyActionBudget = Math.max(1, totalAp);
       }
-      float stepInterval = calculateEnemyStepInterval(totalAp);
+      float stepInterval = calculateEnemyStepInterval(initialEnemyActionBudget);
       enemyStepTimer += delta;
-      if (enemyStepTimer >= stepInterval) {
-        enemyStepTimer = 0f;
+
+      int maxStepsPerFrame = 10;
+      int stepCount = 0;
+      while (enemyStepTimer >= stepInterval
+          && game.requireRunSession().context().state().phase() == TurnPhase.ENEMY_TURN
+          && stepCount < maxStepsPerFrame) {
+        enemyStepTimer -= stepInterval;
+        stepCount++;
         director.stepEnemyTurnOnce();
+
+        // 敵全員の AP が尽きた場合、フェーズ完了 (PLAYER_TURN 復帰) のためにタイマー待ちせず直ちにステップを完了させる
+        if (game.requireRunSession().context().state().phase() == TurnPhase.ENEMY_TURN) {
+          int remainingAp = 0;
+          for (core.domain.entity.Enemy enemy :
+              game.requireRunSession().context().state().enemies()) {
+            remainingAp += enemy.actionPoints().current();
+          }
+          if (remainingAp <= 0) {
+            director.stepEnemyTurnOnce();
+          }
+        }
       }
     } else if (phase == TurnPhase.CLEARED) {
       // 階段踏破直後の層末ノード選択フロー (§15-8 / E-6)。

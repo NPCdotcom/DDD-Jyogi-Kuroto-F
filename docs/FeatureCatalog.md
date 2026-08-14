@@ -284,7 +284,7 @@ HP / AP / Soul / Gold / Phase / 手札 / メッセージログ / ターン終了
 
 ### D-5. カード描画 (CardRenderer)
 
-card_frame.png + イラスト + AP コスト + カード名 + element 色枠を Z-Index 順序で合成描画。`GlyphLayout` で名前幅計測 + 切り詰め、`SpriteBatch.setColor` のリセット遵守。
+1x1 white texture によるコード描画ベースの枠・背景合成 (G0 制作枠依存を排除)。AP コスト + カード名 + element 色枠を Z-Index 順序で描画。`CardPresentationText` で名称・効果の 2 行均一表示、`SpriteBatch.setColor` のリセット遵守。
 
 - 関連: `core/presentation/render/CardRenderer.java`
 - 導入: Wave 10 W10-γ
@@ -432,7 +432,7 @@ BGM (Music) / SE (Sound) 一元管理、graceful fallback (ファイル欠損時
 
 ### F-5. カードイラスト + CardImageRegistry
 
-`assets/cards/card_01.png 〜 card_50.png` (49 ファイル、card_27 のみ欠番) を `card_image_map.json` で CardId → filename マッピング、test.png fallback。Wave 10 W10-γ でカード枠テクスチャ (icons/cards/card_frame.png) も同時ロード。Nearest filter + 防衛的 dispose。
+`cards.json` 59 種 (legacy PNG 60 枚、うち spare 1 枚) を `card_image_map.json` で CardId → filename マッピング、test.png fallback。Nearest filter + 防衛的 dispose。枠線は 1x1 white texture によるコード描画で合成。
 
 - 関連: `core/infrastructure/bootstrap/CardImageRegistry.java`
 - 導入: §15-3、Wave 10 W10-γ で frame 追加
@@ -530,7 +530,7 @@ BGM (Music) / SE (Sound) 一元管理、graceful fallback (ファイル欠損時
 - **演出**: AOE LOS 精密化 / DEAL_DAMAGE SE 連打回避 / 装備色 tint バリエーション
 - **品質**: Wave 9 監査 Must 残 4 件 (DEFAULT_MAX_LAYER DRY / i18n 残 / BattleEvent.CardUsed / 行数表記)
 - **データ整理**: 壁床バリエーション機構 / 階段専用テクスチャ
-- **プラットフォーム**: Android は**現行版の対象外** (2026-08-12 PLATFORM-01)。再採択する場合は backend 追加ではなく、共有 core の言語水準・モジュール分離・タッチ E2E・セーブ同期方式を含む独立計画とする
+- **プラットフォーム**: Android 対応 (Phase D)
 - **#4 ソウルツリー描画 (既知 UI 不具合)**: 枝線/座標の不整合、優先度低でリリース後対応 (本セッションスコープ外、Wave 18+ で実機再現 → CTO チェックポイント「データと UI 分離原則」に則り修正)
 
 ---

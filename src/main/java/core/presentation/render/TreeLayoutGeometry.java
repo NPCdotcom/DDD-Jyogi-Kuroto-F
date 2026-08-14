@@ -72,93 +72,21 @@ public final class TreeLayoutGeometry {
     return closest.distanceTo(center) < radius - 1e-4;
   }
 
-  /**
-   * SoulTreeScreen.positions() と 1:1 で対応するノード座標マップ（中心原点）を返す。
-   *
-   * <p>SoulTreeScreen は CENTER_X/CENTER_Y をオフセットとして加えるが、本メソッドは原点 (0,0) を
-   * 中心として返す（オフセットは表示上の問題であり幾何判定に影響しない）。
-   */
+  /** SoulTreeLayout (SSoT) のノード座標マップを返す。 */
   public static Map<String, Point> defaultNodePositions() {
-    Map<String, Point> pos = new HashMap<>();
-    pos.put("root", new Point(0, 0));
-
-    // 内輪 r=200 (SoulTreeScreen L139-L144 と同一)
-    pos.put("hp_up_1", polar(0, 200));
-    pos.put("speed_up_1", polar(60, 200));
-    pos.put("phys_atk_up_1", polar(120, 200));
-    pos.put("mag_atk_up_1", polar(180, 200));
-    pos.put("phys_def_up_1", polar(240, 200));
-    pos.put("mag_def_up_1", polar(300, 200));
-
-    // 中輪 r=380 (SoulTreeScreen L145-L149 と同一)
-    pos.put("card_grant_strong_strike", polar(120, 380));
-    pos.put("card_grant_fireball", polar(170, 380));
-    pos.put("card_grant_magic_bolt", polar(190, 380));
-    pos.put("card_grant_iron_skin", polar(240, 380));
-    pos.put("card_grant_arcane_veil", polar(300, 380));
-
-    // 外輪 r=540 (SoulTreeScreen L150-L154 と同一)
-    pos.put("slot_expand_1", polar(120, 540));
-    pos.put("slot_expand_2", polar(170, 540));
-    pos.put("slot_expand_3", polar(190, 540));
-    pos.put("slot_expand_4", polar(240, 540));
-    pos.put("slot_expand_5", polar(300, 540));
-
-    // ステ Lv2 r=700 (SoulTreeScreen L155-L161 と同一、貫通回避角度)
-    pos.put("hp_up_2", polar(0, 700));
-    pos.put("speed_up_2", polar(60, 700));
-    pos.put("phys_atk_up_2", polar(105, 700));
-    pos.put("mag_atk_up_2", polar(180, 700));
-    pos.put("phys_def_up_2", polar(225, 700));
-    pos.put("mag_def_up_2", polar(315, 700));
-
-    // 層拡張 r=860 (SoulTreeScreen L163-L164 と同一)
-    pos.put("layer_extend_4", polar(30, 860));
-    pos.put("layer_extend_5", polar(150, 860));
-
-    return pos;
+    return SoulTreeLayout.nodePositions();
   }
 
-  /**
-   * tree.json の prerequisites と 1:1 で対応する前提条件マップを返す。
-   *
-   * <p>layer_extend_4 は hp_up_2 と phys_atk_up_2 の 2 前提を持つ（tree.json L32 参照）。
-   */
+  /** 実際の SoulTree ノード定義から前提条件マップを動的構築する。 */
   public static Map<String, List<String>> defaultPrerequisites() {
     Map<String, List<String>> prereqs = new HashMap<>();
-    // 内輪 → root
-    prereqs.put("hp_up_1", List.of("root"));
-    prereqs.put("speed_up_1", List.of("root"));
-    prereqs.put("phys_atk_up_1", List.of("root"));
-    prereqs.put("mag_atk_up_1", List.of("root"));
-    prereqs.put("phys_def_up_1", List.of("root"));
-    prereqs.put("mag_def_up_1", List.of("root"));
-
-    // 中輪 → 内輪 (tree.json L13-L17)
-    prereqs.put("card_grant_strong_strike", List.of("phys_atk_up_1"));
-    prereqs.put("card_grant_fireball", List.of("mag_atk_up_1"));
-    prereqs.put("card_grant_magic_bolt", List.of("mag_atk_up_1"));
-    prereqs.put("card_grant_iron_skin", List.of("phys_def_up_1"));
-    prereqs.put("card_grant_arcane_veil", List.of("mag_def_up_1"));
-
-    // 外輪 → 中輪 (tree.json L19-L23)
-    prereqs.put("slot_expand_1", List.of("card_grant_strong_strike"));
-    prereqs.put("slot_expand_2", List.of("card_grant_fireball"));
-    prereqs.put("slot_expand_3", List.of("card_grant_magic_bolt"));
-    prereqs.put("slot_expand_4", List.of("card_grant_iron_skin"));
-    prereqs.put("slot_expand_5", List.of("card_grant_arcane_veil"));
-
-    // ステ Lv2 → ステ Lv1 (tree.json L25-L30)
-    prereqs.put("hp_up_2", List.of("hp_up_1"));
-    prereqs.put("speed_up_2", List.of("speed_up_1"));
-    prereqs.put("phys_atk_up_2", List.of("phys_atk_up_1"));
-    prereqs.put("mag_atk_up_2", List.of("mag_atk_up_1"));
-    prereqs.put("phys_def_up_2", List.of("phys_def_up_1"));
-    prereqs.put("mag_def_up_2", List.of("mag_def_up_1"));
-
-    // 層拡張 (tree.json L32-L33)
-    prereqs.put("layer_extend_4", List.of("hp_up_2", "phys_atk_up_2"));
-    prereqs.put("layer_extend_5", List.of("layer_extend_4"));
+    for (core.domain.tree.TreeNode node : core.domain.tree.SoulTree.allNodes().values()) {
+      if (!node.prerequisites().isEmpty()) {
+        List<String> parentIds =
+            node.prerequisites().stream().map(core.domain.tree.NodeId::value).toList();
+        prereqs.put(node.id().value(), parentIds);
+      }
+    }
     return prereqs;
   }
 

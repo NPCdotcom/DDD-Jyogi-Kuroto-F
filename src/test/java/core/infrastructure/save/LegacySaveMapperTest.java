@@ -180,30 +180,49 @@ class LegacySaveMapperTest {
     assertEquals(100, result.profile().soulTotal());
   }
 
-  // ---------------- 版ごとの通貨の扱い ----------------
+  // ---------------- 版ごとの通貨の扱い (Phase 1 契約) ----------------
 
   @Test
-  void v3MovesRunCurrencyToCheckpointWithoutDoubleCounting() {
+  void v3PreservesRunSoulEquivalence() {
+    // S = 100, C = 30, R = 0 -> profile = 100, initial = 100, current = 130
     LegacySaveMapper.Result result =
-        LegacySaveMapper.map(legacySave(3, 100, 7, 45, List.of("center")));
-    assertEquals(100, result.profile().soulTotal(), "ラン中 Soul を Profile へ足さない");
+        LegacySaveMapper.map(legacySave(3, 100, 30, 45, List.of("center")));
+    assertEquals(100, result.profile().soulTotal(), "Profile 恒久ソウルは S");
     RunCheckpoint checkpoint = result.checkpoint().orElseThrow();
-    assertEquals(7, checkpoint.currentRunSoul());
+    assertEquals(100, checkpoint.initialRunSoul(), "initialRunSoul は S");
+    assertEquals(130, checkpoint.currentRunSoul(), "currentRunSoul は S + C");
     assertEquals(45, checkpoint.currentRunGold());
   }
 
   @Test
-  void v1AndV2CannotRestoreRunCurrencyAndSaySo() {
+  void v1AndV2PreservesRunSoulEquivalence() {
+    // v1/v2: S = 100 -> profile = 100, initial = 100, current = 100 (ロード直後 Player Soul = 100)
     for (int version : new int[] {1, 2}) {
       LegacySaveMapper.Result result =
           LegacySaveMapper.map(legacySave(version, 100, 0, 0, List.of("center")));
       RunCheckpoint checkpoint = result.checkpoint().orElseThrow();
-      assertEquals(0, checkpoint.currentRunSoul(), "v" + version + " はラン中 Soul を持たない");
-      assertEquals(0, checkpoint.currentRunGold(), "v" + version + " はラン中 Gold を持たない");
+      assertEquals(100, result.profile().soulTotal());
+      assertEquals(100, checkpoint.initialRunSoul());
+      assertEquals(
+          100, checkpoint.currentRunSoul(), "v" + version + " はロード直後 Player Soul が S と一致する");
+      assertEquals(0, checkpoint.currentRunGold());
       assertTrue(
-          result.warnings().stream().anyMatch(w -> w.contains("復元")),
-          "v" + version + " は復元不能を通知する: " + result.warnings());
+          result.warnings().stream().anyMatch(w -> w.contains("引き継ぎ")),
+          "v" + version + " は引き継ぎ通知を出す: " + result.warnings());
     }
+  }
+
+  @Test
+  void slotExpandRefundIsIncludedInInitialAndCurrentSoul() {
+    // S = 100, C = 30, R = 80 (slot_expand_1, slot_expand_2) -> profile = 180, initial = 180,
+    // current = 210
+    LegacySaveMapper.Result result =
+        LegacySaveMapper.map(
+            legacySave(3, 100, 30, 45, List.of("center", "slot_expand_1", "slot_expand_2")));
+    assertEquals(180, result.profile().soulTotal());
+    RunCheckpoint checkpoint = result.checkpoint().orElseThrow();
+    assertEquals(180, checkpoint.initialRunSoul());
+    assertEquals(210, checkpoint.currentRunSoul());
   }
 
   // ---------------- ラン ID の整合 ----------------

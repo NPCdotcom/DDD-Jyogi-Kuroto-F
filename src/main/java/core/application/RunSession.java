@@ -33,8 +33,4 @@ public record RunSession(
     Objects.requireNonNull(director, "director");
     Objects.requireNonNull(rng, "rng");
   }
-
-  public RunSession(RunId runId, GameContext context, TurnDirector director, Random rng) {
-    this(runId, context, director, rng, 0);
-  }
 }
