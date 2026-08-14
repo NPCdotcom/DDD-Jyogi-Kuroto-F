@@ -2,6 +2,7 @@ package core.domain.tree;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import core.infrastructure.bootstrap.InitialStateFactory;
@@ -69,10 +70,25 @@ class SoulTreeResetRetentionTest {
   }
 
   @Test
+  void resetRejectsProfileWhereSpentSoulIsLessThanRetainedCost() {
+    // 破損 Profile: 刻印 I+II (実コスト 90) を解放済みなのに totalSpentSoul が 50。
+    // 差し引くと返金が負になる。黙って 0 に丸めると「返金されるはずの分」が消えるため、
+    // 不整合として拒否する (fail-closed)。
+    SoulTree broken = new SoulTree(java.util.Set.of(SoulTree.ROOT, SEAL_1, SEAL_2), 50);
+
+    assertThrows(
+        IllegalStateException.class,
+        broken::reset,
+        "解放済みノードの実コストが totalSpentSoul を超える Profile はリセットを拒否する");
+  }
+
+  @Test
   void resetRepairsProfileHoldingSecondSealWithoutFirst() {
-    // 破損 Profile: 前提を満たさない刻印 II だけが解放済み。剥がすと保護していた装備の扱いが
-    // 宙に浮くため、前提の刻印 I を補完して保持する。
-    SoulTree broken = new SoulTree(java.util.Set.of(SoulTree.ROOT, SEAL_2), costOf(SEAL_2));
+    // 破損 Profile: 消費額は I+II ぶん (90) あるのに、解放集合から刻印 I が落ちている。
+    // 剥がすと保護していた装備の扱いが宙に浮くため、前提の刻印 I を補完して保持する。
+    // (消費額まで足りない場合は別途 fail-closed。補完で購入を捏造しないための境界)
+    SoulTree broken =
+        new SoulTree(java.util.Set.of(SoulTree.ROOT, SEAL_2), costOf(SEAL_1) + costOf(SEAL_2));
     SoulTree.ResetResult result = broken.reset();
 
     assertTrue(result.newTree().unlockedNodes().contains(SEAL_2), "刻印 II は保持する");

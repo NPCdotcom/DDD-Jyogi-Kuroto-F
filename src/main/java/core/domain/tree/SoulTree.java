@@ -188,7 +188,13 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
         retainedSpent += node.soulCost();
       }
     }
-    int refunded = Math.max(0, totalSpentSoul - retainedSpent);
+    if (retainedSpent > totalSpentSoul) {
+      // 破損 Profile。0 へ丸めると「返金されるはずの分」が黙って消えるため拒否する。
+      throw new IllegalStateException(
+          "Corrupted tree: retained cost %d exceeds totalSpentSoul %d"
+              .formatted(retainedSpent, totalSpentSoul));
+    }
+    int refunded = totalSpentSoul - retainedSpent;
     return new ResetResult(new SoulTree(retained, retainedSpent), new Soul(refunded));
   }
 

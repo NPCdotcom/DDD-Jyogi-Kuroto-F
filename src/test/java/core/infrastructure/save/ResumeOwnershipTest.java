@@ -1,5 +1,6 @@
 package core.infrastructure.save;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -12,6 +13,7 @@ import core.domain.tree.SoulTree;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -84,10 +86,10 @@ class ResumeOwnershipTest {
   }
 
   @Test
-  void resumeDropsProtectionBeyondCapacityInsteadOfThrowing() {
-    // ツリーをリセットして保護枠が減った Profile では、保護指定が現在の枠を超えうる。
-    // 超過分をそのまま渡すと EquipmentOwnership が例外を投げ、「つづき」自体が落ちる。
-    // 落とすのではなく、超過分を捨てて再開できることを固定する。
+  void resumeNeverDropsProtectionEvenWhenTreeCapacityDisagrees() {
+    // Profile は保存時点で protectedIds.size() <= retentionCapacity を強制済み。
+    // SoulTree 側の導出値 (ここでは 0) と食い違っても、保護指定を切り捨ててはならない。
+    // 切り捨ては「クラッシュしない代わりにユーザーの保護指定を黙って失う」データ損失になる。
     ProfileData withProtection =
         new ProfileData(
             ProfileData.CURRENT_SCHEMA_VERSION,
@@ -110,11 +112,33 @@ class ResumeOwnershipTest {
             Map.of(EquipmentSlot.HAND, equipment("iron_sword", EquipmentSlot.HAND)),
             SoulTree.empty());
 
-    // SoulTree.empty() の保護枠は 0。保護指定 1 件は枠を超えるので落ちる。
-    assertTrue(merged.protectedIds().isEmpty(), "保護枠 0 なら保護指定は残らない");
-    assertTrue(merged.ownedIds().contains(EquipmentId.of("steel_axe")), "保護が外れても所有そのものは維持される");
+    assertTrue(merged.protectedIds().contains(EquipmentId.of("steel_axe")), "保護指定は再開後も維持される");
+    assertEquals(1, merged.capacity().value(), "保護枠は Profile の保存値を正とする");
     assertFalse(
         merged.protectedIds().contains(EquipmentOwnership.STARTER_EQUIPMENT_ID),
         "初期装備は保護枠を消費しない (§15-9)");
+  }
+
+  @Test
+  void resumeDoesNotPromoteUnconfirmedRunEquipmentToPermanentOwnership() {
+    // ラン中に金貨で買った未確定品はクリア時にだけ所有化される (§15-9)。
+    // 再開の loadout は profile.loadout() 由来なので未確定品は載らないが、
+    // 「所有が消える」を直した反動で「未確定品が恒久化する」対称の欠陥を作らないよう固定する。
+    EquipmentOwnership merged =
+        ProfileDataMapper.mergeOwnershipForResume(
+            profileOwningThree(),
+            Map.of(EquipmentSlot.HAND, equipment("iron_sword", EquipmentSlot.HAND)),
+            SoulTree.empty());
+
+    assertFalse(
+        merged.ownedIds().contains(EquipmentId.of("unconfirmed_blade")),
+        "Profile にも loadout にも無い未確定品が恒久所有へ紛れ込んではならない");
+    assertEquals(
+        Set.of(
+            EquipmentOwnership.STARTER_EQUIPMENT_ID,
+            EquipmentId.of("iron_sword"),
+            EquipmentId.of("steel_axe")),
+        merged.ownedIds(),
+        "恒久所有は Profile + 装着中のみ。ラン中 Inventory と混ざらない");
   }
 }
