@@ -22,7 +22,9 @@ import core.domain.tree.TreeNode;
 import core.presentation.render.Fonts;
 import core.presentation.render.NodeIconPathResolver;
 import core.presentation.render.RenderLayout;
+import core.presentation.render.SoulTreeLayout;
 import core.presentation.render.Strings;
+import core.presentation.render.TreeLayoutGeometry;
 import core.presentation.window.ConfirmationDialog;
 import core.presentation.window.SoulNodeUnlockDialog;
 import java.util.Collections;
@@ -131,43 +133,25 @@ public final class SoulTreeScreen extends ScreenAdapter {
     this.game = game;
   }
 
+  /**
+   * 座標は {@link SoulTreeLayout} を唯一の出所とし、ここでは LibGDX の {@link Vector2} へ変換するだけにする (SOUL-03)。
+   *
+   * <p>以前はこのメソッドが独自のハードコード表を持っていた。{@code tree.json} を {@code slot_expand_*} から {@code
+   * seal_of_soul_*} へ移行した際にこちらの更新が漏れ、刻印ノードの座標が無いまま描画側の null ガードで {@code continue}
+   * され、<b>枝線もアイコンもクリック判定も出ない 不可視ノード</b>になっていた。例外もログも出ないため気付けない。
+   *
+   * <p>ズレの再発は {@code SoulTreeLayoutCoverageTest} が keySet 完全一致で検出する。
+   *
+   * <p>LinkedHashMap を保つ理由: HashMap だとシルエットノードが先にヒットして可視ノードを無視するバグの温床になる。
+   */
   private static Map<NodeId, Vector2> positions() {
-    // (HashMap だとシルエットノードが先にヒットして可視ノードを無視するバグの温床)。
     Map<NodeId, Vector2> m = new LinkedHashMap<>();
-    m.put(SoulTree.ROOT, new Vector2(CENTER_X, CENTER_Y));
-    m.put(NodeId.of("hp_up_1"), polar(0, 200));
-    m.put(NodeId.of("speed_up_1"), polar(60, 200));
-    m.put(NodeId.of("phys_atk_up_1"), polar(120, 200));
-    m.put(NodeId.of("mag_atk_up_1"), polar(180, 200));
-    m.put(NodeId.of("phys_def_up_1"), polar(240, 200));
-    m.put(NodeId.of("mag_def_up_1"), polar(300, 200));
-    m.put(NodeId.of("card_grant_strong_strike"), polar(120, 380));
-    m.put(NodeId.of("card_grant_fireball"), polar(170, 380));
-    m.put(NodeId.of("card_grant_magic_bolt"), polar(190, 380));
-    m.put(NodeId.of("card_grant_iron_skin"), polar(240, 380));
-    m.put(NodeId.of("card_grant_arcane_veil"), polar(300, 380));
-    m.put(NodeId.of("slot_expand_1"), polar(120, 540));
-    m.put(NodeId.of("slot_expand_2"), polar(170, 540));
-    m.put(NodeId.of("slot_expand_3"), polar(190, 540));
-    m.put(NodeId.of("slot_expand_4"), polar(240, 540));
-    m.put(NodeId.of("slot_expand_5"), polar(300, 540));
-    // ステ軸 Lv2 (各スポークの最外周、貫通回避のため 15度オフセット: 105, 225, 315)
-    m.put(NodeId.of("hp_up_2"), polar(0, 700));
-    m.put(NodeId.of("speed_up_2"), polar(60, 700));
-    m.put(NodeId.of("phys_atk_up_2"), polar(105, 700));
-    m.put(NodeId.of("mag_atk_up_2"), polar(180, 700));
-    m.put(NodeId.of("phys_def_up_2"), polar(225, 700));
-    m.put(NodeId.of("mag_def_up_2"), polar(315, 700));
-    // 層数拡張 (最外周のさらに外、ステ Lv2 の外側に配置、§15 拡張)
-    m.put(NodeId.of("layer_extend_4"), polar(30, 860));
-    m.put(NodeId.of("layer_extend_5"), polar(150, 860));
+    for (Map.Entry<String, TreeLayoutGeometry.Point> e :
+        SoulTreeLayout.nodePositions().entrySet()) {
+      TreeLayoutGeometry.Point p = e.getValue();
+      m.put(NodeId.of(e.getKey()), new Vector2(CENTER_X + (float) p.x(), CENTER_Y + (float) p.y()));
+    }
     return Collections.unmodifiableMap(m);
-  }
-
-  private static Vector2 polar(double degrees, float radius) {
-    double rad = Math.toRadians(degrees);
-    return new Vector2(
-        CENTER_X + radius * (float) Math.cos(rad), CENTER_Y + radius * (float) Math.sin(rad));
   }
 
   @Override
