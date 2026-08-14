@@ -167,7 +167,7 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
    *
    * <p>非返金額はハードコードせず各ノードの実コストから導出する。刻印 I のみなら 30、I+II なら 90。
    *
-   * <p>前提を満たさない刻印だけを持つ破損 Profile は、剥がすのではなく前提を補完して保持する (保護していた 装備を失わせないため)。
+   * <p>前提を満たさない刻印を持つ破損 Profile は fail-closed で拒否する。推測で前提を補完すると、 実際には購入していないノードを購入済みに仕立てることになる。
    *
    * @return 新 SoulTree (root + 保持した刻印) + 返却 Soul (刻印分を除いた返却額)
    */
@@ -176,9 +176,20 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
     Set<NodeId> retained = new LinkedHashSet<>();
     retained.add(ROOT);
     for (NodeId id : unlockedNodes) {
-      if (isRetentionNode(catalog.get(id))) {
-        addWithPrerequisites(id, catalog, retained);
+      if (!isRetentionNode(catalog.get(id))) {
+        continue;
       }
+      // 前提が解放集合に無い刻印は破損データ。totalSpentSoul は総額であって購入内訳ではないため、
+      // 「90 以上使っている = I も買っていた」は証明できない。推測で補完すると購入を捏造する。
+      // 壊れたセーブを推測修復するより、正常なセーブを絶対に壊さない方を優先する。
+      for (NodeId prereq : catalog.get(id).prerequisites()) {
+        if (!unlockedNodes.contains(prereq)) {
+          throw new IllegalStateException(
+              "Corrupted tree: %s is unlocked but its prerequisite %s is not"
+                  .formatted(id.value(), prereq.value()));
+        }
+      }
+      retained.add(id);
     }
 
     int retainedSpent = 0;
@@ -201,22 +212,6 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
   /** 装備保護枠を与えるノードか (魂の刻印)。 */
   private static boolean isRetentionNode(TreeNode node) {
     return node != null && node.effect() instanceof NodeEffect.RetentionCapacityUpEffect;
-  }
-
-  /** 前提を辿って retained へ加える (破損 Profile の補完)。 */
-  private static void addWithPrerequisites(
-      NodeId id, Map<NodeId, TreeNode> catalog, Set<NodeId> retained) {
-    if (id == null || retained.contains(id)) {
-      return;
-    }
-    TreeNode node = catalog.get(id);
-    if (node == null) {
-      return;
-    }
-    for (NodeId prereq : node.prerequisites()) {
-      addWithPrerequisites(prereq, catalog, retained);
-    }
-    retained.add(id);
   }
 
   /**

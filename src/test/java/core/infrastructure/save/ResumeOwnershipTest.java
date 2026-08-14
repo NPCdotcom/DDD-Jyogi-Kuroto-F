@@ -2,6 +2,7 @@ package core.infrastructure.save;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import core.domain.equipment.Equipment;
@@ -86,11 +87,11 @@ class ResumeOwnershipTest {
   }
 
   @Test
-  void resumeNeverDropsProtectionEvenWhenTreeCapacityDisagrees() {
-    // Profile は保存時点で protectedIds.size() <= retentionCapacity を強制済み。
-    // SoulTree 側の導出値 (ここでは 0) と食い違っても、保護指定を切り捨ててはならない。
-    // 切り捨ては「クラッシュしない代わりにユーザーの保護指定を黙って失う」データ損失になる。
-    ProfileData withProtection =
+  void resumeRejectsProfileWhoseCapacityDisagreesWithSoulTree() {
+    // 保護枠の正は SoulTree (刻印 I/II の解放から導出される能力)。
+    // Profile 側を正にすると「刻印を解放していないのに保護枠 2」を許してしまう。
+    // 食い違いは既知の移行でない限り不整合なので fail-closed で拒否する。
+    ProfileData mismatched =
         new ProfileData(
             ProfileData.CURRENT_SCHEMA_VERSION,
             0,
@@ -106,17 +107,14 @@ class ResumeOwnershipTest {
             null,
             null);
 
-    EquipmentOwnership merged =
-        ProfileDataMapper.mergeOwnershipForResume(
-            withProtection,
-            Map.of(EquipmentSlot.HAND, equipment("iron_sword", EquipmentSlot.HAND)),
-            SoulTree.empty());
-
-    assertTrue(merged.protectedIds().contains(EquipmentId.of("steel_axe")), "保護指定は再開後も維持される");
-    assertEquals(1, merged.capacity().value(), "保護枠は Profile の保存値を正とする");
-    assertFalse(
-        merged.protectedIds().contains(EquipmentOwnership.STARTER_EQUIPMENT_ID),
-        "初期装備は保護枠を消費しない (§15-9)");
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            ProfileDataMapper.mergeOwnershipForResume(
+                mismatched,
+                Map.of(EquipmentSlot.HAND, equipment("iron_sword", EquipmentSlot.HAND)),
+                SoulTree.empty()),
+        "Profile の保護枠 1 と SoulTree の 0 が食い違う Profile は拒否する");
   }
 
   @Test

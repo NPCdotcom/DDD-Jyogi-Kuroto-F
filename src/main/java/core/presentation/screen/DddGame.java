@@ -302,37 +302,42 @@ public final class DddGame extends Game {
    * 次回ランにリバウンドする事故を構造的に防ぐ。Android (Phase D) のメモリ圧迫回避にも寄与。
    */
   public void onRunEnded() {
-    preserveSoulFromRun();
-    progress = progress.withRunCount(progress.runCount() + 1);
+    // 二重精算の防止。GameOverScreen.show() は Screen ライフサイクルで再度呼ばれうるため、
+    // active な RunSession が無い呼び出しは「既に精算済み」とみなして何もしない。
+    // 旧実装はセッション無しでも精算を続行しており、2 回目は initialRunSoul=0 で
+    // delta = 恒久総額そのものになるため、Soul と runCount が二重加算されていた。
+    if (runSession.isEmpty()) {
+      LOG.warning("ラン終了処理が RunSession 無しで呼ばれました。精算済みとみなしてスキップします。");
+      return;
+    }
+    RunSession session = runSession.get();
 
-    // SAVE-03B: ここで恒久進捗を保存し、Checkpoint を削除する。
     RunLifecycle lifecycle = persistence.runLifecycle();
     ProfileData previous = lifecycle.profileOrInitial();
 
-    int finalSoul = progress.playerSoul().amount();
-    int initialSoul = runSession.map(RunSession::initialRunSoul).orElse(0);
+    // 計算・検証は progress を書き換える前に行う。保存に失敗したときメモリだけ進むのを防ぐ。
+    int finalSoul = session.context().state().player().soul().amount();
     OptionalInt optSettledTotal =
-        SoulSettlement.settle(previous.soulTotal(), finalSoul, initialSoul);
+        SoulSettlement.settle(previous.soulTotal(), finalSoul, session.initialRunSoul());
     if (optSettledTotal.isEmpty()) {
       LOG.severe("ラン終了時: 異常な Checkpoint / Soul 状態のため精算を中止し、Profile / Checkpoint を保護しました。");
-      runSession = Optional.empty();
       return;
     }
     int settledSoulTotal = optSettledTotal.getAsInt();
 
-    progress = progress.withPlayerSoul(new Soul(settledSoulTotal));
-    ProfileData settled = ProfileDataMapper.forSoulUpdate(progress, previous, settledSoulTotal);
+    PlayerProgress nextProgress =
+        progress.withRunCount(progress.runCount() + 1).withPlayerSoul(new Soul(settledSoulTotal));
+    ProfileData settled =
+        ProfileDataMapper.forSoulUpdate(nextProgress, previous, settledSoulTotal)
+            .withSettledRunId(session.runId().value());
 
-    if (runSession.isPresent()) {
-      settled = settled.withSettledRunId(runSession.get().runId().value());
-      if (!lifecycle.endRun(settled).isSuccess()) {
-        LOG.severe("ラン終了時の保存に失敗しました。Checkpoint は削除していません。");
-      }
-    } else {
-      if (!persistence.saveManager().saveProfile(settled).isSuccess()) {
-        LOG.severe("ラン終了時 (セッション非存在) の Profile 保存に失敗しました。");
-      }
+    if (!lifecycle.endRun(settled).isSuccess()) {
+      LOG.severe("ラン終了時の保存に失敗しました。Checkpoint は削除せず、メモリ上の進捗も変更しません。");
+      return;
     }
+
+    // 永続化が成功したときだけメモリへ反映する。
+    progress = nextProgress;
     runSession = Optional.empty();
   }
 
@@ -365,16 +370,20 @@ public final class DddGame extends Game {
     }
     int settledSoulTotal = optSettledTotal.getAsInt();
 
-    progress = progress.withPlayerSoul(new Soul(settledSoulTotal));
-    progress = progress.withRunCount(progress.runCount() + 1);
+    // 計算・検証 → nextProgress → 永続化成功 → メモリ反映 の順を守る。
+    // 旧実装は endRun の前に progress を書き換えており、保存失敗時にメモリだけ進んでいた。
+    PlayerProgress nextProgress =
+        progress.withPlayerSoul(new Soul(settledSoulTotal)).withRunCount(progress.runCount() + 1);
 
     ProfileData settled =
-        ProfileDataMapper.forSoulUpdate(progress, previous, settledSoulTotal)
+        ProfileDataMapper.forSoulUpdate(nextProgress, previous, settledSoulTotal)
             .withSettledRunId(checkpoint.runId());
     if (!lifecycle.endRun(settled).isSuccess()) {
-      LOG.severe("ラン放棄の精算に失敗しました。Checkpoint は削除していません。");
+      LOG.severe("ラン放棄の精算に失敗しました。Checkpoint は削除せず、メモリ上の進捗も変更しません。");
       return false;
     }
+
+    progress = nextProgress;
     runSession = Optional.empty();
     return true;
   }

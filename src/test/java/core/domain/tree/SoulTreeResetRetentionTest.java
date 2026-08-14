@@ -83,16 +83,13 @@ class SoulTreeResetRetentionTest {
   }
 
   @Test
-  void resetRepairsProfileHoldingSecondSealWithoutFirst() {
-    // 破損 Profile: 消費額は I+II ぶん (90) あるのに、解放集合から刻印 I が落ちている。
-    // 剥がすと保護していた装備の扱いが宙に浮くため、前提の刻印 I を補完して保持する。
-    // (消費額まで足りない場合は別途 fail-closed。補完で購入を捏造しないための境界)
+  void resetRejectsProfileHoldingSecondSealWithoutFirst() {
+    // 前提を満たさない刻印は破損データ。totalSpentSoul は総額であって購入内訳ではないため、
+    // 「90 以上使っている = I も買っていた」は証明できない (hp_up_1 に 40 + 刻印 II に 60 でも 100 になる)。
+    // 推測で補完すると購入を捏造するので、prerequisite closure 違反として拒否する。
     SoulTree broken =
         new SoulTree(java.util.Set.of(SoulTree.ROOT, SEAL_2), costOf(SEAL_1) + costOf(SEAL_2));
-    SoulTree.ResetResult result = broken.reset();
 
-    assertTrue(result.newTree().unlockedNodes().contains(SEAL_2), "刻印 II は保持する");
-    assertTrue(result.newTree().unlockedNodes().contains(SEAL_1), "前提の刻印 I を補完する");
-    assertEquals(2, result.newTree().retentionCapacity().value(), "補完後の保護枠は 2");
+    assertThrows(IllegalStateException.class, broken::reset, "刻印 II があるのに I が無い Profile は拒否する");
   }
 }

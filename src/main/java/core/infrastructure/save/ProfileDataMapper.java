@@ -248,23 +248,18 @@ public final class ProfileDataMapper {
       owned.add(eq.id());
     }
 
-    // 保護枠は Profile の保存値を正とする。ProfileData は保存時点で
-    // protectedEquipmentIds.size() <= retentionCapacity を不変条件として強制しているため、
-    // この値を使う限り保護指定を落とす必要が生じない。
+    // 保護枠の正は SoulTree 側に置く。保護枠は刻印 I/II の解放から導出される「能力」であり、
+    // Profile.retentionCapacity はその保存済みスナップショットにすぎない。Profile 側を正にすると
+    // 「刻印を解放していないのに保護枠 2」という状態を許してしまう。
     //
-    // SoulTree からの再導出を使うと、Profile.retentionCapacity と SoulTree.retentionCapacity() の
-    // 二重 SSoT が食い違ったときに超過分を切り捨てることになり、「クラッシュしない代わりに
-    // ユーザーの保護指定を黙って失う」という別のデータ損失になる。食い違いは警告として可視化し、
-    // 黙って解決しない。
-    RetentionCapacity capacity = RetentionCapacity.of(profile.retentionCapacity());
-    RetentionCapacity derived = tree.retentionCapacity();
-    if (capacity.value() != derived.value()) {
-      LOG.warning(
-          "保護枠が Profile("
-              + capacity.value()
-              + ") と SoulTree("
-              + derived.value()
-              + ") で食い違っています。Profile の保存値を採用します");
+    // ProfileData は protectedIds.size() <= retentionCapacity しか保証しておらず、
+    // retentionCapacity == SoulTree.retentionCapacity() までは保証しない。食い違いは
+    // 既知の移行でない限り不整合なので fail-closed とし、黙って一方を採用しない。
+    RetentionCapacity expected = tree.retentionCapacity();
+    if (profile.retentionCapacity() != expected.value()) {
+      throw new IllegalStateException(
+          "Inconsistent retention capacity: profile=%d, soulTree=%d"
+              .formatted(profile.retentionCapacity(), expected.value()));
     }
 
     Set<core.domain.equipment.EquipmentId> protectedIds = new LinkedHashSet<>();
@@ -274,7 +269,7 @@ public final class ProfileDataMapper {
         protectedIds.add(eqId);
       }
     }
-    return new EquipmentOwnership(owned, protectedIds, capacity);
+    return new EquipmentOwnership(owned, protectedIds, expected);
   }
 
   /** 現在の保護枠 (SOUL-03: ソウルツリーの解放状態から導出)。 */
