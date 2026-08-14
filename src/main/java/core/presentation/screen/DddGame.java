@@ -63,6 +63,23 @@ public final class DddGame extends Game {
       java.util.logging.Logger.getLogger(DddGame.class.getName());
 
   /**
+   * ラン終了処理の結果。画面側が「進んでよいか」を判断するために使う。
+   *
+   * <p>{@link #ALREADY_SETTLED} と {@link #SAVE_FAILED} を区別することが要点。どちらも「精算が走らなかった」 点は同じだが、前者は Screen
+   * ライフサイクルによる再入で正常、後者は再試行が必要な失敗である。 active な RunSession の有無だけで雑に扱うと、この 2 つが混ざる。
+   */
+  public enum RunEndResult {
+    /** 精算して永続化まで成功した。 */
+    SETTLED,
+    /** 既に精算済み (show() の再入など)。進んでよい。 */
+    ALREADY_SETTLED,
+    /** 永続化に失敗した。RunSession を保持したままなので再試行できる。 */
+    SAVE_FAILED,
+    /** Checkpoint / Soul が不正で精算できない。進ませてはならない。 */
+    INVALID_STATE
+  }
+
+  /**
    * ラン単位の application 層状態の集約 (Wave 9 W9-α、{@link RunSession} record)。
    *
    * <p>従来 3 個別フィールド (context / director / runRng) として保持していたものを 1 つの Optional に置換。 ラン未開始の意味を {@code
@@ -301,14 +318,14 @@ public final class DddGame extends Game {
    * <p>Wave 9 W9-α CTO レビュー反映 #1: ラン揮発状態を {@link Optional#empty()} で明示クリアし、前回ランの GameContext が
    * 次回ランにリバウンドする事故を構造的に防ぐ。Android (Phase D) のメモリ圧迫回避にも寄与。
    */
-  public void onRunEnded() {
+  public RunEndResult onRunEnded() {
     // 二重精算の防止。GameOverScreen.show() は Screen ライフサイクルで再度呼ばれうるため、
     // active な RunSession が無い呼び出しは「既に精算済み」とみなして何もしない。
     // 旧実装はセッション無しでも精算を続行しており、2 回目は initialRunSoul=0 で
     // delta = 恒久総額そのものになるため、Soul と runCount が二重加算されていた。
     if (runSession.isEmpty()) {
       LOG.warning("ラン終了処理が RunSession 無しで呼ばれました。精算済みとみなしてスキップします。");
-      return;
+      return RunEndResult.ALREADY_SETTLED;
     }
     RunSession session = runSession.get();
 
@@ -321,7 +338,7 @@ public final class DddGame extends Game {
         SoulSettlement.settle(previous.soulTotal(), finalSoul, session.initialRunSoul());
     if (optSettledTotal.isEmpty()) {
       LOG.severe("ラン終了時: 異常な Checkpoint / Soul 状態のため精算を中止し、Profile / Checkpoint を保護しました。");
-      return;
+      return RunEndResult.INVALID_STATE;
     }
     int settledSoulTotal = optSettledTotal.getAsInt();
 
@@ -333,12 +350,14 @@ public final class DddGame extends Game {
 
     if (!lifecycle.endRun(settled).isSuccess()) {
       LOG.severe("ラン終了時の保存に失敗しました。Checkpoint は削除せず、メモリ上の進捗も変更しません。");
-      return;
+      // RunSession は保持したままにする。呼出側が再試行できるようにするため。
+      return RunEndResult.SAVE_FAILED;
     }
 
     // 永続化が成功したときだけメモリへ反映する。
     progress = nextProgress;
     runSession = Optional.empty();
+    return RunEndResult.SETTLED;
   }
 
   /**

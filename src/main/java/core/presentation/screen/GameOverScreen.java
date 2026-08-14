@@ -28,6 +28,15 @@ public final class GameOverScreen extends ScreenAdapter {
   private final boolean cleared;
 
   private int soulSnapshot;
+
+  /**
+   * ラン終了処理の結果。保存に失敗したランからソウルツリーへ進ませないために保持する。
+   *
+   * <p>{@code onRunEnded()} が void だった頃は成否を見ずに画面を成立させていたため、保存失敗後でも ENTER
+   * でソウルツリーへ進めた。進んだ先で解放してもディスクには残らない。
+   */
+  private DddGame.RunEndResult runEndResult = DddGame.RunEndResult.SETTLED;
+
   private OrthographicCamera camera;
   private Viewport viewport;
   private SpriteBatch batch;
@@ -41,7 +50,7 @@ public final class GameOverScreen extends ScreenAdapter {
   public void show() {
     // §15-7 / E-2: ラン終了処理。Player.soul をラン外保持 (DddGame.playerSoul) に書き戻し、
     // 周回数を +1 する。これにより獲得ソウルがソウルツリーで使えるようになる。
-    game.onRunEnded();
+    runEndResult = game.onRunEnded();
     soulSnapshot = game.progress().playerSoul().amount();
     // §15-5: ゲームオーバー / クリア時にタイトル BGM へ切替 (ダンジョン BGM を停止して引継)
     game.soundManager().playBgm(BgmKind.TITLE);
@@ -97,10 +106,22 @@ public final class GameOverScreen extends ScreenAdapter {
 
     // Wave 14 W14-β: ENTER または左クリックでソウルツリーへ遷移 (マウスのみで操作可能)
     if (Gdx.input.isKeyJustPressed(Keys.ENTER) || Gdx.input.justTouched()) {
-      // §15-7 / E-2: ラン終了後はソウルツリーへ遷移し、獲得ソウルを永続強化に使う。
-      // startNewRun() はここでは呼ばない (次ラン開始は TitleScreen の ENTER 時)。
-      game.soundManager().playSe(SeKind.BUTTON_DECISION);
-      game.changeScreen(new SoulTreeScreen(game));
+      switch (runEndResult) {
+        case SETTLED, ALREADY_SETTLED -> {
+          // §15-7 / E-2: ラン終了後はソウルツリーへ遷移し、獲得ソウルを永続強化に使う。
+          // startNewRun() はここでは呼ばない (次ラン開始は TitleScreen の ENTER 時)。
+          game.soundManager().playSe(SeKind.BUTTON_DECISION);
+          game.changeScreen(new SoulTreeScreen(game));
+        }
+        case SAVE_FAILED -> {
+          // 保存に失敗したランからは進ませない。RunSession は保持されているので再試行できる。
+          runEndResult = game.onRunEnded();
+          soulSnapshot = game.progress().playerSoul().amount();
+        }
+        case INVALID_STATE -> {
+          // Checkpoint / Soul が不正。再試行しても直らないので進ませない。
+        }
+      }
     }
   }
 

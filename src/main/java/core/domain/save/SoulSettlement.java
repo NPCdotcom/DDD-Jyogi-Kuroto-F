@@ -33,16 +33,22 @@ public final class SoulSettlement {
       throw new IllegalArgumentException(
           "initialRunSoul must be >= 0 (got " + initialRunSoul + ")");
     }
-    if (finalRunSoul < initialRunSoul) {
-      LOG.severe(
-          "Refusing to settle corrupted checkpoint: finalRunSoul ("
-              + finalRunSoul
-              + ") is less than initialRunSoul ("
-              + initialRunSoul
-              + ")");
+    if (finalRunSoul < 0) {
+      throw new IllegalArgumentException("finalRunSoul must be >= 0 (got " + finalRunSoul + ")");
+    }
+
+    // int 加算だと極端な値で負数へラップする。飽和させず拒否する (fail-closed)。
+    long settled = (long) previousTotal + ((long) finalRunSoul - initialRunSoul);
+    if (settled > Integer.MAX_VALUE) {
+      LOG.severe("Refusing to settle: soul total overflows int (" + settled + ")");
       return OptionalInt.empty();
     }
-    int netEarned = finalRunSoul - initialRunSoul;
-    return OptionalInt.of(previousTotal + netEarned);
+    if (settled < 0) {
+      // ラン中の消費が恒久総額を上回る。実際には起こりえないので破損とみなす。
+      LOG.severe(
+          "Refusing to settle corrupted checkpoint: settled total is negative (" + settled + ")");
+      return OptionalInt.empty();
+    }
+    return OptionalInt.of((int) settled);
   }
 }

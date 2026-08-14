@@ -1,6 +1,7 @@
 package core.domain.save;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.OptionalInt;
@@ -57,10 +58,39 @@ class SoulSettlementIdempotencyTest {
   }
 
   @Test
-  void corruptedCheckpointIsRefusedRatherThanSilentlyClamped() {
-    // final < initial は Checkpoint 破損。0 へ丸めず精算自体を拒否する。
-    assertTrue(
-        SoulSettlement.settle(PREVIOUS_TOTAL, 100, 500).isEmpty(),
-        "finalRunSoul < initialRunSoul は精算を拒否する");
+  void inRunSoulSpendingIsSettledAsANegativeDelta() {
+    // 治療の泉 (HP+20 / Soul-10) のようにラン中の消費がある。final < initial は破損ではない。
+    // ここを拒否すると、泉を使って死んだプレイヤーが精算ごと失われる。
+    OptionalInt settled = SoulSettlement.settle(1000, 990, 1000);
+
+    assertTrue(settled.isPresent(), "ラン中の消費は正常な状態");
+    assertEquals(990, settled.getAsInt(), "1000 + (990 - 1000) = 990");
+  }
+
+  @Test
+  void overflowIsRefusedRatherThanWrappingToNegative() {
+    assertEquals(
+        Integer.MAX_VALUE, SoulSettlement.settle(Integer.MAX_VALUE, 0, 0).getAsInt(), "境界ちょうどは成功");
+    assertTrue(SoulSettlement.settle(Integer.MAX_VALUE, 1, 0).isEmpty(), "int を超える総額は拒否する");
+  }
+
+  @Test
+  void negativeSettledTotalIsRefused() {
+    // 消費が恒久総額を上回るのは実際には起こりえない。破損とみなす。
+    assertTrue(SoulSettlement.settle(10, 0, 100).isEmpty(), "総額が負になる入力は拒否する");
+  }
+
+  @Test
+  void boundaryTableIsFixed() {
+    // 0 + (MAX - 0) → MAX 成功
+    assertEquals(Integer.MAX_VALUE, SoulSettlement.settle(0, Integer.MAX_VALUE, 0).getAsInt());
+    // MAX + (0 - 0) → MAX 成功
+    assertEquals(Integer.MAX_VALUE, SoulSettlement.settle(Integer.MAX_VALUE, 0, 0).getAsInt());
+    // MAX + (1 - 0) → overflow 拒否
+    assertTrue(SoulSettlement.settle(Integer.MAX_VALUE, 1, 0).isEmpty());
+    // 100 + (99 - 100) → 99。ラン中消費は正常 (治療の泉)
+    assertEquals(99, SoulSettlement.settle(100, 99, 100).getAsInt());
+    // finalRunSoul < 0 → 拒否
+    assertThrows(IllegalArgumentException.class, () -> SoulSettlement.settle(100, -1, 0));
   }
 }

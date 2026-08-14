@@ -60,9 +60,16 @@ public record RunCheckpoint(
     if (currentRunGold < 0) {
       currentRunGold = 0;
     }
-    if (currentRunSoul < 0) {
-      currentRunSoul = 0;
+    // Soul は破損値を正常値へ丸めない。丸めると破損 Checkpoint がロード境界を素通りし、
+    // 後段の精算まで持ち込まれる。境界で拒否する (fail-closed)。
+    if (initialRunSoul < 0) {
+      throw new IllegalArgumentException("initialRunSoul must be >= 0: " + initialRunSoul);
     }
+    if (currentRunSoul < 0) {
+      throw new IllegalArgumentException("currentRunSoul must be >= 0: " + currentRunSoul);
+    }
+    // currentRunSoul < initialRunSoul は破損ではない。治療の泉 (HP+20 / Soul-10) のように
+    // ラン中にソウルを消費する仕様があるため、減少は正常な状態として受け入れる。
 
     RetentionCapacity capacity = RetentionCapacity.of(retentionCapacity);
     if (!capacity.canHold(protectedEquipmentIds.size())) {

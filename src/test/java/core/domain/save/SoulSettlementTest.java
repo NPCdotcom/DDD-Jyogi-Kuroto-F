@@ -24,9 +24,10 @@ class SoulSettlementTest {
   }
 
   @Test
-  void settleRefusesCorruptedFinalLessThanInitial() {
-    OptionalInt result = SoulSettlement.settle(1000, 900, 1000);
-    assertTrue(result.isEmpty(), "finalRunSoul < initialRunSoul の場合は精算拒否して empty を返すこと");
+  void settleAcceptsFinalLessThanInitialBecauseSoulCanBeSpentInRun() {
+    // 治療の泉 (HP+20 / Soul-10) 等でラン中に消費できるため、final < initial は破損ではない。
+    // 旧試験はこれを拒否対象としていたが、泉を使って死んだプレイヤーの精算を丸ごと失う挙動だった。
+    assertEquals(90, SoulSettlement.settle(100, 90, 100).orElseThrow());
   }
 
   @Test
