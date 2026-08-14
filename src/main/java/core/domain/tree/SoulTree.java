@@ -5,6 +5,7 @@ import core.domain.card.CardId;
 import core.domain.entity.Player;
 import core.domain.meta.Soul;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -159,12 +160,57 @@ public record SoulTree(Set<NodeId> unlockedNodes, int totalSpentSoul) {
   }
 
   /**
-   * ツリーをリセットして root だけ解放済みの状態に戻す純関数 (ADR-09)。 累計消費ソウルを Soul として返す (呼出側がプレイヤーに加算する責務)。
+   * ツリーをリセットする純関数 (ADR-09 / §15-9)。
    *
-   * @return 新 SoulTree (root のみ、totalSpentSoul=0) + 返却 Soul (返却額)
+   * <p>装備保護枠ノード (魂の刻印) だけは解放したまま残し、その消費分は返金しない。刻印は「装備を永続的に
+   * 保護する」という取り消せない約束を買う枠なので、リセットで剥がすと保護していた装備の扱いが宙に浮く。
+   *
+   * <p>非返金額はハードコードせず各ノードの実コストから導出する。刻印 I のみなら 30、I+II なら 90。
+   *
+   * <p>前提を満たさない刻印だけを持つ破損 Profile は、剥がすのではなく前提を補完して保持する (保護していた 装備を失わせないため)。
+   *
+   * @return 新 SoulTree (root + 保持した刻印) + 返却 Soul (刻印分を除いた返却額)
    */
   public ResetResult reset() {
-    return new ResetResult(SoulTree.empty(), new Soul(totalSpentSoul));
+    Map<NodeId, TreeNode> catalog = allNodes();
+    Set<NodeId> retained = new LinkedHashSet<>();
+    retained.add(ROOT);
+    for (NodeId id : unlockedNodes) {
+      if (isRetentionNode(catalog.get(id))) {
+        addWithPrerequisites(id, catalog, retained);
+      }
+    }
+
+    int retainedSpent = 0;
+    for (NodeId id : retained) {
+      TreeNode node = catalog.get(id);
+      if (node != null) {
+        retainedSpent += node.soulCost();
+      }
+    }
+    int refunded = Math.max(0, totalSpentSoul - retainedSpent);
+    return new ResetResult(new SoulTree(retained, retainedSpent), new Soul(refunded));
+  }
+
+  /** 装備保護枠を与えるノードか (魂の刻印)。 */
+  private static boolean isRetentionNode(TreeNode node) {
+    return node != null && node.effect() instanceof NodeEffect.RetentionCapacityUpEffect;
+  }
+
+  /** 前提を辿って retained へ加える (破損 Profile の補完)。 */
+  private static void addWithPrerequisites(
+      NodeId id, Map<NodeId, TreeNode> catalog, Set<NodeId> retained) {
+    if (id == null || retained.contains(id)) {
+      return;
+    }
+    TreeNode node = catalog.get(id);
+    if (node == null) {
+      return;
+    }
+    for (NodeId prereq : node.prerequisites()) {
+      addWithPrerequisites(prereq, catalog, retained);
+    }
+    retained.add(id);
   }
 
   /**
