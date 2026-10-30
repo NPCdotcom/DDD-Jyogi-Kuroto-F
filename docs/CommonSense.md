@@ -13,7 +13,7 @@ CIでの強制: **Spotless + google-java-format**（[GAME_DESIGN.md §3-5](./GAM
 
 ### Github名
 - ブランチ:
-  - `main` / `develop` （固定）
+  - `main` （固定。`develop` は 2026-10-30 に廃止）
   - `feat/#<issue番号>` 例: `feat/#12`
   - `fix/#<issue番号>` 例: `fix/#34`
   - 詳細は [BranchingStrategy.md](./BranchingStrategy.md) を参照

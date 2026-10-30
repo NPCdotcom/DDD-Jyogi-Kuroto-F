@@ -1,0 +1,20 @@
+### claude main: 85194b4f-1d3f-4247-a63f-a22c61012ccc.jsonl  period=2026-10-30T10:55:56.260Z..2026-10-30T11:57:16.295Z
+cli versions: {'2.1.314': 879}
+tokens[claude-opus-5-5]: {'calls': 128, 'input': 258, 'output': 191184, 'cache_read': 32039802, 'cache_write_5m': 0, 'cache_write_1h': 427164}  api_equiv_usd=13.65
+response_wait_s per API call (log-timestamp estimate, synthetic excluded): n=128 median=8.0s p95(rank)=47.2s sum=1890.1s
+tool_s (non-human tools): n=133 median=1.7s p95(rank)=13.1s sum=1738.8s
+human_wait_in_tools_s (AskUserQuestion/ExitPlanMode): n=0
+tool_result chars total=373,973; top5: [(26108, 'Read', '{S}'), (20080, 'Read', '{S}'), (19661, 'Read', '{S}
+stop_hook_s (project): n=1 median=19.0s p95(rank)=19.0s sum=19.0s
+project hook records: {('hook_non_blocking_error', 'PostToolUse:Write'): 2}
+turn_elapsed_s (prompt->last assistant row): n=1 median=3604.9s p95(rank)=3604.9s sum=3604.9s
+human_gap_s (all, no cap): n=0
+gradle tool calls (mixed time): n=0 results: {} output chars total=0
+gradle retries after FAILED (same turn): n=0
+failure_loop (FAILED -> next OK, same turn, deduplicated): api_calls=0 api_equiv_usd=0.00 (window memberships incl. overlaps=0)
+edited_text_file: n=0 snippet_chars=0 reinjection_char_calls=0
+
+### codex rollout-2026-10-30T20-09-44-01a18c80-5a93-72 cwd=<repo> period=2026-10-30T11:09:52.984Z..2026-10-30T11:24:40.576Z (14.8 min) usage={'input_tokens': 3273229, 'cached_input_tokens': 3165056, 'cache_write_input_tokens': 0, 'output_tokens': 33508, 'reasoning_output_tokens': 11901, 'total_tokens': 33
+### codex rollout-2026-10-30T20-10-37-01a18c81-2aa1-74 cwd=<repo> period=2026-10-30T11:10:46.245Z..2026-10-30T11:23:58.555Z (13.2 min) usage={'input_tokens': 3651951, 'cached_input_tokens': 3465856, 'cache_write_input_tokens': 0, 'output_tokens': 38510, 'reasoning_output_tokens': 16126, 'total_tokens': 36
+### codex rollout-2026-10-30T20-29-49-01a18c92-bad4-75 cwd=<repo> period=2026-10-30T11:31:09.459Z..2026-10-30T11:50:29.640Z (19.3 min) usage={'input_tokens': 3994813, 'cached_input_tokens': 3799936, 'cache_write_input_tokens': 0, 'output_tokens': 41085, 'reasoning_output_tokens': 15563, 'total_tokens': 40
+### codex rollout-2026-10-30T22-11-59-01a18cf0-46f3-70 cwd=<repo> period=2026-10-30T13:13:08.184Z..2026-10-30T13:38:14.274Z (25.1 min) usage={'input_tokens': 3630188, 'cached_input_tokens': 3487104, 'cache_write_input_tokens': 0, 'output_tokens': 51501, 'reasoning_output_tokens': 23208, 'total_tokens': 36

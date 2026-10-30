@@ -1,0 +1,17 @@
+### claude main: ffc4d2c5-aae0-4717-820f-b08e04e9f388.jsonl  period=2026-08-12T07:27:32.550Z..2026-08-14T17:42:34.188Z
+cli versions: {'2.1.227': 1955, '2.1.229': 418}
+tokens[claude-opus-5]: {'calls': 668, 'input': 2286, 'output': 673231, 'cache_read': 321147861, 'cache_write_5m': 1609281, 'cache_write_1h': 6876590}  api_equiv_usd=256.24
+tokens[<synthetic>]: {'calls': 3, 'input': 0, 'output': 0, 'cache_read': 0, 'cache_write_5m': 0, 'cache_write_1h': 0}  api_equiv_usd=0.00
+response_wait_s per API call (log-timestamp estimate, synthetic excluded): n=668 median=12.9s p95(rank)=39.4s sum=11240.7s
+tool_s (non-human tools): n=710 median=2.5s p95(rank)=45.3s sum=5473.9s
+human_wait_in_tools_s (AskUserQuestion/ExitPlanMode): n=9 median=38.7s p95(rank)=1240.7s sum=2675.2s
+tool_result chars total=451,939; top5: [(16807, 'Read', '<repo>\\docs\\20260812_comprehensive_adversarial'), (13932, 'ExitPlanMode', ''), (8904, 'Read', '<repo>\\tasks\\todo.md'), (7429, 'Grep', ''), (7322, '
+stop_hook_s (project): n=31 median=18.5s p95(rank)=22.4s sum=596.5s
+project hook records: {('hook_non_blocking_error', 'PostToolUse:Write'): 4, ('hook_non_blocking_error', 'PostToolUse:Edit'): 4, ('hook_cancelled', 'PreToolUse:Bash'): 2}
+turn_elapsed_s (prompt->last assistant row): n=41 median=266.6s p95(rank)=1589.9s sum=18978.6s
+human_gap_s (all, no cap): n=40 median=372.6s p95(rank)=18259.2s sum=190474.7s
+gradle tool calls (mixed time): n=67 median=46.0s p95(rank)=82.1s sum=3231.6s results: {'OK': 37, 'FAILED': 18, '?': 12} output chars total=40,930
+gradle retries after FAILED (same turn): n=18 median=50.2s p95(rank)=75.9s sum=858.5s
+failure_loop (FAILED -> next OK, same turn, deduplicated): api_calls=81 api_equiv_usd=21.01 (window memberships incl. overlaps=185)
+edited_text_file: n=71 snippet_chars=359,680 reinjection_char_calls=52,417,604
+subagents minutes: n=12 median=9.0m p95(rank)=12.5m sum=101.1m api_equiv_usd=23.99
