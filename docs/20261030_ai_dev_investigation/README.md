@@ -12,7 +12,7 @@ AI (Claude Code / Codex / Orca) による開発を速く・安く・品質を落
 2. [c1_spec_v3.md](./c1_spec_v3.md): **C-1 品質ゲート復旧の実装仕様 (承認用)**
 3. [review_reflection_v2.md](./review_reflection_v2.md): 前回調査の採用・修正・撤回、C-3 / C-4a / カード表示 / レアリティの検討、計測と費用
 4. [model_roles_eval_plan.md](./model_roles_eval_plan.md): AI の役割分担と、モデル採用前の評価計画
-5. [report_final.md](./report_final.md): フェーズ 1 の総合調査報告 (一部の数値は report_phase2 / review_reflection_v2 で訂正済み)
+5. [report_final.md](./report_final.md): フェーズ 1 の総合調査報告。未 push コミット・レアリティ・一部の数値など、その後の訂正がある (冒頭の訂正注記と review_reflection_v2.md §2 を参照)
 
 ## ファイル一覧
 

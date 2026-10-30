@@ -1,5 +1,11 @@
 # DDD-Jyogi-Kuroto-F 総合調査レポート (最終版)
 
+> **訂正 (同日のフェーズ 2 で確認。本文は調査時点のまま残している)**
+> - 「local main に未 push のコミットが 6 件」「GitHub 側は泉の精算不具合を含む古い版のまま」: その後 push され、解消済み (origin/main = 60ac172)。
+> - 「レアリティ 59 枚中 55 枚が未定義」を欠陥として扱った点: 撤回。未指定は意図された既定値 (COMMON) で、付与が未完了なだけ。
+> - 「失敗後の修正ループの費用」などの数値: [review_reflection_v2.md](./review_reflection_v2.md) で訂正済み。
+> - 採否の一覧は [review_reflection_v2.md](./review_reflection_v2.md) §2 を参照。
+
 作成: 2026-10-30 / Orca Run `run_e05f7624b620` (Task 3 件すべて completed、Worker 端末はすべて解放済み)
 方式: Read-only。repo の変更・commit・push・Gradle 実行・GUI 起動・有料 API の呼び出しは 0 件。
 

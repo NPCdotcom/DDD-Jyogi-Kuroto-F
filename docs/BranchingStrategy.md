@@ -108,7 +108,7 @@ gh pr create --base main --title "feat: AP制戦闘の基盤" --body "Closes #12
 
 ## 8. 既存ブランチの扱い (2026-10-30 整理)
 
-- `mvp`: 削除した。MVP 動作確認時点の先端は、タグ `archive/mvp-20260519` で参照できる (`git checkout archive/mvp-20260519`)。
+- `mvp`: 削除した。最終先端 (2026-05-19、develop を取り込んだ後。中身は当時の develop と同一) は、タグ `archive/mvp-20260519` で参照できる。CLAUDE.md に「mvp で動作確認済」と記録した 2026-05-14 時点の先端は `26d7887` (= `archive/mvp-20260519^1`)。
 - `develop`: 廃止した (§1 の注記を参照)。
 - `feature/java_environment_setup/npc` (Gradle 環境構築の試行ブランチ): GitHub 上にはすでに存在しない。
 - 今後新規に切るブランチは、すべて `feat/#\d+` / `fix/#\d+` / `docs/#\d+` / `chore/#\d+` 形式に統一する。

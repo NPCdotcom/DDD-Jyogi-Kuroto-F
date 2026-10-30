@@ -70,7 +70,7 @@ Issue 番号 (起票で返ってきた URL の末尾) を取得して:
 
 ```bash
 git fetch origin main
-git switch -c "feat/#<Issue番号>/$0-skeleton" origin/main
+git switch --no-track -c "feat/#<Issue番号>/$0-skeleton" origin/main
 ```
 
 ### 4. 設計レビュー (domain-architect サブエージェント呼出)

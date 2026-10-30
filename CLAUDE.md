@@ -11,7 +11,7 @@
 **DDD-Jyogi-Kuroto-F** は Java 25 + LibGDX で書く **2D ピクセルローグライト**。Slay the Spire 風 AP デッキ構築 + ToME 系シームレス戦闘 + Path of Exile 風ソウルツリーを組み合わせる。
 仕様の単一ソース: [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) (特に §11 MVP / §15 MVP 後)。
 
-- **MVP 状態**: 完成 (動作確認済みの時点はタグ `archive/mvp-20260519`。旧 `mvp` ブランチは 2026-10-30 に削除。`gradlew run` で起動)
+- **MVP 状態**: 完成 (`gradlew run` で起動)。「mvp で動作確認済」と記録した 2026-05-14 時点の旧 `mvp` ブランチ先端は `26d7887`。旧 `mvp` ブランチは 2026-10-30 に削除し、最終先端 (2026-05-19、develop 取り込み後) はタグ `archive/mvp-20260519` に残した (`26d7887` はその親 `archive/mvp-20260519^1`)
 - **次の目標 M1.5**: §15 の E-1〜E-10 を 10 日で並列実装 → ハッカソン本番 (5/23-24)
 - **役割分担**: コードはリーダー (Claude 駆動)、チームメイトは素材 + カード設計
 - **AI 体制**: `.claude/agents/` の 3 種 (domain-architect / libgdx-implementer / test-writer) + ユーザー固有の `final-architect` / `bug-hunter`
@@ -165,6 +165,8 @@ core/
 | `PostToolUse(Edit\|Write Java)` | Java ファイル編集後 | `spotlessApply` で自動フォーマット |
 | `PostToolUse(Edit\|Write Java)` | Java ファイル編集後 | 該当 `FooTest` を即実行、失敗時は追加コンテキストで Claude に通知 |
 | `Stop` | 応答終了時 | 全テスト走行 (品質ゲート)、失敗時は次ターンで修正対応 |
+
+> **注意 (2026-10-30 の調査)**: 上の Hook は設計どおりに動いていない。PostToolUse の 2 本は起動に失敗する。Stop は起動失敗や複数行の失敗要約を検出・通知できない場合がある。ガードは引用符入りのコマンドや PowerShell を素通りさせる。修正は C-1 として承認待ち ([c1_spec_v3.md](docs/20261030_ai_dev_investigation/c1_spec_v3.md))。それまでは、PR の前に `gradlew check` を手動で実行すること。
 
 ---
 
