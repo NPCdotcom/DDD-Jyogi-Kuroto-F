@@ -50,7 +50,7 @@
 ## リスク管理
 
 - **致命リスク**: データぶっ壊れる
-  - 緩和策: GitHub にプッシュ徹底、main / develop はブランチ保護
+  - 緩和策: GitHub にプッシュ徹底、main はブランチ保護 (develop は 2026-10-30 に廃止)
 - **Git スキル差による事故**（誤マージ、競合解消ミス）
   - 緩和策: ブランチ保護 + PR テンプレ + Git 初心者向けチートシート（[BranchingStrategy.md §5](./BranchingStrategy.md)）
 - **仕様認識のズレ**

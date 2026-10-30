@@ -11,7 +11,7 @@
 **DDD-Jyogi-Kuroto-F** は Java 25 + LibGDX で書く **2D ピクセルローグライト**。Slay the Spire 風 AP デッキ構築 + ToME 系シームレス戦闘 + Path of Exile 風ソウルツリーを組み合わせる。
 仕様の単一ソース: [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) (特に §11 MVP / §15 MVP 後)。
 
-- **MVP 状態**: 完成 (`mvp` ブランチで動作確認済、`gradlew run` で起動)
+- **MVP 状態**: 完成 (動作確認済みの時点はタグ `archive/mvp-20260519`。旧 `mvp` ブランチは 2026-10-30 に削除。`gradlew run` で起動)
 - **次の目標 M1.5**: §15 の E-1〜E-10 を 10 日で並列実装 → ハッカソン本番 (5/23-24)
 - **役割分担**: コードはリーダー (Claude 駆動)、チームメイトは素材 + カード設計
 - **AI 体制**: `.claude/agents/` の 3 種 (domain-architect / libgdx-implementer / test-writer) + ユーザー固有の `final-architect` / `bug-hunter`

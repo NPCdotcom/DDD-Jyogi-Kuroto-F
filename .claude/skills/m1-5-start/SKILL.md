@@ -56,7 +56,7 @@ P1 (M1.5)
 - [ ] §15-X 仕様との整合性を game-design-reviewer (or final-architect) で確認
 - [ ] (LibGDX 依存があれば) presentation 層も実装
 - [ ] チームの 1 名以上のレビュー approve
-- [ ] develop へマージ
+- [ ] main へマージ (develop は 2026-10-30 に廃止)
 
 ## 関連
 
@@ -69,8 +69,8 @@ P1 (M1.5)
 Issue 番号 (起票で返ってきた URL の末尾) を取得して:
 
 ```bash
-git fetch origin develop
-git switch -c "feat/#<Issue番号>/$0-skeleton" develop
+git fetch origin main
+git switch -c "feat/#<Issue番号>/$0-skeleton" origin/main
 ```
 
 ### 4. 設計レビュー (domain-architect サブエージェント呼出)

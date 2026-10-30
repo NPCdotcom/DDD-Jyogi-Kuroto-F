@@ -61,7 +61,7 @@ java --version  # 25.x.x が出ること
 - Spotless check (`./gradlew spotlessCheck`)
 - JUnit 5 テスト実行
 
-ブランチ命名規則 (`feat/#\d+` / `fix/#\d+` / `docs/#\d+` / `chore/#\d+` / `develop`) は手動で守る方針。PR レビュー時に確認する。
+ブランチ命名規則 (`feat/#\d+` / `fix/#\d+` / `docs/#\d+` / `chore/#\d+`) は手動で守る方針。PR レビュー時に確認する。
 
 ---
 

@@ -42,7 +42,7 @@
 ## CI で強制する項目
 - Markdown lint（docs と README）
 - EditorConfig 準拠
-- ブランチ名 (`feat/#\d+` / `fix/#\d+` / `develop`)
+- ブランチ名 (`feat/#\d+` / `fix/#\d+` / `docs/#\d+` / `chore/#\d+`)
 - `build.gradle` 追加後に追加するジョブ:
   - Gradle build
   - Spotless check (`./gradlew spotlessCheck`)

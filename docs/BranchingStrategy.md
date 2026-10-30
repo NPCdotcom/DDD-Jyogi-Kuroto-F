@@ -8,18 +8,18 @@ DDD-Jyogi-Kuroto-F の Git ブランチ運用ルール。Git 初心者でも迷�
 
 ```
 main
- └── develop
-      ├── feat/#1
-      ├── feat/#2
-      └── fix/#3
+ ├── feat/#1
+ ├── feat/#2
+ └── fix/#3
 ```
 
 | ブランチ | 役割 | 直 push | 保護 |
 |---|---|---|---|
-| `main` | 常に動く状態。リリース対象 | 禁止 | PR + レビュー1名以上 |
-| `develop` | 統合ブランチ。安定化したら main へマージ | 非推奨 | force-push 禁止 |
+| `main` | 常に動く状態。作業ブランチの取り込み先 (リリース対象) | 禁止 | PR + レビュー1名以上 |
 | `feat/#<issue番号>` | 機能追加 | — | — |
 | `fix/#<issue番号>` | バグ修正 | — | — |
+
+> **2026-10-30 変更**: 統合ブランチ `develop` は廃止した。main に完全に取り込み済みで、2026-05-19 以降は使われていなかったため。新しい PR は main に向ける。GitHub のルールセット「develop」が削除を禁止しているため、ブランチ自体は管理者がルールセットを外すまで残る (使わないこと)。
 
 ---
 
@@ -36,9 +36,7 @@ main
 
 ```
 作業ブランチ (feat/#N)
-   ↓ PR
-develop
-   ↓ 安定化を確認してから PR
+   ↓ PR (人間レビュー1名以上)
 main
 ```
 
@@ -59,12 +57,12 @@ main
 
 ## 5. Git 初心者向けチートシート (最小5コマンド)
 
-最新の `develop` から派生して PR を出すまでの最小ステップ。
+最新の `main` から派生して PR を出すまでの最小ステップ。
 
 ```bash
-# 1. develop の最新を取得
-git checkout develop
-git pull origin develop
+# 1. main の最新を取得
+git checkout main
+git pull origin main
 
 # 2. 作業ブランチを作成 (Issue #12 を作っておくこと)
 git checkout -b feat/#12
@@ -77,12 +75,12 @@ git commit -m "feat: AP制戦闘の基盤を追加 (#12)"
 git push -u origin feat/#12
 
 # 5. GitHub の Web UI または gh CLI で PR を作成
-gh pr create --base develop --title "feat: AP制戦闘の基盤" --body "Closes #12"
+gh pr create --base main --title "feat: AP制戦闘の基盤" --body "Closes #12"
 ```
 
 ### よくあるトラブル
 
-- **「コンフリクトしました」と出た場合**: `git pull origin develop` で develop の最新を取り込み、コンフリクトを手で解消してから再 push する
+- **「コンフリクトしました」と出た場合**: `git pull origin main` で main の最新を取り込み、コンフリクトを手で解消してから再 push する
 - **間違ったブランチでコミットした場合**: 慌てず `git stash` で退避してから正しいブランチへ移動 → `git stash pop` で復元
 - **コミットメッセージを間違えた場合**: 直前のコミットなら `git commit --amend`、それより前なら無理せずチームに相談
 
@@ -90,15 +88,14 @@ gh pr create --base develop --title "feat: AP制戦闘の基盤" --body "Closes 
 
 ## 6. ブランチ保護設定 (リポジトリオーナー作業)
 
-`main` / `develop` に対して以下を GitHub 側で設定する:
+`main` に対して以下を GitHub 側で設定する:
 
 - `main`
   - "Require a pull request before merging" ON
   - "Require approvals" = 1
   - "Do not allow bypassing the above settings" ON
-- `develop`
-  - "Restrict who can push" は OFF (チーム全員 push 可)
-  - "Allow force pushes" OFF
+
+> 2026-10-30 時点の実際の設定: リポジトリのルールセット「main」は、削除と force push だけを禁止している (PR とレビューの必須化はルールとしては未設定)。PR + レビュー1名以上は、チームの規約として守る。
 
 ---
 
@@ -109,19 +106,9 @@ gh pr create --base develop --title "feat: AP制戦闘の基盤" --body "Closes 
 
 ---
 
-## 8. 既存ブランチの扱い
+## 8. 既存ブランチの扱い (2026-10-30 整理)
 
-### `feature/java_environment_setup/npc`
-
-- **内容**: Gradle 環境構築の試行ブランチ（GitHub Actions 連携なし）
-- **位置付け**: **参考用ブランチ**。main にマージしない
-- **扱い方**:
-  - 削除はしない（試行記録として保持）
-  - 環境構築の進め方を検討する際の参照源として利用可
-  - 命名は旧スタイル。今後の正式環境構築は `feat/#<issue番号>` 形式で別途切る
-- **今後の正式な環境構築**: Issue を立ててから `feat/#<issue番号>` で別ブランチを切る
-
-### 過去のスタイルブランチについて
-
-- 既に push 済みの旧スタイルブランチは履歴として保持する
-- 今後新規に切るブランチはすべて `feat/#\d+` / `fix/#\d+` / `docs/#\d+` / `chore/#\d+` 形式に統一する
+- `mvp`: 削除した。MVP 動作確認時点の先端は、タグ `archive/mvp-20260519` で参照できる (`git checkout archive/mvp-20260519`)。
+- `develop`: 廃止した (§1 の注記を参照)。
+- `feature/java_environment_setup/npc` (Gradle 環境構築の試行ブランチ): GitHub 上にはすでに存在しない。
+- 今後新規に切るブランチは、すべて `feat/#\d+` / `fix/#\d+` / `docs/#\d+` / `chore/#\d+` 形式に統一する。
