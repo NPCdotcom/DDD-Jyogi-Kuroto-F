@@ -79,13 +79,13 @@ core/
 ├── infrastructure/ # I/O・起動 (LibGDX 依存可)
 │   ├── desktop/    # DesktopLauncher (Lwjgl3 設定)
 │   ├── bootstrap/  # InitialStateFactory
-│   └── save/       # 層単位セーブ (§15-11, 未実装)
+│   └── save/       # 層単位セーブ (§15-11、Profile / RunCheckpoint 分離で実装済み)
 └── presentation/   # 描画・入力 (LibGDX 必須)
     ├── screen/     # DddGame, TitleScreen, DungeonScreen, GameOverScreen
     ├── render/     # Fonts, Strings, RenderLayout, DungeonRenderer, HudRenderer
     ├── input/      # PlayerInputs
     ├── window/     # ポップアップ式 UI (§15-1, §15-8)
-    └── effect/     # DamagePopup のみ実装 (HP 警告演出・装備テーマ変動は未実装) (§7-2, §15-9)
+    └── effect/     # DamagePopup / LowHpWarning を実装 (装備テーマ変動は未実装) (§7-2, §15-9)
 ```
 
 **依存方向ルール**:
