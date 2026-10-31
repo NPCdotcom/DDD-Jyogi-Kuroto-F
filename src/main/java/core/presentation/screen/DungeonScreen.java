@@ -335,30 +335,41 @@ public final class DungeonScreen extends ScreenAdapter {
         .consume()
         .ifPresent(
             choice -> {
-              // §15-9 / Shop silent fail 通知: 適用前後の Player を比較し、変化が無ければ
-              // Gold 不足等で apply が no-op だったと判断、HUD フラッシュで通知する。
-              // 注: resolveLayerEndChoice は層遷移を行い state.player() を AP リフィル / ドローで
-              // 書き換えるため、before は resolveLayerEndChoice の前にキャプチャしておく。
+              // 確定前に支払い可否を判定し、不可なら理由を flash 表示して同じ 3 択を維持する (F16)。
               core.domain.entity.Player before =
                   game.requireRunSession().context().state().player();
-              game.resolveLayerEndChoice(choice);
               boolean jp = game.fonts().isJapaneseAvailable();
-              if (choice instanceof LayerEndNode.Shop shop
-                  && before.gold().amount() < shop.goldCost()) {
-                showFlash(
-                    (jp
-                            ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
-                            : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
-                        .formatted(shop.goldCost()));
-              } else if (choice instanceof LayerEndNode.ShopEquipment se
-                  && before.gold().amount() < se.goldCost()) {
-                // Wave 3 Task B: 装備購入ノードでも同じ silent fail フラッシュを流用。
-                showFlash(
-                    (jp
-                            ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
-                            : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
-                        .formatted(se.goldCost()));
+              if (!choice.canAfford(before)) {
+                if (choice instanceof LayerEndNode.Shop shop) {
+                  showFlash(
+                      (jp
+                              ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
+                              : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
+                          .formatted(shop.goldCost()));
+                } else if (choice instanceof LayerEndNode.ShopEquipment se) {
+                  showFlash(
+                      (jp
+                              ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
+                              : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
+                          .formatted(se.goldCost()));
+                } else if (choice instanceof LayerEndNode.Event ev) {
+                  if (ev.soulDelta() < 0 && before.soul().amount() < -ev.soulDelta()) {
+                    showFlash(
+                        (jp
+                                ? Strings.Ja.EVENT_INSUFFICIENT_SOUL_FORMAT
+                                : Strings.En.EVENT_INSUFFICIENT_SOUL_FORMAT)
+                            .formatted(-ev.soulDelta()));
+                  } else if (ev.goldDelta() < 0 && before.gold().amount() < -ev.goldDelta()) {
+                    showFlash(
+                        (jp
+                                ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
+                                : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
+                            .formatted(-ev.goldDelta()));
+                  }
+                }
+                return;
               }
+              game.resolveLayerEndChoice(choice);
               nodeChoice.dispose();
               nodeChoice = null;
             });

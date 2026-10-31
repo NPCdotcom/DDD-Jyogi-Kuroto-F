@@ -227,6 +227,7 @@ public final class Strings {
 
     // §UI 改善 (Wave 1 Task 4): ソウルツリー以外の通知/フラッシュメッセージ i18n
     public static final String SHOP_INSUFFICIENT_GOLD_FORMAT = "金貨が足りません (必要 %d)";
+    public static final String EVENT_INSUFFICIENT_SOUL_FORMAT = "ソウルが足りません (必要 %d)";
     public static final String LAYER_SAVE_FAILED_FLASH = "保存に失敗しました（進行は続行できます）";
     public static final String CARD_REWARD_GAINED_FORMAT = "カード獲得: %s";
     public static final String ELITE_CARD_REWARD_TITLE = "強化個体撃破: カード追加";
@@ -465,6 +466,7 @@ public final class Strings {
 
     // §UI improvement (Wave 1 Task 4): Non-SoulTree notification / flash i18n
     public static final String SHOP_INSUFFICIENT_GOLD_FORMAT = "Not enough gold (need %d)";
+    public static final String EVENT_INSUFFICIENT_SOUL_FORMAT = "Not enough soul (need %d)";
     public static final String LAYER_SAVE_FAILED_FLASH = "Save failed (you can continue playing)";
     public static final String CARD_REWARD_GAINED_FORMAT = "Card gained: %s";
     public static final String ELITE_CARD_REWARD_TITLE = "Elite defeated: Card reward";
