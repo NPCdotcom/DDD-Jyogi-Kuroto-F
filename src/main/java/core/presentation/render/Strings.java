@@ -45,6 +45,12 @@ public final class Strings {
     public static final String RUN_CLEARED_HEADER = "ダンジョン制覇";
     public static final String SOULS_KEPT = "持ち帰ったソウル: ";
     public static final String NEW_RUN_HINT = "ENTER でソウルツリーへ";
+    public static final String GAMEOVER_SAVE_FAILED_MESSAGE = "保存に失敗しました。まだ記録されていません";
+    public static final String GAMEOVER_SAVE_FAILED_DETAIL = "空き容量や書き込み権限を確認してください";
+    public static final String GAMEOVER_SAVE_FAILED_HINT = "ENTER: 再試行   ESC: 保存せずに終了";
+    public static final String GAMEOVER_INVALID_STATE_MESSAGE =
+        "データの整合性エラーのため精算を中止しました。保存データは変更していません";
+    public static final String GAMEOVER_INVALID_STATE_HINT = "ESC: 終了";
 
     // CLEARED 状態 (階段踏破直後) の操作ヒント (§15-6 / §15-8 / E-6)。
     // ポップアップが前面に出るが、HUD ヒント領域にも同等情報を残して二重視認性を確保。
@@ -269,6 +275,14 @@ public final class Strings {
     public static final String RUN_CLEARED_HEADER = "DUNGEON CLEARED";
     public static final String SOULS_KEPT = "Souls carried out: ";
     public static final String NEW_RUN_HINT = "Press ENTER to open the Soul Tree";
+    public static final String GAMEOVER_SAVE_FAILED_MESSAGE =
+        "Save failed. Progress has not been recorded yet.";
+    public static final String GAMEOVER_SAVE_FAILED_DETAIL =
+        "Please check free disk space and write permissions.";
+    public static final String GAMEOVER_SAVE_FAILED_HINT = "ENTER: Retry   ESC: Exit without saving";
+    public static final String GAMEOVER_INVALID_STATE_MESSAGE =
+        "Settlement aborted due to a data integrity error. Saved data was not modified.";
+    public static final String GAMEOVER_INVALID_STATE_HINT = "ESC: Exit";
 
     // Hint shown after stepping on stairs (§15-6 / §15-8 / E-6).
     // Popup overlays the screen; HUD hint area also shows the same info for redundancy.
