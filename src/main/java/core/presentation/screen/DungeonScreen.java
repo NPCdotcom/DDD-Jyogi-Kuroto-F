@@ -377,6 +377,10 @@ public final class DungeonScreen extends ScreenAdapter {
                 if (hasAffordableChoice) {
                   return;
                 }
+                showFlash(
+                    jp
+                        ? Strings.Ja.LAYER_END_NO_AFFORDABLE_FLASH
+                        : Strings.En.LAYER_END_NO_AFFORDABLE_FLASH);
               }
               game.resolveLayerEndChoice(choice);
               nodeChoice.dispose();
