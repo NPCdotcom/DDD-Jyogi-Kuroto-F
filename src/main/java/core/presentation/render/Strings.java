@@ -142,7 +142,7 @@ public final class Strings {
     // §15-8 W8-α: LayerEndNode のラベル (旧 domain 層 displayName を presentation に分離)
     public static final String LAYER_END_HP_MAX_UP_FORMAT = "HP +%d";
     public static final String LAYER_END_SPEED_UP_FORMAT = "速度 +%d";
-    public static final String LAYER_END_REST = "HP 全回復";
+    public static final String LAYER_END_REST = "HP を最大値の 1/3 回復";
     public static final String LAYER_END_SHOP_FORMAT = "ショップ: %s (金貨 %d)";
     public static final String LAYER_END_SHOP_EQUIPMENT_FORMAT = "装備購入: %s (金貨 %d)";
     public static final String EVENT_HEALING_SPRING = "治療の泉 (HP +20 / ソウル -10)";
@@ -378,7 +378,7 @@ public final class Strings {
     // §15-8 W8-α: LayerEndNode labels (split from domain layer displayName)
     public static final String LAYER_END_HP_MAX_UP_FORMAT = "HP +%d";
     public static final String LAYER_END_SPEED_UP_FORMAT = "Speed +%d";
-    public static final String LAYER_END_REST = "Full HP heal";
+    public static final String LAYER_END_REST = "Heal 1/3 of max HP";
     public static final String LAYER_END_SHOP_FORMAT = "Shop: %s (Gold %d)";
     public static final String LAYER_END_SHOP_EQUIPMENT_FORMAT = "Equip: %s (Gold %d)";
     public static final String EVENT_HEALING_SPRING = "Healing Spring (HP +20 / Soul -10)";
