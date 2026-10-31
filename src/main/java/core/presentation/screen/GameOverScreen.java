@@ -107,9 +107,7 @@ public final class GameOverScreen extends ScreenAdapter {
       case SAVE_FAILED -> {
         large.draw(
             batch,
-            jp
-                ? Strings.Ja.GAMEOVER_SAVE_FAILED_MESSAGE
-                : Strings.En.GAMEOVER_SAVE_FAILED_MESSAGE,
+            jp ? Strings.Ja.GAMEOVER_SAVE_FAILED_MESSAGE : Strings.En.GAMEOVER_SAVE_FAILED_MESSAGE,
             RenderLayout.GAMEOVER_SOUL_X,
             RenderLayout.GAMEOVER_SOUL_Y);
         large.draw(

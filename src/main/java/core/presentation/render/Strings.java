@@ -60,7 +60,7 @@ public final class Strings {
     public static final String LAYER_END_TITLE = "層末ノード — 1 つ選んでください";
 
     // 手札表示ラベル
-    public static final String HAND_HINT = "数字キー: カード選択  方向キー: 使用方向  ESC: キャンセル";
+    public static final String HAND_HINT = "数字キー/クリック: 選択  WASD/矢印/マップクリック: 方向  ESC: キャンセル";
     public static final String CARD_ELEMENT_PHYSICAL = "物";
     public static final String CARD_ELEMENT_MAGICAL = "魔";
 
@@ -97,7 +97,7 @@ public final class Strings {
     public static final String STATUS_MAGICAL_ATTACK = "魔攻";
     public static final String STATUS_PHYSICAL_DEFENSE = "物防";
     public static final String STATUS_MAGICAL_DEFENSE = "魔防";
-    public static final String STATUS_HINT = "[Tab] 閉じる";
+    public static final String STATUS_HINT = "[Tab / ESC] 閉じる";
     public static final String STATUS_EQUIPMENT_HEADER = "── 装備 ──";
     public static final String STATUS_EQUIP_NONE = "(なし)";
     public static final String EQUIP_SLOT_FEET = "足";
@@ -168,7 +168,7 @@ public final class Strings {
     // SAVE-03B: 進行中ランがある状態で新規開始しようとしたときの確認。
     public static final String ABANDON_RUN_TITLE = "進行中の冒険があります";
     public static final String ABANDON_RUN_BODY =
-        "新しく始めると進行中の冒険を放棄します。放棄した冒険は死亡と同じ扱いになります。" + "続きから再開する場合は [L] を押してください。";
+        "新しく始めると進行中の冒険を放棄します。放棄した冒険は死亡と同じ扱いになります。" + "続きから再開する場合は [N] / [ESC] で戻ってから [L] を押してください。";
     public static final String ABANDON_RUN_HINT = "[Y] 放棄して新規開始   [N] / [ESC] やめる";
 
     // §15-10 / E-10 チュートリアル
@@ -179,7 +179,7 @@ public final class Strings {
 
         【カード使用】
           1. 数字キー (1-9) or 手札クリック でカード選択
-          2. 矢印キー / マップクリック で発射方向を指定 → カード使用
+          2. WASD / 矢印キー / マップクリック で発射方向を指定 → カード使用
           ESC で選択キャンセル、同じ数字キーで選択解除
 
         【移動カード】 ダッシュ等は AP 消費で「移動権」を貯め、
@@ -281,7 +281,8 @@ public final class Strings {
         "Save failed. Progress has not been recorded yet.";
     public static final String GAMEOVER_SAVE_FAILED_DETAIL =
         "Please check free disk space and write permissions.";
-    public static final String GAMEOVER_SAVE_FAILED_HINT = "ENTER: Retry   ESC: Exit without saving";
+    public static final String GAMEOVER_SAVE_FAILED_HINT =
+        "ENTER: Retry   ESC: Exit without saving";
     public static final String GAMEOVER_INVALID_STATE_MESSAGE =
         "Settlement aborted due to a data integrity error. Saved data was not modified.";
     public static final String GAMEOVER_INVALID_STATE_HINT = "ESC: Exit";
@@ -294,7 +295,8 @@ public final class Strings {
     public static final String LAYER_END_TITLE = "Layer-end node — choose one";
 
     // 手札表示ラベル
-    public static final String HAND_HINT = "Number: select card  Arrow: direction  ESC: cancel";
+    public static final String HAND_HINT =
+        "Number/Click: select  WASD/Arrow/Click: direction  ESC: cancel";
     public static final String CARD_ELEMENT_PHYSICAL = "Physical";
     public static final String CARD_ELEMENT_MAGICAL = "Magical";
 
@@ -331,7 +333,7 @@ public final class Strings {
     public static final String STATUS_MAGICAL_ATTACK = "Mag Atk";
     public static final String STATUS_PHYSICAL_DEFENSE = "Phys Def";
     public static final String STATUS_MAGICAL_DEFENSE = "Mag Def";
-    public static final String STATUS_HINT = "[Tab] Close";
+    public static final String STATUS_HINT = "[Tab / ESC] Close";
     public static final String STATUS_EQUIPMENT_HEADER = "-- Equipment --";
     public static final String STATUS_EQUIP_NONE = "(none)";
     public static final String EQUIP_SLOT_FEET = "Feet";
@@ -405,7 +407,7 @@ public final class Strings {
     public static final String ABANDON_RUN_TITLE = "A run is still in progress";
     public static final String ABANDON_RUN_BODY =
         "Starting fresh abandons the run in progress. An abandoned run is settled as a death. "
-            + "Press [L] instead to resume it.";
+            + "Press [N] / [ESC] to go back, then press [L] to resume it.";
     public static final String ABANDON_RUN_HINT = "[Y] Abandon and start   [N] / [ESC] Cancel";
 
     // §15-10 / E-10 Tutorial
@@ -416,7 +418,7 @@ public final class Strings {
 
         [Use a Card]
           1. Press 1-9 or click a card to select
-          2. Press an arrow key or click map to fire
+          2. Press WASD / arrow key or click map to fire
           ESC to cancel, same number key to deselect
 
         [Movement Cards] Dash etc. spend AP to grant move tokens,
