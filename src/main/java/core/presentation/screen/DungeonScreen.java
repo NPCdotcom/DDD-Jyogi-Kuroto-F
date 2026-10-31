@@ -200,11 +200,15 @@ public final class DungeonScreen extends ScreenAdapter {
   public void render(float delta) {
     handleStatusPanelToggle(); // §15-4: Tab でステータスポップアップ開閉
     if (!statusPanelOpen) {
-      // ステータスポップアップ表示中はゲーム進行を凍結する (モーダル)。
-      updateState(delta);
+      // ステータスポップアップ・Elite 報酬ポップアップ表示中はゲーム進行を凍結する (モーダル)。
+      if (!eliteReward.isActive()) {
+        updateState(delta);
+      }
       processNewEvents(); // §15-5 / E-8: 新規 DamageDealt → popup + shake / EliteDefeated → カード追加 UI
       effects.advanceEffects(delta); // popup の age 加算 + 期限切れ除去 + shake デクリメント + flash デクリメント
-      eliteReward.handleInput(); // §15-3 / §15-6: Elite 撃破 popup の入力処理
+      if (eliteReward.handleInput()) { // §15-3 / §15-6: Elite 撃破 popup の入力処理
+        playerInputs.reset();
+      }
     }
     drawFrame();
     // Popup は HUD の上に重ねて描画する (CLEARED 中の前面 UI)。drawFrame() で batch.end() 済みのため、
@@ -533,6 +537,7 @@ public final class DungeonScreen extends ScreenAdapter {
         // §15-3 / §15-6: 強化個体撃破時にカード追加 UI を発火 (二重生成は EliteRewardOrchestrator 内で防止)
         // Wave 10 W10-β-2: 達成感演出のため LEVEL_UP 素材を Elite 撃破に流用 (新規 SeKind 追加せず KISS)
         game.soundManager().playSe(SeKind.LEVEL_UP);
+        playerInputs.reset();
         eliteReward.triggerOnEliteDefeat();
       } else if (e instanceof BattleEvent.TurnPhaseChanged tpc
           && tpc.newPhase() == TurnPhase.PLAYER_TURN) {
