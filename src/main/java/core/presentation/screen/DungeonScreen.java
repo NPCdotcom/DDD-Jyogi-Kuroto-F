@@ -384,7 +384,7 @@ public final class DungeonScreen extends ScreenAdapter {
   }
 
   /** フラッシュメッセージを表示する (effects への委譲)。 */
-  private void showFlash(String message) {
+  void showFlash(String message) {
     effects.showFlash(message);
   }
 
