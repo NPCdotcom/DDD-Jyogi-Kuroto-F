@@ -200,11 +200,15 @@ public final class DungeonScreen extends ScreenAdapter {
   public void render(float delta) {
     handleStatusPanelToggle(); // §15-4: Tab でステータスポップアップ開閉
     if (!statusPanelOpen) {
-      // ステータスポップアップ表示中はゲーム進行を凍結する (モーダル)。
-      updateState(delta);
+      // ステータスポップアップ・Elite 報酬ポップアップ表示中はゲーム進行を凍結する (モーダル)。
+      if (!eliteReward.isActive()) {
+        updateState(delta);
+      }
       processNewEvents(); // §15-5 / E-8: 新規 DamageDealt → popup + shake / EliteDefeated → カード追加 UI
       effects.advanceEffects(delta); // popup の age 加算 + 期限切れ除去 + shake デクリメント + flash デクリメント
-      eliteReward.handleInput(); // §15-3 / §15-6: Elite 撃破 popup の入力処理
+      if (eliteReward.handleInput()) { // §15-3 / §15-6: Elite 撃破 popup の入力処理
+        playerInputs.reset();
+      }
     }
     drawFrame();
     // Popup は HUD の上に重ねて描画する (CLEARED 中の前面 UI)。drawFrame() で batch.end() 済みのため、
@@ -331,30 +335,54 @@ public final class DungeonScreen extends ScreenAdapter {
         .consume()
         .ifPresent(
             choice -> {
-              // §15-9 / Shop silent fail 通知: 適用前後の Player を比較し、変化が無ければ
-              // Gold 不足等で apply が no-op だったと判断、HUD フラッシュで通知する。
-              // 注: resolveLayerEndChoice は層遷移を行い state.player() を AP リフィル / ドローで
-              // 書き換えるため、before は resolveLayerEndChoice の前にキャプチャしておく。
+              // 確定前に支払い可否を判定し、不可なら理由を flash 表示して同じ 3 択を維持する (F16)。
               core.domain.entity.Player before =
                   game.requireRunSession().context().state().player();
-              game.resolveLayerEndChoice(choice);
               boolean jp = game.fonts().isJapaneseAvailable();
-              if (choice instanceof LayerEndNode.Shop shop
-                  && before.gold().amount() < shop.goldCost()) {
+              if (!choice.canAfford(before)) {
+                if (choice instanceof LayerEndNode.Shop shop) {
+                  showFlash(
+                      (jp
+                              ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
+                              : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
+                          .formatted(shop.goldCost()));
+                } else if (choice instanceof LayerEndNode.ShopEquipment se) {
+                  showFlash(
+                      (jp
+                              ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
+                              : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
+                          .formatted(se.goldCost()));
+                } else if (choice instanceof LayerEndNode.Event ev) {
+                  if (ev.soulDelta() < 0 && before.soul().amount() < -ev.soulDelta()) {
+                    showFlash(
+                        (jp
+                                ? Strings.Ja.EVENT_INSUFFICIENT_SOUL_FORMAT
+                                : Strings.En.EVENT_INSUFFICIENT_SOUL_FORMAT)
+                            .formatted(-ev.soulDelta()));
+                  } else if (ev.goldDelta() < 0 && before.gold().amount() < -ev.goldDelta()) {
+                    showFlash(
+                        (jp
+                                ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
+                                : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
+                            .formatted(-ev.goldDelta()));
+                  }
+                }
+                boolean hasAffordableChoice = false;
+                for (LayerEndNode candidate : nodeChoice.choices()) {
+                  if (candidate.canAfford(before)) {
+                    hasAffordableChoice = true;
+                    break;
+                  }
+                }
+                if (hasAffordableChoice) {
+                  return;
+                }
                 showFlash(
-                    (jp
-                            ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
-                            : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
-                        .formatted(shop.goldCost()));
-              } else if (choice instanceof LayerEndNode.ShopEquipment se
-                  && before.gold().amount() < se.goldCost()) {
-                // Wave 3 Task B: 装備購入ノードでも同じ silent fail フラッシュを流用。
-                showFlash(
-                    (jp
-                            ? Strings.Ja.SHOP_INSUFFICIENT_GOLD_FORMAT
-                            : Strings.En.SHOP_INSUFFICIENT_GOLD_FORMAT)
-                        .formatted(se.goldCost()));
+                    jp
+                        ? Strings.Ja.LAYER_END_NO_AFFORDABLE_FLASH
+                        : Strings.En.LAYER_END_NO_AFFORDABLE_FLASH);
               }
+              game.resolveLayerEndChoice(choice);
               nodeChoice.dispose();
               nodeChoice = null;
             });
@@ -380,7 +408,7 @@ public final class DungeonScreen extends ScreenAdapter {
   }
 
   /** フラッシュメッセージを表示する (effects への委譲)。 */
-  private void showFlash(String message) {
+  void showFlash(String message) {
     effects.showFlash(message);
   }
 
@@ -533,6 +561,7 @@ public final class DungeonScreen extends ScreenAdapter {
         // §15-3 / §15-6: 強化個体撃破時にカード追加 UI を発火 (二重生成は EliteRewardOrchestrator 内で防止)
         // Wave 10 W10-β-2: 達成感演出のため LEVEL_UP 素材を Elite 撃破に流用 (新規 SeKind 追加せず KISS)
         game.soundManager().playSe(SeKind.LEVEL_UP);
+        playerInputs.reset();
         eliteReward.triggerOnEliteDefeat();
       } else if (e instanceof BattleEvent.TurnPhaseChanged tpc
           && tpc.newPhase() == TurnPhase.PLAYER_TURN) {

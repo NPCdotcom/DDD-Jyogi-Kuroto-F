@@ -36,6 +36,7 @@ import core.infrastructure.save.SaveDataConverter;
 import core.infrastructure.save.Settings;
 import core.presentation.render.Fonts;
 import core.presentation.render.GameResources;
+import core.presentation.render.Strings;
 import core.presentation.render.UiTheme;
 import core.presentation.render.UiThemeResolver;
 import java.util.HashMap;
@@ -654,6 +655,14 @@ public final class DddGame extends Game {
     ProfileData profile = ProfileDataMapper.forLayerBoundary(progress, previous);
     if (!lifecycle.saveAtLayerBoundary(profile, checkpoint).isSuccess()) {
       LOG.severe("層境界セーブに失敗しました。次の層境界で再試行します。");
+      if (getScreen() instanceof DungeonScreen dungeonScreen) {
+        boolean jp =
+            resources == null
+                || resources.fonts() == null
+                || resources.fonts().isJapaneseAvailable();
+        dungeonScreen.showFlash(
+            jp ? Strings.Ja.LAYER_SAVE_FAILED_FLASH : Strings.En.LAYER_SAVE_FAILED_FLASH);
+      }
     }
   }
 
