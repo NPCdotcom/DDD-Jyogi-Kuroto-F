@@ -367,7 +367,16 @@ public final class DungeonScreen extends ScreenAdapter {
                             .formatted(-ev.goldDelta()));
                   }
                 }
-                return;
+                boolean hasAffordableChoice = false;
+                for (LayerEndNode candidate : nodeChoice.choices()) {
+                  if (candidate.canAfford(before)) {
+                    hasAffordableChoice = true;
+                    break;
+                  }
+                }
+                if (hasAffordableChoice) {
+                  return;
+                }
               }
               game.resolveLayerEndChoice(choice);
               nodeChoice.dispose();

@@ -494,9 +494,6 @@ public final class DddGame extends Game {
     RunSession session = requireRunSession();
     DungeonState current = session.context().state();
     Player before = current.player();
-    if (!choice.canAfford(before)) {
-      return;
-    }
     // Wave 3 Task A: Shop は CardId 保持なので cards / equipments resolver を context 経由で渡す
     Player upgraded = choice.apply(before, nodeResolveContext());
     // Wave 3 Task B + Wave 16 W16-γ / #9: ShopEquipment は apply 内で Gold 消費のみ。Gold が減っていれば
